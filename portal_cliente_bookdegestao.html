@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal do Cliente — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1A7A4A; --green2: #22A060; --green-l: #E6F5EE; --green-d: #0F5233;
+  --dark: #0D1117; --dark2: #161B22; --dark3: #21262D;
+  --border: #30363D; --border2: #444C56;
+  --text: #E6EDF3; --text2: #8B949E; --text3: #6E7681;
+  --white: #FFFFFF; --card: #161B22;
+  --gold: #D4A843; --gold-l: #3D2E0A;
+  --blue: #2188FF; --blue-l: #1C2A3D;
+  --red: #F85149; --red-l: #3D1A1A;
+  --amber: #E3B341; --amber-l: #2D2108;
+  --radius: 12px; --radius-sm: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; }
+
+/* ── LOGIN ─────────────────────────────────── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--dark);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(26,122,74,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(212,168,67,0.06) 0%, transparent 50%);
+}
+.login-card {
+  width: 420px; max-width: 95vw;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 40px 36px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo-icon {
+  width: 56px; height: 56px; background: var(--green);
+  border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; margin: 0 auto 14px; box-shadow: 0 4px 20px rgba(26,122,74,0.3);
+}
+.login-logo h1 { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--text); }
+.login-logo p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px; display: block; letter-spacing: 0.03em; }
+.form-input {
+  width: 100%; padding: 11px 14px;
+  background: var(--dark3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+  outline: none; transition: border 0.15s;
+}
+.form-input:focus { border-color: var(--green); }
+.form-input::placeholder { color: var(--text3); }
+.btn-login {
+  width: 100%; padding: 12px; background: var(--green);
+  border: none; border-radius: var(--radius-sm); color: white;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; margin-top: 8px;
+}
+.btn-login:hover { background: var(--green2); }
+.login-error { background: var(--red-l); border: 1px solid var(--red); border-radius: 8px; padding: 10px 13px; font-size: 13px; color: var(--red); margin-top: 12px; display: none; }
+.login-hint { text-align: center; font-size: 12px; color: var(--text3); margin-top: 18px; }
+.login-hint span { color: var(--green); }
+
+/* ── PORTAL ────────────────────────────────── */
+#portal { display: none; min-height: 100vh; }
+
+.portal-header {
+  background: var(--dark2); border-bottom: 1px solid var(--border);
+  padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.portal-brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon { width: 34px; height: 34px; background: var(--green); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+.brand-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--text); }
+.brand-sub { font-size: 11px; color: var(--text2); }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-user { font-size: 13px; color: var(--text2); }
+.header-user span { color: var(--text); font-weight: 500; }
+.btn-logout { background: var(--dark3); border: 1px solid var(--border); color: var(--text2); padding: 6px 14px; border-radius: 7px; font-size: 12.5px; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+.btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+/* TABS */
+.portal-tabs { background: var(--dark2); border-bottom: 1px solid var(--border); padding: 0 28px; display: flex; gap: 0; }
+.tab { padding: 13px 18px; font-size: 13.5px; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--green); border-bottom-color: var(--green); font-weight: 500; }
+.tab-badge { background: var(--red); color: white; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+
+.portal-content { padding: 28px; max-width: 1100px; margin: 0 auto; }
+.tab-view { display: none; animation: fadeIn 0.2s ease; }
+.tab-view.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── COMPONENTES ───────────────────────────── */
+.page-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; color: var(--text); margin-bottom: 6px; }
+.page-sub { font-size: 13.5px; color: var(--text2); margin-bottom: 24px; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.card-hd { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text2); }
+
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.bg-green  { background: rgba(26,122,74,0.2);  color: #4ADE80; }
+.bg-amber  { background: rgba(227,179,65,0.2);  color: var(--amber); }
+.bg-blue   { background: rgba(33,136,255,0.15); color: #60A5FA; }
+.bg-gray   { background: var(--dark3); color: var(--text2); }
+.bg-red    { background: rgba(248,81,73,0.15);  color: var(--red); }
+.bg-gold   { background: rgba(212,168,67,0.15); color: var(--gold); }
+.bg-purple { background: rgba(130,80,255,0.15); color: #A78BFA; }
+
+/* ── OVERVIEW ──────────────────────────────── */
+.welcome-banner {
+  background: linear-gradient(135deg, var(--green-d), var(--dark3));
+  border: 1px solid var(--green);
+  border-radius: var(--radius); padding: 22px 26px; margin-bottom: 22px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.welcome-text h2 { font-family: 'Cormorant Garamond', serif; font-size: 24px; color: var(--text); margin-bottom: 4px; }
+.welcome-text p { font-size: 13px; color: rgba(230,237,243,0.65); }
+.welcome-meta { text-align: right; }
+.welcome-meta .label { font-size: 11px; color: var(--text3); }
+.welcome-meta .val { font-size: 18px; font-weight: 600; color: var(--green2); }
+
+.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 22px; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px; }
+.stat-val { font-size: 30px; font-family: 'Cormorant Garamond', serif; line-height: 1; }
+.stat-sub { font-size: 11.5px; color: var(--text2); margin-top: 5px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+
+/* ── CRONOGRAMA ────────────────────────────── */
+.fase-list { display: flex; flex-direction: column; gap: 12px; }
+.fase-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.fase-hd { padding: 14px 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.fase-num { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0; }
+.fase-info { flex: 1; }
+.fase-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.fase-periodo { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.fase-prog { display: flex; align-items: center; gap: 10px; }
+.prog-bar { width: 80px; height: 4px; background: var(--dark3); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; }
+.prog-pct { font-size: 12px; color: var(--text2); }
+.fase-body { padding: 0 18px 16px; display: none; }
+.fase-body.open { display: block; }
+.semana-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.semana-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; background: var(--dark3); border-radius: 8px; }
+.semana-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.semana-info { flex: 1; }
+.semana-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.semana-data { font-size: 11.5px; color: var(--text2); }
+.semana-itens { font-size: 12px; color: var(--text2); margin-top: 5px; line-height: 1.6; }
+
+/* ── CHECKLIST ─────────────────────────────── */
+.checklist-section { margin-bottom: 20px; }
+.section-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-name { font-size: 14px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.section-progress { font-size: 12px; color: var(--text2); }
+.check-items { display: flex; flex-direction: column; gap: 6px; }
+.check-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 9px; transition: all 0.15s; cursor: pointer; }
+.check-item:hover { border-color: var(--border2); }
+.check-item.done { background: rgba(26,122,74,0.05); border-color: rgba(26,122,74,0.3); }
+.check-box { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; transition: all 0.15s; }
+.check-item.done .check-box { background: var(--green); border-color: var(--green); }
+.check-icon { display: none; }
+.check-item.done .check-icon { display: block; }
+.check-text { flex: 1; }
+.check-title { font-size: 13.5px; color: var(--text); }
+.check-item.done .check-title { text-decoration: line-through; color: var(--text2); }
+.check-desc { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+.check-tag { margin-left: auto; flex-shrink: 0; }
+.check-urgente { font-size: 10px; color: var(--red); font-weight: 600; background: var(--red-l); padding: 2px 7px; border-radius: 5px; }
+
+/* ── DOCS ──────────────────────────────────── */
+.docs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.doc-category { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.doc-cat-hd { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.doc-cat-icon { font-size: 17px; }
+.doc-cat-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.doc-cat-count { font-size: 12px; color: var(--text2); }
+.doc-list { padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+.doc-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; transition: background 0.1s; cursor: pointer; }
+.doc-item:hover { background: var(--dark3); }
+.doc-type { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.doc-info { flex: 1; min-width: 0; }
+.doc-name { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-meta { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.doc-status { flex-shrink: 0; }
+
+.upload-area { border: 2px dashed var(--border2); border-radius: var(--radius); padding: 28px; text-align: center; cursor: pointer; transition: all 0.15s; margin-top: 16px; }
+.upload-area:hover { border-color: var(--green); background: rgba(26,122,74,0.04); }
+.upload-icon { font-size: 32px; margin-bottom: 10px; }
+.upload-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+.upload-desc { font-size: 12.5px; color: var(--text2); }
+.upload-btn { display: inline-block; margin-top: 12px; background: var(--green); color: white; padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; font-family: 'DM Sans', sans-serif; }
+.upload-btn:hover { background: var(--green2); }
+
+/* ── MENSAGENS ─────────────────────────────── */
+.msg-list { display: flex; flex-direction: column; gap: 10px; }
+.msg-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.msg-hd { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.msg-sender { font-size: 13.5px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.msg-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.msg-time { font-size: 11.5px; color: var(--text3); }
+.msg-body { font-size: 13.5px; color: var(--text2); line-height: 1.6; }
+.msg-new { border-color: rgba(26,122,74,0.4); background: rgba(26,122,74,0.04); }
+
+.reply-box { margin-top: 20px; }
+.reply-input { width: 100%; padding: 12px 14px; background: var(--dark3); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; resize: vertical; min-height: 80px; transition: border 0.15s; }
+.reply-input:focus { border-color: var(--green); }
+.reply-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 9px; }
+
+/* GERAL */
+.btn { padding: 8px 18px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--green); color: white; }
+.btn-primary:hover { background: var(--green2); }
+.btn-ghost { background: var(--dark3); border: 1px solid var(--border); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+
+.toast { position: fixed; bottom: 22px; right: 22px; background: var(--dark2); border: 1px solid var(--green); color: var(--text); padding: 12px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: translateY(70px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 300; }
+.toast.show { transform: translateY(0); opacity: 1; }
+
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🚀</div>
+      <h1>Portal do Cliente</h1>
+      <p>Jenneffer Prazeres · Automação & Desenvolvimento</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label">E-mail</label>
+      <input class="form-input" id="login-email" type="email" placeholder="thalissa@bookdegestao.com.br">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input class="form-input" id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Entrar no portal</button>
+    <div class="login-error" id="login-error">E-mail ou senha incorretos. Tente novamente.</div>
+    <div class="login-hint">Demo: <span>thalissa@bookdegestao.com</span> · senha: <span>bookgestao2025</span></div>
+  </div>
+</div>
+
+<!-- ══ PORTAL ══════════════════════════════════ -->
+<div id="portal">
+  <div class="portal-header">
+    <div class="portal-brand">
+      <div class="brand-icon">🚀</div>
+      <div>
+        <div class="brand-name">Portal do Cliente</div>
+        <div class="brand-sub">Jenneffer Prazeres</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-user">Olá, <span id="user-name">Thalissa</span></div>
+      <button class="btn-logout" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="portal-tabs">
+    <div class="tab active" onclick="switchTab('overview')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke-width="2"/></svg>
+      Visão geral
+    </div>
+    <div class="tab" onclick="switchTab('cronograma')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke-width="2"/></svg>
+      Cronograma
+    </div>
+    <div class="tab" onclick="switchTab('checklist')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Checklist
+      <span class="tab-badge" id="checklist-badge">8</span>
+    </div>
+    <div class="tab" onclick="switchTab('documentos')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2"/><polyline points="14 2 14 8 20 8" stroke-width="2"/></svg>
+      Documentos
+    </div>
+    <div class="tab" onclick="switchTab('mensagens')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke-width="2"/></svg>
+      Mensagens
+      <span class="tab-badge">1</span>
+    </div>
+  </div>
+
+  <div class="portal-content">
+
+    <!-- OVERVIEW -->
+    <div class="tab-view active" id="tab-overview">
+      <div class="welcome-banner">
+        <div class="welcome-text">
+          <h2>Bem-vinda, Thalissa! 👋</h2>
+          <p>Projeto: Plataforma Completa Book de Gestão + BI Looker · Início: 01/06/2025</p>
+        </div>
+        <div class="welcome-meta">
+          <div class="label">Progresso geral</div>
+          <div class="val">0%</div>
+          <div style="font-size:11px;color:rgba(230,237,243,0.4);margin-top:2px">Início em 01/06</div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="stat-label">Fase atual</div>
+          <div class="stat-val" style="color:var(--green);font-size:22px;margin-top:4px">Pré-início</div>
+          <div class="stat-sub">Preparação documentos</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Itens pendentes</div>
+          <div class="stat-val" style="color:var(--amber)">8</div>
+          <div class="stat-sub">No checklist</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Documentos enviados</div>
+          <div class="stat-val">2</div>
+          <div class="stat-sub">de 12 necessários</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Próximo marco</div>
+          <div class="stat-val" style="font-size:20px;margin-top:4px;color:var(--blue)">01/06</div>
+          <div class="stat-sub">Início do desenvolvimento</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title">Linha do tempo do projeto</div>
+            </div>
+            <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--amber);flex-shrink:0;margin-top:4px"></div>
+                <div><div style="font-size:13.5px;font-weight:500;color:var(--text)">Pré-início — Agora</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Envio de documentos, acessos e definições. Meta: tudo pronto até 30/05.</div></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--border2);flex-shrink:0;margin-top:4px"></div>
+                <div><div style="font-size:13.5px;font-weight:500;color:var(--text2)">Fase 1 — Jun/25</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Fundação + onboarding automático. Entrega: 20/06.</div></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--border2);flex-shrink:0;margin-top:4px"></div>
+                <div><div style="font-size:13.5px;font-weight:500;color:var(--text2)">Fase 2 — Jun–Jul/25</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Dashboard + gestão de mentoria + automações semanais. Entrega: 11/07.</div></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--border2);flex-shrink:0;margin-top:4px"></div>
+                <div><div style="font-size:13.5px;font-weight:500;color:var(--text2)">Fase 3–4 — Jul–Ago/25</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Portal do mentorado + Área de membros + Chat + IA. Entrega: 22/08.</div></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--border2);flex-shrink:0;margin-top:4px"></div>
+                <div><div style="font-size:13.5px;font-weight:500;color:var(--text2)">BI + Looker — Ago–Set/25</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Integração API Avec + indicadores + dashboard por cliente. Entrega: 19/09.</div></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="width:10px;height:10px;border-radius:50%;background:var(--border2);flex-shrink:0;margin-top:4px"></div>
+                <div><div style="font-size:13.5px;font-weight:500;color:var(--text2)">Entrega final — Out/25</div><div style="font-size:12px;color:var(--text2);margin-top:2px">QA completo + treinamento + go-live. Data: 10/10.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Urgente — fazer antes de 30/05</div></div>
+            <div style="padding:12px 16px;display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--dark3);border-radius:7px">
+                <span style="font-size:14px">🔑</span>
+                <div style="flex:1;font-size:12.5px;color:var(--text)">Solicitar acesso API Avec</div>
+                <span class="check-urgente">Urgente</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--dark3);border-radius:7px">
+                <span style="font-size:14px">🎨</span>
+                <div style="flex:1;font-size:12.5px;color:var(--text)">Enviar logo + manual da marca</div>
+                <span class="check-urgente">Urgente</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--dark3);border-radius:7px">
+                <span style="font-size:14px">📋</span>
+                <div style="flex:1;font-size:12.5px;color:var(--text)">Confirmar decisão Potencializ</div>
+                <span class="check-urgente">Urgente</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--dark3);border-radius:7px">
+                <span style="font-size:14px">📄</span>
+                <div style="flex:1;font-size:12.5px;color:var(--text)">Enviar modelo do contrato atual</div>
+                <span style="font-size:10px;color:var(--amber);font-weight:600">Importante</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Mensagem recente</div></div>
+            <div style="padding:14px 16px">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+                <div class="msg-av" style="background:var(--green);color:white;width:28px;height:28px;font-size:11px">JP</div>
+                <div style="font-size:13px;font-weight:500;color:var(--text)">Jenneffer Prazeres</div>
+                <div style="font-size:11px;color:var(--text3);margin-left:auto">hoje</div>
+              </div>
+              <div style="font-size:13px;color:var(--text2);line-height:1.6">Oi Thalissa! Portal configurado. Fique à vontade para enviar os documentos e preencher o checklist. Qualquer dúvida me chama aqui! 🚀</div>
+              <button class="btn btn-sm btn-ghost" style="margin-top:10px" onclick="switchTab('mensagens')">Ver mensagens →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRONOGRAMA -->
+    <div class="tab-view" id="tab-cronograma">
+      <div class="page-title">Cronograma do projeto</div>
+      <div class="page-sub">Acompanhe cada fase e semana de desenvolvimento · Início: 01/06/2025</div>
+
+      <div class="fase-list">
+
+        <div class="fase-card">
+          <div class="fase-hd" onclick="toggleFase(this)">
+            <div class="fase-num" style="background:var(--amber)">0</div>
+            <div class="fase-info">
+              <div class="fase-name">Pré-início — Preparação</div>
+              <div class="fase-periodo">Agora até 30/05/2025</div>
+            </div>
+            <div class="fase-prog">
+              <div class="prog-bar"><div class="prog-fill" style="width:20%;background:var(--amber)"></div></div>
+              <div class="prog-pct">20%</div>
+              <span class="badge bg-amber">Em andamento</span>
+            </div>
+          </div>
+          <div class="fase-body">
+            <div class="semana-list">
+              <div class="semana-item"><div class="semana-dot" style="background:var(--amber)"></div><div class="semana-info"><div class="semana-title">Envio de documentos e acessos</div><div class="semana-data">Até 30/05/2025</div><div class="semana-itens">Logo e manual da marca · Acessos Google Workspace e Potencializ · Modelo de contrato · Grades de tarefas BG e TED · Credenciais API Avec</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:var(--amber)"></div><div class="semana-info"><div class="semana-title">Decisões estratégicas</div><div class="semana-data">Até 30/05/2025</div><div class="semana-itens">Continuar com Potencializ ou substituir? · Começar pela plataforma ou BI primeiro? · Definir cliente piloto Avec para o BI</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fase-card">
+          <div class="fase-hd" onclick="toggleFase(this)">
+            <div class="fase-num" style="background:#0F6348">1</div>
+            <div class="fase-info">
+              <div class="fase-name">Fundação + Onboarding automático</div>
+              <div class="fase-periodo">01/06 – 20/06/2025 · 3 semanas · 60h</div>
+            </div>
+            <div class="fase-prog">
+              <div class="prog-bar"><div class="prog-fill" style="width:0%;background:#22A060"></div></div>
+              <div class="prog-pct">0%</div>
+              <span class="badge bg-gray">Aguardando</span>
+            </div>
+          </div>
+          <div class="fase-body">
+            <div class="semana-list">
+              <div class="semana-item"><div class="semana-dot" style="background:#0F6348"></div><div class="semana-info"><div class="semana-title">Semana 1 · 01–06/06</div><div class="semana-data">Reunião de mapeamento + arquitetura Supabase + configuração Vercel</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#0F6348"></div><div class="semana-info"><div class="semana-title">Semana 2 · 09–13/06</div><div class="semana-data">App base: autenticação, layout, rotas + webhook Potencializ + integração Autentique</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#0F6348"></div><div class="semana-info"><div class="semana-title">Semana 3 · 16–20/06 ✅</div><div class="semana-data">Fluxo completo de onboarding + distrato + testes · ENTREGA: onboarding funcionando</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fase-card">
+          <div class="fase-hd" onclick="toggleFase(this)">
+            <div class="fase-num" style="background:#6B2737">2</div>
+            <div class="fase-info">
+              <div class="fase-name">Dashboard + Gestão de mentoria</div>
+              <div class="fase-periodo">23/06 – 11/07/2025 · 3 semanas · 60h</div>
+            </div>
+            <div class="fase-prog">
+              <div class="prog-bar"><div class="prog-fill" style="width:0%;background:#8B3A4D"></div></div>
+              <div class="prog-pct">0%</div>
+              <span class="badge bg-gray">Aguardando</span>
+            </div>
+          </div>
+          <div class="fase-body">
+            <div class="semana-list">
+              <div class="semana-item"><div class="semana-dot" style="background:#6B2737"></div><div class="semana-info"><div class="semana-title">Semana 4 · 23–27/06</div><div class="semana-data">Dashboard de clientes + controle de arquivos + ficha individual</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#6B2737"></div><div class="semana-info"><div class="semana-title">Semana 5 · 30/06–04/07</div><div class="semana-data">Régua semanal Seg–Sex automática + confirmações D-1 e D+1</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#6B2737"></div><div class="semana-info"><div class="semana-title">Semana 6 · 07–11/07 ✅</div><div class="semana-data">Bot cobrador + alertas · ENTREGA: zero envios manuais semanais</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fase-card">
+          <div class="fase-hd" onclick="toggleFase(this)">
+            <div class="fase-num" style="background:#1A3F6B">3–4</div>
+            <div class="fase-info">
+              <div class="fase-name">Portal mentorado + Área de membros + Chat + IA</div>
+              <div class="fase-periodo">14/07 – 22/08/2025 · 6 semanas · 120h</div>
+            </div>
+            <div class="fase-prog">
+              <div class="prog-bar"><div class="prog-fill" style="width:0%;background:#2188FF"></div></div>
+              <div class="prog-pct">0%</div>
+              <span class="badge bg-gray">Aguardando</span>
+            </div>
+          </div>
+          <div class="fase-body">
+            <div class="semana-list">
+              <div class="semana-item"><div class="semana-dot" style="background:#1A3F6B"></div><div class="semana-info"><div class="semana-title">Semanas 7–9 · Jul</div><div class="semana-data">Login mentorados + tarefas + upload Google Drive + trilhas YouTube + módulos BG/TED</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#1A3F6B"></div><div class="semana-info"><div class="semana-title">Semanas 10–12 · Ago ✅</div><div class="semana-data">Chat interno + IA de atendimento + relatório semanal automático · ENTREGA: sistema completo</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fase-card">
+          <div class="fase-hd" onclick="toggleFase(this)">
+            <div class="fase-num" style="background:#8A5200">BI</div>
+            <div class="fase-info">
+              <div class="fase-name">BI + Looker Studio + API Avec</div>
+              <div class="fase-periodo">Ago–Set/2025 · Paralelo às fases 3–4 · ~80h</div>
+            </div>
+            <div class="fase-prog">
+              <div class="prog-bar"><div class="prog-fill" style="width:0%;background:var(--gold)"></div></div>
+              <div class="prog-pct">0%</div>
+              <span class="badge bg-gray">Aguardando API</span>
+            </div>
+          </div>
+          <div class="fase-body">
+            <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:8px;padding:10px 13px;margin-bottom:12px;font-size:13px;color:var(--amber)">
+              📌 Projeto independente: integra a API do Avec (sistema dos salões) → Google Sheets → Looker Studio. Cada mentorada vê só os dados do próprio salão.
+            </div>
+            <div class="semana-list">
+              <div class="semana-item"><div class="semana-dot" style="background:#8A5200"></div><div class="semana-info"><div class="semana-title">Sem. 1–2 · Ago</div><div class="semana-data">Mapeamento indicadores existentes + configuração conector API Avec → Sheets</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#8A5200"></div><div class="semana-info"><div class="semana-title">Sem. 3–4 · Ago–Set</div><div class="semana-data">Banco de dados centralizado + modelagem indicadores + cliente piloto</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#8A5200"></div><div class="semana-info"><div class="semana-title">Sem. 5 · Set ✅</div><div class="semana-data">Dashboard Looker por cliente + segurança + replicação · ENTREGA: BI operacional</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fase-card">
+          <div class="fase-hd" onclick="toggleFase(this)">
+            <div class="fase-num" style="background:#1A6B3A">6</div>
+            <div class="fase-info">
+              <div class="fase-name">QA + Treinamento + Entrega final</div>
+              <div class="fase-periodo">22/09 – 10/10/2025 · 3 semanas</div>
+            </div>
+            <div class="fase-prog">
+              <div class="prog-bar"><div class="prog-fill" style="width:0%;background:#22A060"></div></div>
+              <div class="prog-pct">0%</div>
+              <span class="badge bg-gray">Aguardando</span>
+            </div>
+          </div>
+          <div class="fase-body">
+            <div class="semana-list">
+              <div class="semana-item"><div class="semana-dot" style="background:#1A6B3A"></div><div class="semana-info"><div class="semana-title">Testes completos + correções</div><div class="semana-data">Todos os módulos testados com dados reais das mentoradas</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#1A6B3A"></div><div class="semana-info"><div class="semana-title">Treinamento + documentação</div><div class="semana-data">Vídeo gravado + guia escrito de operação de cada módulo</div></div></div>
+              <div class="semana-item"><div class="semana-dot" style="background:#1A6B3A"></div><div class="semana-info"><div class="semana-title">10/10 ✅ ENTREGA FINAL</div><div class="semana-data">Go-live · Plataforma completa em produção</div></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div class="tab-view" id="tab-checklist">
+      <div class="page-title">Checklist — o que precisa enviar</div>
+      <div class="page-sub">Marque cada item conforme for providenciando. Meta: tudo pronto até 30/05/2025.</div>
+
+      <div class="checklist-section">
+        <div class="section-hd">
+          <div class="section-name">🎨 Identidade visual e marca</div>
+          <div class="section-progress" id="prog-marca">0 / 4</div>
+        </div>
+        <div class="check-items" id="cat-marca">
+          <div class="check-item" onclick="toggleCheck(this,'marca')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Logo em PNG transparente (fundo claro e escuro)</div><div class="check-desc">Alta resolução · pelo menos 1000px de largura</div></div><div class="check-tag"><span class="check-urgente">Urgente</span></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'marca')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Manual da marca ou guia de cores</div><div class="check-desc">Cores em HEX, fontes usadas, estilo geral. Se não tiver manual, enviar pelo menos as cores principais.</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'marca')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Foto da Thalissa (perfil do sistema)</div><div class="check-desc">Fundo neutro · pelo menos 400x400px</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'marca')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Foto da Danielle (perfil do sistema)</div><div class="check-desc">Fundo neutro · pelo menos 400x400px</div></div></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="checklist-section">
+        <div class="section-hd">
+          <div class="section-name">🔧 Acessos e ferramentas</div>
+          <div class="section-progress" id="prog-acessos">0 / 5</div>
+        </div>
+        <div class="check-items" id="cat-acessos">
+          <div class="check-item" onclick="toggleCheck(this,'acessos')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Acesso admin ao Google Workspace</div><div class="check-desc">Para configurar Apps Script, Drive e e-mail transacional</div></div><div class="check-tag"><span class="check-urgente">Urgente</span></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'acessos')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Credenciais API Avec</div><div class="check-desc">Chave de API ou acesso de desenvolvedor. Solicitar ao suporte Avec o quanto antes — pode levar dias.</div></div><div class="check-tag"><span class="check-urgente">Urgente</span></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'acessos')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Acesso à Potencializ (admin)</div><div class="check-desc">Para testar o webhook na reunião de mapeamento em 01/06</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'acessos')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Conta Autentique ativa</div><div class="check-desc">Login e senha da conta que usam hoje para contratos</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'acessos')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Número do WhatsApp Business</div><div class="check-desc">Número que será usado para os envios automáticos semanais</div></div></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="checklist-section">
+        <div class="section-hd">
+          <div class="section-name">📋 Conteúdo e textos</div>
+          <div class="section-progress" id="prog-conteudo">0 / 5</div>
+        </div>
+        <div class="check-items" id="cat-conteudo">
+          <div class="check-item" onclick="toggleCheck(this,'conteudo')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Modelo do contrato atual (Word ou PDF)</div><div class="check-desc">Será gerado automaticamente pelo sistema com os dados preenchidos</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'conteudo')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Modelo do contrato de distrato</div><div class="check-desc">Para automação do fluxo de encerramento</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'conteudo')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Textos das mensagens que usam hoje</div><div class="check-desc">Boas-vindas, confirmação de reunião, lembretes de aula, hotseat — para automatizar mantendo o tom de vocês</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'conteudo')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Grade de tarefas do BG (8 semanas)</div><div class="check-desc">O que cada semana exige do cliente — tarefa, descrição, prazo padrão</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'conteudo')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Grade de tarefas do TED (16 semanas)</div><div class="check-desc">O que cada semana exige do cliente — tarefa, descrição, prazo padrão</div></div></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="checklist-section">
+        <div class="section-hd">
+          <div class="section-name">💡 Decisões estratégicas</div>
+          <div class="section-progress" id="prog-decisoes">0 / 3</div>
+        </div>
+        <div class="check-items" id="cat-decisoes">
+          <div class="check-item" onclick="toggleCheck(this,'decisoes')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Decisão: continuar com a Potencializ?</div><div class="check-desc">Opção A: Potencializ continua como CRM de pré-venda (mais rápido). Opção B: substituir completamente (mais escopo, +4 semanas).</div></div><div class="check-tag"><span class="check-urgente">Urgente</span></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'decisoes')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Definir cliente piloto para o BI</div><div class="check-desc">Qual salão de beleza (cliente do Book de Gestão) será o primeiro a ter o Looker configurado?</div></div></div>
+          <div class="check-item" onclick="toggleCheck(this,'decisoes')"><div class="check-box"><svg class="check-icon" width="12" height="12" fill="none" stroke="white" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke-width="3" stroke-linecap="round"/></svg></div><div class="check-text"><div class="check-title">Google Drive ou Dropbox para arquivos dos mentorados?</div><div class="check-desc">Os uploads dos clientes vão para qual serviço? Drive (já incluso no Workspace) ou Dropbox?</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOCUMENTOS -->
+    <div class="tab-view" id="tab-documentos">
+      <div class="page-title">Documentos</div>
+      <div class="page-sub">Envie aqui os arquivos necessários para o início do projeto</div>
+
+      <div class="docs-grid">
+        <div class="doc-category">
+          <div class="doc-cat-hd">
+            <div class="doc-cat-icon">🎨</div>
+            <div class="doc-cat-name">Identidade visual</div>
+            <div class="doc-cat-count">1 / 4</div>
+          </div>
+          <div class="doc-list">
+            <div class="doc-item">
+              <div class="doc-type" style="background:rgba(26,122,74,0.15)">🖼️</div>
+              <div class="doc-info"><div class="doc-name">logo_book_gestao.png</div><div class="doc-meta">Enviado hoje · 245 KB</div></div>
+              <div class="doc-status"><span class="badge bg-green">✓</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📄</div>
+              <div class="doc-info"><div class="doc-name">Manual da marca</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-gray">—</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📸</div>
+              <div class="doc-info"><div class="doc-name">Foto Thalissa</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-gray">—</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📸</div>
+              <div class="doc-info"><div class="doc-name">Foto Danielle</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-gray">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-category">
+          <div class="doc-cat-hd">
+            <div class="doc-cat-icon">📋</div>
+            <div class="doc-cat-name">Contratos e textos</div>
+            <div class="doc-cat-count">1 / 4</div>
+          </div>
+          <div class="doc-list">
+            <div class="doc-item">
+              <div class="doc-type" style="background:rgba(33,136,255,0.15)">📄</div>
+              <div class="doc-info"><div class="doc-name">contrato_mentoria_modelo.docx</div><div class="doc-meta">Enviado ontem · 42 KB</div></div>
+              <div class="doc-status"><span class="badge bg-green">✓</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📄</div>
+              <div class="doc-info"><div class="doc-name">Contrato de distrato</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-gray">—</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">💬</div>
+              <div class="doc-info"><div class="doc-name">Textos das mensagens</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-gray">—</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📊</div>
+              <div class="doc-info"><div class="doc-name">Planilha indicadores Avec</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-gray">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-category">
+          <div class="doc-cat-hd">
+            <div class="doc-cat-icon">📚</div>
+            <div class="doc-cat-name">Grades de tarefas</div>
+            <div class="doc-cat-count">0 / 2</div>
+          </div>
+          <div class="doc-list">
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📊</div>
+              <div class="doc-info"><div class="doc-name">Grade BG — 8 semanas</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-amber">Urgente</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">📊</div>
+              <div class="doc-info"><div class="doc-name">Grade TED — 16 semanas</div><div class="doc-meta">Aguardando envio</div></div>
+              <div class="doc-status"><span class="badge bg-amber">Urgente</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-category">
+          <div class="doc-cat-hd">
+            <div class="doc-cat-icon">🔧</div>
+            <div class="doc-cat-name">Acessos e credenciais</div>
+            <div class="doc-cat-count">0 / 2</div>
+          </div>
+          <div class="doc-list">
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">🔑</div>
+              <div class="doc-info"><div class="doc-name">Credenciais API Avec</div><div class="doc-meta">Solicitar ao suporte Avec</div></div>
+              <div class="doc-status"><span class="badge bg-red">Urgente</span></div>
+            </div>
+            <div class="doc-item" style="opacity:0.5">
+              <div class="doc-type" style="background:var(--dark3)">🔑</div>
+              <div class="doc-info"><div class="doc-name">Acesso admin Google Workspace</div><div class="doc-meta">Aguardando</div></div>
+              <div class="doc-status"><span class="badge bg-red">Urgente</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="upload-area" onclick="simulateUpload()">
+        <div class="upload-icon">📎</div>
+        <div class="upload-title">Enviar documento</div>
+        <div class="upload-desc">Clique para selecionar ou arraste o arquivo aqui<br><small style="color:var(--text3)">PDF, Word, Excel, PNG, JPG · Máx 50MB por arquivo</small></div>
+        <button class="upload-btn">Selecionar arquivo</button>
+      </div>
+    </div>
+
+    <!-- MENSAGENS -->
+    <div class="tab-view" id="tab-mensagens">
+      <div class="page-title">Mensagens</div>
+      <div class="page-sub">Comunicação direta com a Jenneffer sobre o projeto</div>
+
+      <div class="msg-list" id="msg-list">
+        <div class="msg-card msg-new">
+          <div class="msg-hd">
+            <div class="msg-sender">
+              <div class="msg-av" style="background:var(--green);color:white">JP</div>
+              Jenneffer Prazeres
+              <span class="badge bg-green" style="font-size:10px">Nova</span>
+            </div>
+            <div class="msg-time">hoje, 09:30</div>
+          </div>
+          <div class="msg-body">Oi Thalissa! Portal configurado e pronto para uso. Aqui vocês vão conseguir acompanhar o cronograma semana a semana, marcar os itens do checklist conforme forem providenciando, e enviar todos os documentos necessários para o início do projeto.<br><br>O item mais urgente agora é solicitar o acesso à API Avec — esse processo pode demorar alguns dias dependendo do suporte deles, então quanto antes melhor! Qualquer dúvida é só mandar mensagem aqui. 🚀</div>
+        </div>
+        <div class="msg-card">
+          <div class="msg-hd">
+            <div class="msg-sender">
+              <div class="msg-av" style="background:var(--dark3);color:var(--text2)">T</div>
+              Você (Thalissa)
+            </div>
+            <div class="msg-time">ontem, 16:45</div>
+          </div>
+          <div class="msg-body">Oi Jenneffer! Muito obrigada pela reunião de ontem. Já enviei o contrato modelo e a logo. Vou solicitar o acesso Avec ainda hoje. Fico no aguardo sobre os próximos passos!</div>
+        </div>
+      </div>
+
+      <div class="reply-box">
+        <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">Responder</div>
+        <textarea class="reply-input" id="reply-text" placeholder="Digite sua mensagem..."></textarea>
+        <div class="reply-actions">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('reply-text').value=''">Limpar</button>
+          <button class="btn btn-primary btn-sm" onclick="sendMsg()">Enviar mensagem</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── AUTH ──────────────────────────────────
+const users = {
+  'thalissa@bookdegestao.com': { pass: 'bookgestao2025', name: 'Thalissa', full: 'Thalissa Fogato' },
+  'danielle@bookdegestao.com': { pass: 'bookgestao2025', name: 'Danielle', full: 'Danielle Caires' },
+};
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass  = document.getElementById('login-pass').value;
+  const user  = users[email];
+  if (user && user.pass === pass) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('portal').style.display = 'block';
+    document.getElementById('user-name').textContent = user.name;
+    document.getElementById('login-error').style.display = 'none';
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function doLogout() {
+  document.getElementById('portal').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+// ── TABS ──────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.getAttribute('onclick')?.includes("'" + name + "'")) t.classList.add('active');
+  });
+}
+
+// ── FASES ─────────────────────────────────
+function toggleFase(hd) {
+  const body = hd.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+// ── CHECKLIST ─────────────────────────────
+const checkCounts = { marca: 0, acessos: 0, conteudo: 0, decisoes: 0 };
+const checkTotals = { marca: 4, acessos: 5, conteudo: 5, decisoes: 3 };
+
+function toggleCheck(el, cat) {
+  el.classList.toggle('done');
+  const items = document.querySelectorAll('#cat-' + cat + ' .check-item');
+  let done = 0;
+  items.forEach(i => { if (i.classList.contains('done')) done++; });
+  document.getElementById('prog-' + cat).textContent = done + ' / ' + items.length;
+  updateBadge();
+  toast(el.classList.contains('done') ? '✓ Item marcado como concluído!' : 'Item desmarcado');
+}
+
+function updateBadge() {
+  const total = document.querySelectorAll('.check-item').length;
+  const done  = document.querySelectorAll('.check-item.done').length;
+  const pending = total - done;
+  const badge = document.getElementById('checklist-badge');
+  if (pending > 0) { badge.style.display = 'inline'; badge.textContent = pending; }
+  else { badge.style.display = 'none'; }
+}
+
+// ── DOCS ──────────────────────────────────
+function simulateUpload() {
+  const names = ['logo_atualizada.png', 'manual_marca.pdf', 'grade_bg_semanas.xlsx', 'textos_mensagens.docx', 'foto_thalissa.jpg'];
+  const name = names[Math.floor(Math.random() * names.length)];
+  toast('📎 ' + name + ' enviado com sucesso!');
+}
+
+// ── MENSAGENS ─────────────────────────────
+function sendMsg() {
+  const text = document.getElementById('reply-text').value.trim();
+  if (!text) return;
+  const list = document.getElementById('msg-list');
+  const div = document.createElement('div');
+  div.className = 'msg-card';
+  const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  div.innerHTML = `
+    <div class="msg-hd">
+      <div class="msg-sender">
+        <div class="msg-av" style="background:var(--dark3);color:var(--text2)">T</div>
+        Você (Thalissa)
+      </div>
+      <div class="msg-time">hoje, ${now}</div>
+    </div>
+    <div class="msg-body">${text.replace(/\n/g,'<br>')}</div>
+  `;
+  list.insertBefore(div, list.firstChild);
+  document.getElementById('reply-text').value = '';
+  toast('Mensagem enviada! Jenneffer responderá em breve.');
+}
+
+// ── TOAST ─────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Enter no login
+document.getElementById('login-email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-pass').focus();
+});
+</script>
+</body>
+</html>
