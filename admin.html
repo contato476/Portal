@@ -491,10 +491,21 @@ async function doLogin() {
   }
 
   // Verifica se é admin
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-  if (!profile || profile.role !== 'admin') {
+  const { data: profile, error: profErr } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+  console.log('Profile resultado:', profile, 'Erro:', profErr);
+
+  if (profErr || !profile) {
     await sb.auth.signOut();
-    err.textContent = 'Acesso não autorizado. Este painel é exclusivo para administradores.';
+    err.textContent = 'Erro ao verificar perfil: ' + (profErr?.message || 'perfil não encontrado. Verifique se rodou o SQL de setup.');
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Entrar';
+    return;
+  }
+
+  if (profile.role !== 'admin') {
+    await sb.auth.signOut();
+    err.textContent = 'Acesso não autorizado. Role atual: ' + profile.role;
     err.style.display = 'block';
     btn.disabled = false;
     btn.innerHTML = 'Entrar';
@@ -922,21 +933,32 @@ async function saveClient() {
   btn.disabled = true; btn.textContent = 'Criando...';
 
   // Cria usuário no Supabase Auth via admin
-  const { data: userData, error: userErr } = await sb.auth.admin?.createUser({
+  // Usa signUp para criar o usuário (anon key)
+  const { data: userData, error: userErr } = await sb.auth.signUp({
     email, password: pass,
-    user_metadata: { name, company }
+    options: { data: { name, company } }
   });
 
   if (userErr) {
-    // Fallback: usa signUp normal (sem admin SDK)
-    showToast('Crie o usuário manualmente em Authentication → Users do Supabase, depois volte aqui.', true);
+    showToast('Erro ao criar usuário: ' + userErr.message, true);
     btn.disabled = false; btn.textContent = 'Criar cliente e projeto';
     return;
   }
 
   const userId = userData.user.id;
-  await sb.from('profiles').upsert({ id: userId, name, company, role: 'client' });
-  await sb.from('projects').insert({ client_id: userId, name: project, description: desc, status, start_date: start || null, end_date: end || null, color });
+
+  // Cria perfil e projeto (upsert garante que não duplica)
+  await sb.from('profiles').upsert({ id: userId, name, company, role: 'client' }, { onConflict: 'id' });
+  const { error: projErr } = await sb.from('projects').insert({
+    client_id: userId, name: project, description: desc,
+    status, start_date: start || null, end_date: end || null, color
+  });
+
+  if (projErr) {
+    showToast('Usuário criado mas erro no projeto: ' + projErr.message, true);
+    btn.disabled = false; btn.textContent = 'Criar cliente e projeto';
+    return;
+  }
 
   closeModal('modal-client');
   showToast(`✓ ${name} criado com sucesso!`);
