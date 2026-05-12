@@ -916,25 +916,91 @@ async function deleteCheckItem(id){
 }
 
 // ──────────── FASES ────────────
+let editingFaseId=null;
+
 async function loadClientFases(){
   const list=document.getElementById('fases-admin-list');
   list.innerHTML='<div class="loading">Carregando...</div>';
   const {data}=await sb.from('project_phases').select('*').eq('project_id',currentProjectId).order('order_num');
   if(!data?.length){list.innerHTML='<div class="empty">Nenhuma fase cadastrada ainda</div>';return}
-  list.innerHTML=data.map(f=>`
-    <div class="fase-admin">
+
+  // Resumo
+  const total=data.length;
+  const done=data.filter(f=>f.status==='concluido').length;
+  const inProgress=data.filter(f=>f.status==='em_andamento').length;
+  const pct=total?Math.round(done/total*100):0;
+
+  const summaryHtml=`<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div style="color:var(--text2)"><strong style="color:var(--text)">${done}/${total}</strong> concluídas${inProgress>0?` · <span style="color:#60A5FA">${inProgress} em andamento</span>`:''}</div>
+      <div style="font-size:12px;color:var(--text3)">${pct}%</div>
+    </div>
+    <div style="height:6px;background:var(--dark3);border-radius:3px;overflow:hidden">
+      <div style="height:100%;background:var(--green);width:${pct}%;transition:width .4s"></div>
+    </div>
+  </div>`;
+
+  list.innerHTML=summaryHtml+data.map(f=>{
+    const isDone=f.status==='concluido';
+    const isInProgress=f.status==='em_andamento';
+    const isPaused=f.status==='pausado';
+    let bgColor='var(--dark3)';
+    if(isDone)bgColor='rgba(26,122,74,.08)';
+    if(isInProgress)bgColor='rgba(33,136,255,.06)';
+    if(isPaused)bgColor='rgba(248,81,73,.05)';
+
+    return `<div class="fase-admin" style="background:${bgColor};flex-wrap:wrap">
       <div class="fase-color" style="background:${f.color||'#1A7A4A'}"></div>
-      <div class="fase-info">
-        <div class="fase-title">${escapeHtml(f.title)}</div>
+      <div class="fase-info" style="min-width:220px">
+        <div class="fase-title" style="${isDone?'text-decoration:line-through;color:var(--text3)':''}">${escapeHtml(f.title)}</div>
         <div class="fase-dates">${f.start_date?fmtDateShort(f.start_date):'—'} → ${f.end_date?fmtDateShort(f.end_date):'—'}</div>
-        ${f.description?`<div style="font-size:12px;color:var(--text3);margin-top:3px">${escapeHtml(f.description)}</div>`:''}
+        ${f.description?`<div style="font-size:12px;color:var(--text3);margin-top:3px;line-height:1.5">${escapeHtml(f.description)}</div>`:''}
       </div>
-      <div class="fase-actions">
+      <div class="fase-actions" style="flex-wrap:wrap;gap:5px;align-items:center">
         ${statusBadge(f.status)}
-        <button class="btn btn-ghost btn-sm" onclick="deleteFase('${f.id}')">✕</button>
+        <button class="btn btn-ghost btn-sm" onclick="cycleFaseStatus('${f.id}','${f.status}')" title="Avançar status">⟲</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditFase('${f.id}')" title="Editar">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteFase('${f.id}')" title="Excluir" style="color:var(--text3)">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+
+async function cycleFaseStatus(id,currentStatus){
+  // Ciclo: aguardando → em_andamento → concluido → aguardando
+  const cycle=['aguardando','em_andamento','concluido','pausado'];
+  const next=cycle[(cycle.indexOf(currentStatus)+1)%cycle.length];
+  await sb.from('project_phases').update({status:next}).eq('id',id);
+  showToast(`Status: ${statusLabel(next)}`);
+  loadClientFases();
+}
+
+function openAddFase(){
+  if(!currentProjectId){showToast('Selecione um cliente',true);return}
+  editingFaseId=null;
+  document.querySelector('#modal-fase .modal-title').textContent='Adicionar fase / etapa';
+  document.querySelector('#modal-fase .btn-primary').textContent='Adicionar fase';
+  ['fs-title','fs-desc','fs-start','fs-end'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fs-status').value='aguardando';
+  document.getElementById('fs-color').value='#1A7A4A';
+  document.getElementById('modal-fase').classList.add('open');
+}
+
+async function openEditFase(id){
+  const {data:f}=await sb.from('project_phases').select('*').eq('id',id).single();
+  if(!f){showToast('Fase não encontrada',true);return}
+  editingFaseId=id;
+  document.querySelector('#modal-fase .modal-title').textContent='Editar fase';
+  document.querySelector('#modal-fase .btn-primary').textContent='Salvar alterações';
+  document.getElementById('fs-title').value=f.title||'';
+  document.getElementById('fs-desc').value=f.description||'';
+  document.getElementById('fs-start').value=f.start_date||'';
+  document.getElementById('fs-end').value=f.end_date||'';
+  document.getElementById('fs-status').value=f.status||'aguardando';
+  document.getElementById('fs-color').value=f.color||'#1A7A4A';
+  document.getElementById('modal-fase').classList.add('open');
+}
+
 async function saveFase(){
   const title=document.getElementById('fs-title').value.trim();
   const desc=document.getElementById('fs-desc').value.trim();
@@ -943,13 +1009,30 @@ async function saveFase(){
   const status=document.getElementById('fs-status').value;
   const color=document.getElementById('fs-color').value;
   if(!title){showToast('Informe o título',true);return}
-  const {error}=await sb.from('project_phases').insert({project_id:currentProjectId,title,description:desc,start_date:start||null,end_date:end||null,status,color});
+
+  if(editingFaseId){
+    const {error}=await sb.from('project_phases').update({
+      title,description:desc,start_date:start||null,end_date:end||null,status,color
+    }).eq('id',editingFaseId);
+    if(error){showToast('Erro: '+error.message,true);return}
+    closeModal('modal-fase');
+    showToast('✓ Fase atualizada!');
+    editingFaseId=null;
+    loadClientFases();
+    return;
+  }
+
+  const {error}=await sb.from('project_phases').insert({
+    project_id:currentProjectId,title,description:desc,
+    start_date:start||null,end_date:end||null,status,color
+  });
   if(error){showToast('Erro: '+error.message,true);return}
   ['fs-title','fs-desc','fs-start','fs-end'].forEach(id=>document.getElementById(id).value='');
   closeModal('modal-fase');
   showToast('✓ Fase adicionada!');
   loadClientFases();
 }
+
 async function deleteFase(id){
   if(!confirm('Remover esta fase?'))return;
   await sb.from('project_phases').delete().eq('id',id);
