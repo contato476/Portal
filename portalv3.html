@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal do Cliente — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --green:#1A7A4A;--green2:#22A060;--green-l:#E6F5EE;
+  --dark:#0D1117;--dark2:#161B22;--dark3:#21262D;
+  --border:#30363D;--border2:#444C56;
+  --text:#E6EDF3;--text2:#8B949E;--text3:#6E7681;
+  --card:#161B22;--red:#F85149;--red-l:#3D1A1A;
+  --amber:#E3B341;--blue:#2188FF;--blue-l:#1C2A3D;
+  --radius:12px;--radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--text);min-height:100vh}
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(ellipse at 30% 50%,rgba(26,122,74,0.1) 0%,transparent 60%);padding:20px}
+.auth-card{width:420px;max-width:100%;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:36px 32px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.auth-hd{text-align:center;margin-bottom:24px}
+.auth-icon{width:52px;height:52px;background:var(--green);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;box-shadow:0 4px 20px rgba(26,122,74,0.3)}
+.auth-hd h1{font-family:'Cormorant Garamond',serif;font-size:22px}
+.auth-hd p{font-size:12.5px;color:var(--text2);margin-top:3px}
+.auth-tabs{display:flex;background:var(--dark3);border-radius:8px;padding:3px;margin-bottom:20px}
+.auth-tab{flex:1;padding:8px;text-align:center;font-size:13px;color:var(--text2);cursor:pointer;border-radius:6px;transition:all .15s}
+.auth-tab.active{background:var(--card);color:var(--text);font-weight:500}
+.auth-form{display:none}
+.auth-form.active{display:block}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:10px 13px;background:var(--dark3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border .15s}
+.form-input:focus{border-color:var(--green)}
+.form-input::placeholder{color:var(--text3)}
+textarea.form-input{resize:vertical;min-height:80px}
+.btn-auth{width:100%;padding:11px;background:var(--green);border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'DM Sans',sans-serif}
+.btn-auth:hover{background:var(--green2)}
+.btn-auth:disabled{opacity:.6;cursor:not-allowed}
+.auth-err{background:var(--red-l);border:1px solid var(--red);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--red);margin-top:10px;display:none}
+.auth-ok{background:rgba(26,122,74,.15);border:1px solid var(--green);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#4ADE80;margin-top:10px;display:none}
+.auth-info{font-size:11.5px;color:var(--text3);text-align:center;margin-top:14px;line-height:1.5}
+.spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#app{display:none}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:240px;flex-shrink:0;background:var(--dark2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sb-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.sb-logo-row{display:flex;align-items:center;gap:10px}
+.sb-icon{width:32px;height:32px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sb-name{font-family:'Cormorant Garamond',serif;font-size:16px;line-height:1.2}
+.sb-sub{font-size:10px;color:var(--text3)}
+.sb-nav{padding:12px 10px;flex:1;overflow-y:auto}
+.nav-section{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);padding:8px 8px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;margin-bottom:1px;user-select:none}
+.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.nav-item.active{background:rgba(26,122,74,.15);color:var(--green);font-weight:500;border:1px solid rgba(26,122,74,.2)}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.nav-count{margin-left:auto;background:var(--red);color:white;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:10px}
+.sb-footer{padding:12px;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:9px}
+.sb-av{width:32px;height:32px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.sb-user-name{font-size:12.5px;color:var(--text);font-weight:500}
+.sb-logout{font-size:11px;color:var(--text3);cursor:pointer;margin-top:1px}
+.sb-logout:hover{color:var(--red)}
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{background:var(--dark2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-title{font-family:'Cormorant Garamond',serif;font-size:20px}
+.main-content{flex:1;padding:24px;overflow-y:auto}
+.view{display:none}
+.view.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.page-hd{margin-bottom:20px}
+.page-hd h2{font-family:'Cormorant Garamond',serif;font-size:26px}
+.page-hd p{font-size:13px;color:var(--text2);margin-top:3px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
+.card-hd{padding:13px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.bg-green{background:rgba(26,122,74,.2);color:#4ADE80}
+.bg-amber{background:rgba(227,179,65,.2);color:var(--amber)}
+.bg-blue{background:rgba(33,136,255,.15);color:#60A5FA}
+.bg-gray{background:var(--dark3);color:var(--text2)}
+.bg-red{background:rgba(248,81,73,.15);color:var(--red)}
+.btn{padding:7px 16px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--green);color:white}
+.btn-primary:hover{background:var(--green2)}
+.btn-ghost{background:var(--dark3);border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+.btn-sm{padding:4px 11px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.welcome{background:linear-gradient(135deg,rgba(26,122,74,.15) 0%,rgba(34,160,96,.05) 100%);border:1px solid rgba(26,122,74,.3);border-radius:var(--radius);padding:24px 26px;margin-bottom:20px}
+.welcome h3{font-family:'Cormorant Garamond',serif;font-size:24px;margin-bottom:6px}
+.welcome p{font-size:13.5px;color:var(--text2);line-height:1.6}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}
+.stat-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.stat-val{font-family:'Cormorant Garamond',serif;font-size:32px;line-height:1}
+.stat-sub{font-size:11.5px;color:var(--text2);margin-top:4px}
+.project-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px}
+.project-name{font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:6px}
+.project-desc{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:12px}
+.project-meta{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--text3)}
+.project-meta span{color:var(--text2);font-weight:500}
+.check-cat{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px}
+.check-cat:first-child{margin-top:0}
+.check-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--dark3);border-radius:8px;margin-bottom:6px;transition:all .15s}
+.check-item:hover{background:rgba(255,255,255,.03)}
+.check-box{width:22px;height:22px;border-radius:6px;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;background:transparent}
+.check-box.done{background:var(--green);border-color:var(--green);color:white}
+.check-info{flex:1;min-width:0}
+.check-title{font-size:13.5px;font-weight:500;color:var(--text)}
+.check-title.done{text-decoration:line-through;color:var(--text3)}
+.check-desc{font-size:11.5px;color:var(--text3);margin-top:2px}
+.progress-bar{height:8px;background:var(--dark3);border-radius:4px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green) 0%,var(--green2) 100%);border-radius:4px;transition:width .4s ease}
+.fase-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start}
+.fase-color-bar{width:4px;border-radius:2px;flex-shrink:0;align-self:stretch}
+.fase-body{flex:1;min-width:0}
+.fase-title{font-size:15px;font-weight:500;margin-bottom:4px}
+.fase-dates{font-size:12px;color:var(--text2);margin-bottom:6px}
+.fase-desc{font-size:12.5px;color:var(--text3);line-height:1.55}
+.msg-thread{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;min-height:400px;display:flex;flex-direction:column}
+.msg-list{flex:1;overflow-y:auto;max-height:500px;display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.msg-bubble{padding:10px 14px;border-radius:12px;max-width:75%;font-size:13.5px;line-height:1.5;word-wrap:break-word}
+.msg-bubble.theirs{background:var(--dark3);align-self:flex-start;border-bottom-left-radius:4px}
+.msg-bubble.mine{background:var(--green);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+.msg-time-sm{font-size:10.5px;color:var(--text3);margin-top:3px;display:block}
+.msg-bubble.mine .msg-time-sm{color:rgba(255,255,255,.7)}
+.msg-input-row{display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--border)}
+.msg-input-row textarea{flex:1;min-height:42px;max-height:120px}
+.doc-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px}
+.doc-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.upload-area{background:var(--card);border:2px dashed var(--border);border-radius:var(--radius);padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.upload-area:hover{border-color:var(--green);background:rgba(26,122,74,.05)}
+.upload-area.drag{border-color:var(--green);background:rgba(26,122,74,.1)}
+.upload-area p{font-size:13px;color:var(--text2);margin-top:8px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--dark2);border:1px solid var(--green);color:var(--text);padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(60px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:300;max-width:90vw}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.err{border-color:var(--red)}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.loading{text-align:center;padding:32px;color:var(--text2);font-size:13px}
+.no-project{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:50px 30px;text-align:center}
+.no-project h3{font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:8px}
+.no-project p{font-size:13.5px;color:var(--text2);line-height:1.6;max-width:480px;margin:0 auto}
+@media(max-width:768px){
+  .stats-row{grid-template-columns:1fr 1fr}
+  .sidebar{width:60px}
+  .sb-name,.sb-sub,.sb-user>div:not(.sb-av),.nav-item span:not(.nav-count){display:none}
+  .nav-item{justify-content:center}
+  .msg-bubble{max-width:90%}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ AUTH (LOGIN / CADASTRO) ═══════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-hd">
+      <div class="auth-icon">✨</div>
+      <h1>Portal do Cliente</h1>
+      <p>Jenneffer Prazeres</p>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-tab="login" onclick="switchAuthTab('login')">Entrar</div>
+      <div class="auth-tab" data-tab="signup" onclick="switchAuthTab('signup')">Primeiro acesso</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="auth-form active" id="form-login">
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="li-email" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="li-pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn-auth" id="btn-login" onclick="doLogin()">Entrar no portal</button>
+      <div style="text-align:center;margin-top:12px"><a href="#" onclick="showResetForm();return false" style="font-size:12px;color:var(--text2);text-decoration:none">Esqueci minha senha</a></div>
+      <div class="auth-err" id="login-err"></div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="auth-form" id="form-signup">
+      <div class="form-group"><label class="form-label">Seu nome completo</label><input class="form-input" id="su-name" placeholder="Ana Paula Souza"></div>
+      <div class="form-group"><label class="form-label">E-mail (o autorizado pela Jenneffer)</label><input class="form-input" id="su-email" type="email" placeholder="seu@email.com" autocomplete="email"></div>
+      <div class="form-group"><label class="form-label">Empresa / negócio</label><input class="form-input" id="su-company" placeholder="Sua empresa"></div>
+      <div class="form-group"><label class="form-label">Crie uma senha</label><input class="form-input" id="su-pass" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password"></div>
+      <button class="btn-auth" id="btn-signup" onclick="doSignup()">Criar conta</button>
+      <div class="auth-err" id="signup-err"></div>
+      <div class="auth-ok" id="signup-ok"></div>
+      <div class="auth-info">Apenas e-mails autorizados pela Jenneffer podem se cadastrar.</div>
+    </div>
+
+    <!-- RESET -->
+    <div class="auth-form" id="form-reset">
+      <div class="form-group"><label class="form-label">E-mail cadastrado</label><input class="form-input" id="rs-email" type="email" placeholder="seu@email.com"></div>
+      <button class="btn-auth" onclick="doResetPassword()">Enviar link de recuperação</button>
+      <div style="text-align:center;margin-top:12px"><a href="#" onclick="switchAuthTab('login');return false" style="font-size:12px;color:var(--text2);text-decoration:none">← Voltar</a></div>
+      <div class="auth-err" id="reset-err"></div>
+      <div class="auth-ok" id="reset-ok"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP ═══════════════ -->
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">✨</div>
+        <div><div class="sb-name">Portal</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-section">Meu projeto</div>
+      <div class="nav-item active" data-view="home" onclick="showView('home')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h4v-6h6v6h4V10" stroke-width="1.8"/></svg>
+        <span>Início</span>
+      </div>
+      <div class="nav-item" data-view="checklist" onclick="showView('checklist')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4" stroke-width="1.8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.8"/></svg>
+        <span>Checklist</span>
+      </div>
+      <div class="nav-item" data-view="cronograma" onclick="showView('cronograma')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.8"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.8"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.8"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.8"/></svg>
+        <span>Cronograma</span>
+      </div>
+      <div class="nav-item" data-view="combinados" onclick="showView('combinados')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="1.8"/></svg>
+        <span>Combinados</span>
+      </div>
+      <div class="nav-item" data-view="documentos" onclick="showView('documentos')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke-width="1.8"/></svg>
+        <span>Documentos</span>
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">C</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Cliente</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Início</div>
+    </div>
+    <div class="main-content">
+
+      <!-- INÍCIO -->
+      <div class="view active" id="view-home">
+        <div id="home-content"><div class="loading">Carregando seu projeto...</div></div>
+      </div>
+
+      <!-- CHECKLIST -->
+      <div class="view" id="view-checklist">
+        <div class="page-hd"><h2>Checklist</h2><p>Marque os itens conforme você for enviando o material</p></div>
+        <div id="checklist-content"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- CRONOGRAMA -->
+      <div class="view" id="view-cronograma">
+        <div class="page-hd"><h2>Cronograma</h2><p>As fases do seu projeto</p></div>
+        <div id="cronograma-content"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- COMBINADOS -->
+      <div class="view" id="view-combinados">
+        <div class="page-hd">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div><h2>Combinados</h2><p>Reuniões, sprints, alterações e decisões do seu projeto</p></div>
+            <button class="btn btn-primary" onclick="openAddAgreement()">+ Solicitar alteração / registrar</button>
+          </div>
+        </div>
+        <div id="agreements-list"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- DOCUMENTOS -->
+      <div class="view" id="view-documentos">
+        <div class="page-hd"><h2>Documentos</h2><p>Envie e visualize arquivos do seu projeto</p></div>
+        <label class="upload-area" id="upload-area">
+          <input type="file" id="file-input" style="display:none" onchange="uploadDoc(event)">
+          <div style="font-size:32px">📤</div>
+          <p>Clique aqui ou arraste arquivos para enviar<br><span style="font-size:11px;color:var(--text3)">PDF, imagens, Word, Excel · até 50MB</span></p>
+        </label>
+        <div id="docs-content"><div class="loading">Carregando...</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL COMBINADO -->
+<div class="overlay" id="modal-agreement" style="display:none;position:fixed;inset:0;background:rgba(13,17,23,.8);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+  <div style="background:var(--dark2);border:1px solid var(--border);border-radius:16px;padding:26px;width:540px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:20px">Registrar combinado</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Tipo *</label>
+        <select class="form-input" id="ag-type" onchange="toggleAgFields()" style="appearance:none">
+          <option value="alteracao">✏️ Solicitar alteração</option>
+          <option value="reuniao">🗓️ Resumo de reunião</option>
+          <option value="decisao">⭐ Decisão importante</option>
+          <option value="proximos_passos">➡️ Próximos passos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-input" id="ag-status" style="appearance:none">
+          <option value="pendente">Pendente</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluído</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="ag-title" placeholder="Ex: Alterar cor do logo principal"></div>
+    <div class="form-group" id="ag-meeting-row" style="display:none">
+      <label class="form-label">Data da reunião</label>
+      <input class="form-input" id="ag-meeting-date" type="date">
+    </div>
+    <div class="form-group"><label class="form-label">Detalhes</label><textarea class="form-input" id="ag-desc" placeholder="Descreva os detalhes..." style="min-height:110px;resize:vertical"></textarea></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" onclick="closeAgreementModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveClientAgreement()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// CONFIGURAÇÃO — confira se está com a URL correta do seu Supabase
+// ════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://jvtjhfganuuefswbnbrk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_HEWDXmsh3RwtUVAh541L_Q_UGvVickl';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let currentProject = null;
+
+// ──────────── HELPERS ────────────
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
+function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
+function fmtDate(d){return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+function fmtDateShort(d){return new Date(d+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
+function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
+function showToast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isErr?' err':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
+function setBadge(id,n){const el=document.getElementById(id);el.textContent=n;el.style.display=n>0?'inline':'none'}
+
+// ──────────── AUTH ────────────
+function switchAuthTab(name){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f=>f.classList.remove('active'));
+  if(name==='login'||name==='signup'){
+    document.querySelector(`.auth-tab[data-tab="${name}"]`)?.classList.add('active');
+  }
+  document.getElementById('form-'+name)?.classList.add('active');
+  document.querySelectorAll('.auth-err,.auth-ok').forEach(e=>e.style.display='none');
+}
+function showResetForm(){switchAuthTab('reset')}
+
+async function doLogin(){
+  const email=document.getElementById('li-email').value.trim();
+  const pass=document.getElementById('li-pass').value;
+  const btn=document.getElementById('btn-login');
+  const err=document.getElementById('login-err');
+  err.style.display='none';
+  if(!email||!pass){err.textContent='Preencha e-mail e senha';err.style.display='block';return}
+  btn.disabled=true;btn.innerHTML='<div class="spinner"></div> Entrando...';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent='E-mail ou senha incorretos.';err.style.display='block';btn.disabled=false;btn.innerHTML='Entrar no portal';return}
+  await loadProfile(data.user);
+  btn.disabled=false;btn.innerHTML='Entrar no portal';
+}
+
+async function doSignup(){
+  const name=document.getElementById('su-name').value.trim();
+  const email=document.getElementById('su-email').value.trim().toLowerCase();
+  const company=document.getElementById('su-company').value.trim();
+  const pass=document.getElementById('su-pass').value;
+  const btn=document.getElementById('btn-signup');
+  const err=document.getElementById('signup-err');
+  const ok=document.getElementById('signup-ok');
+  err.style.display='none';ok.style.display='none';
+  if(!name||!email||!pass){err.textContent='Preencha todos os campos obrigatórios';err.style.display='block';return}
+  if(pass.length<8){err.textContent='A senha deve ter ao menos 8 caracteres';err.style.display='block';return}
+
+  btn.disabled=true;btn.innerHTML='<div class="spinner"></div> Criando conta...';
+
+  // 1. Verifica se e-mail está autorizado
+  const {data:isAllowed,error:chkErr}=await sb.rpc('check_email_allowed',{p_email:email});
+  if(chkErr){err.textContent='Erro ao verificar autorização: '+chkErr.message;err.style.display='block';btn.disabled=false;btn.innerHTML='Criar conta';return}
+  if(!isAllowed){err.textContent='Este e-mail não está autorizado. Solicite acesso à Jenneffer.';err.style.display='block';btn.disabled=false;btn.innerHTML='Criar conta';return}
+
+  // 2. Cria o usuário
+  const {data,error}=await sb.auth.signUp({
+    email,password:pass,
+    options:{data:{name,company}}
+  });
+  if(error){
+    err.textContent='Erro ao criar conta: '+error.message;
+    err.style.display='block';btn.disabled=false;btn.innerHTML='Criar conta';return;
+  }
+
+  // 3. Se confirmação por email estiver ativa, usuário ainda precisa confirmar
+  if(data.user&&!data.session){
+    ok.textContent='✓ Conta criada! Verifique seu e-mail e clique no link de confirmação para acessar.';
+    ok.style.display='block';
+    btn.disabled=false;btn.innerHTML='Criar conta';
+    return;
+  }
+
+  // 4. Se já logou (confirmação desativada), entra direto
+  if(data.session){
+    await loadProfile(data.user);
+  }
+  btn.disabled=false;btn.innerHTML='Criar conta';
+}
+
+async function doResetPassword(){
+  const email=document.getElementById('rs-email').value.trim();
+  const err=document.getElementById('reset-err');
+  const ok=document.getElementById('reset-ok');
+  err.style.display='none';ok.style.display='none';
+  if(!email){err.textContent='Informe o e-mail';err.style.display='block';return}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/portal.html'});
+  if(error){err.textContent=error.message;err.style.display='block';return}
+  ok.textContent='✓ Link de recuperação enviado! Verifique sua caixa de entrada.';
+  ok.style.display='block';
+}
+
+async function loadProfile(user){
+  const {data:profile,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(error||!profile){
+    showToast('Erro ao carregar perfil',true);
+    await sb.auth.signOut();return;
+  }
+  if(profile.role==='admin'){
+    // Admin não deve usar o portal
+    document.getElementById('login-err').textContent='Você é admin. Acesse via /admin.html';
+    document.getElementById('login-err').style.display='block';
+    await sb.auth.signOut();
+    return;
+  }
+  currentUser=user;
+  currentProfile=profile;
+  const name=profile.name||user.email.split('@')[0];
+  document.getElementById('sb-name').textContent=name;
+  document.getElementById('sb-av').textContent=name[0].toUpperCase();
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+
+  // Carrega o projeto do cliente
+  await loadProject();
+  showView('home');
+}
+
+async function loadProject(){
+  // Busca projetos via project_members (suporta multi-usuário)
+  const {data:memberships}=await sb.from('project_members').select('project_id, role').eq('user_id',currentUser.id);
+  if(!memberships?.length){currentProject=null;return}
+  const projectIds=memberships.map(m=>m.project_id);
+  const {data:projects}=await sb.from('projects').select('*').in('id',projectIds).order('created_at',{ascending:false}).limit(1);
+  currentProject=projects?.[0]||null;
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+window.addEventListener('DOMContentLoaded',async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){
+    await loadProfile(session.user);
+  }
+  document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+  document.getElementById('su-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doSignup()});
+
+  // Drag & drop em documentos
+  const ua=document.getElementById('upload-area');
+  if(ua){
+    ['dragenter','dragover'].forEach(ev=>ua.addEventListener(ev,e=>{e.preventDefault();ua.classList.add('drag')}));
+    ['dragleave','drop'].forEach(ev=>ua.addEventListener(ev,e=>{e.preventDefault();ua.classList.remove('drag')}));
+    ua.addEventListener('drop',e=>{
+      e.preventDefault();
+      if(e.dataTransfer.files.length){
+        document.getElementById('file-input').files=e.dataTransfer.files;
+        uploadDoc({target:{files:e.dataTransfer.files}});
+      }
+    });
+  }
+});
+
+// ──────────── NAVEGAÇÃO ────────────
+const viewTitles={home:'Início',checklist:'Checklist',cronograma:'Cronograma',combinados:'Combinados',documentos:'Documentos'};
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('view-'+name)?.classList.add('active');
+  document.querySelector(`.nav-item[data-view="${name}"]`)?.classList.add('active');
+  document.getElementById('page-title').textContent=viewTitles[name]||name;
+  if(name==='home')loadHome();
+  if(name==='checklist')loadChecklist();
+  if(name==='cronograma')loadCronograma();
+  if(name==='combinados')loadAgreements();
+  if(name==='documentos')loadDocumentos();
+}
+
+// ──────────── HOME ────────────
+async function loadHome(){
+  const el=document.getElementById('home-content');
+  if(!currentProject){
+    el.innerHTML=`<div class="no-project">
+      <div style="font-size:42px;margin-bottom:14px">⏳</div>
+      <h3>Aguardando configuração do projeto</h3>
+      <p>Olá, <strong>${escapeHtml(currentProfile.name)}</strong>! Seu acesso já está ativo. A Jenneffer está finalizando a configuração do seu projeto. Em breve você verá tudo aqui!</p>
+    </div>`;
+    return;
+  }
+
+  // Carrega contagens
+  const [itRes,stRes,phRes,agRes,docRes]=await Promise.all([
+    sb.from('checklist_items').select('id').eq('project_id',currentProject.id),
+    sb.from('checklist_states').select('item_id,done').eq('project_id',currentProject.id).eq('done',true),
+    sb.from('project_phases').select('status').eq('project_id',currentProject.id),
+    sb.from('agreements').select('id,status').eq('project_id',currentProject.id).in('status',['pendente','em_andamento']),
+    sb.from('documents').select('id').eq('project_id',currentProject.id),
+  ]);
+  const totalItems=(itRes.data||[]).length;
+  const doneItems=(stRes.data||[]).length;
+  const totalPhases=(phRes.data||[]).length;
+  const donePhases=(phRes.data||[]).filter(p=>p.status==='concluido').length;
+  const openAgreements=(agRes.data||[]).length;
+  const docs=(docRes.data||[]).length;
+  const pct=totalItems?Math.round(doneItems/totalItems*100):0;
+
+  el.innerHTML=`
+    <div class="welcome">
+      <h3>Olá, ${escapeHtml(currentProfile.name)} 👋</h3>
+      <p>Bem-vindo ao portal do seu projeto. Aqui você acompanha tudo em tempo real — checklist, cronograma, mensagens e arquivos.</p>
+    </div>
+
+    <div class="project-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div class="project-name">${escapeHtml(currentProject.name)}</div>
+          ${currentProject.description?`<div class="project-desc">${escapeHtml(currentProject.description)}</div>`:''}
+          <div class="project-meta">
+            ${currentProject.start_date?`<div>Início: <span>${fmtDateShort(currentProject.start_date)}</span></div>`:''}
+            ${currentProject.end_date?`<div>Entrega: <span>${fmtDateShort(currentProject.end_date)}</span></div>`:''}
+          </div>
+        </div>
+        <div>${statusBadge(currentProject.status)}</div>
+      </div>
+      <div style="margin-top:18px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
+          <span>Progresso do checklist</span><span>${pct}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-label">Checklist</div><div class="stat-val">${doneItems}/${totalItems}</div><div class="stat-sub">itens concluídos</div></div>
+      <div class="stat"><div class="stat-label">Cronograma</div><div class="stat-val">${donePhases}/${totalPhases}</div><div class="stat-sub">fases concluídas</div></div>
+      <div class="stat"><div class="stat-label">Documentos</div><div class="stat-val">${docs}</div><div class="stat-sub">arquivos enviados</div></div>
+    </div>
+
+    ${openAgreements>0?`<div class="card" style="padding:16px 20px;background:rgba(227,179,65,.08);border-color:rgba(227,179,65,.3);cursor:pointer" onclick="showView('combinados')">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">📝</div>
+        <div>
+          <div style="font-weight:500">Você tem ${openAgreements} combinado${openAgreements>1?'s':''} em aberto</div>
+          <div style="font-size:12px;color:var(--text2)">Clique para ver</div>
+        </div>
+      </div>
+    </div>`:''}
+  `;
+}
+
+// ──────────── CHECKLIST ────────────
+async function loadChecklist(){
+  const el=document.getElementById('checklist-content');
+  if(!currentProject){el.innerHTML='<div class="no-project"><p>Seu projeto ainda não foi configurado.</p></div>';return}
+  const [itRes,stRes]=await Promise.all([
+    sb.from('checklist_items').select('*').eq('project_id',currentProject.id).order('order_num'),
+    sb.from('checklist_states').select('*').eq('project_id',currentProject.id),
+  ]);
+  const items=itRes.data||[];
+  const stateMap={};(stRes.data||[]).forEach(s=>{stateMap[s.item_id]={id:s.id,done:s.done}});
+  if(!items.length){el.innerHTML='<div class="empty">Nenhum item no checklist ainda. A Jenneffer adicionará em breve!</div>';return}
+  const cats={};items.forEach(it=>{(cats[it.category]=cats[it.category]||[]).push(it)});
+  let html='';
+  for(const [cat,arr] of Object.entries(cats)){
+    html+=`<div class="check-cat">${escapeHtml(cat)}</div>`;
+    html+=arr.map(it=>{
+      const done=!!stateMap[it.id]?.done;
+      return `<div class="check-item">
+        <div class="check-box ${done?'done':''}" onclick="toggleCheck('${it.id}',${!done})">${done?'✓':''}</div>
+        <div class="check-info">
+          <div class="check-title ${done?'done':''}">${escapeHtml(it.title)}</div>
+          ${it.description?`<div class="check-desc">${escapeHtml(it.description)}</div>`:''}
+        </div>
+        ${it.urgent?'<span class="badge bg-red" style="font-size:10px">Urgente</span>':''}
+      </div>`;
+    }).join('');
+  }
+  el.innerHTML=html;
+}
+async function toggleCheck(itemId,newState){
+  const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProject.id).eq('item_id',itemId).maybeSingle();
+  if(existing){
+    await sb.from('checklist_states').update({done:newState,updated_at:new Date().toISOString()}).eq('id',existing.id);
+  } else {
+    await sb.from('checklist_states').insert({user_id:currentUser.id,project_id:currentProject.id,item_id:itemId,done:newState});
+  }
+  loadChecklist();
+}
+
+// ──────────── CRONOGRAMA ────────────
+async function loadCronograma(){
+  const el=document.getElementById('cronograma-content');
+  if(!currentProject){el.innerHTML='<div class="no-project"><p>Seu projeto ainda não foi configurado.</p></div>';return}
+  const {data}=await sb.from('project_phases').select('*').eq('project_id',currentProject.id).order('order_num');
+  if(!data?.length){el.innerHTML='<div class="empty">Nenhuma fase cadastrada ainda</div>';return}
+  el.innerHTML=data.map(f=>`
+    <div class="fase-item">
+      <div class="fase-color-bar" style="background:${f.color||'#1A7A4A'}"></div>
+      <div class="fase-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+          <div class="fase-title">${escapeHtml(f.title)}</div>
+          ${statusBadge(f.status)}
+        </div>
+        <div class="fase-dates">${f.start_date?fmtDateShort(f.start_date):'—'} → ${f.end_date?fmtDateShort(f.end_date):'—'}</div>
+        ${f.description?`<div class="fase-desc">${escapeHtml(f.description)}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// ──────────── COMBINADOS ────────────
+function agreementTypeLabel(t){return {reuniao:'Reunião',sprint:'Sprint',alteracao:'Alteração',decisao:'Decisão',proximos_passos:'Próximos passos'}[t]||t}
+function agreementTypeIcon(t){return {reuniao:'🗓️',sprint:'⚡',alteracao:'✏️',decisao:'⭐',proximos_passos:'➡️'}[t]||'📝'}
+function agreementTypeColor(t){return {reuniao:'#60A5FA',sprint:'#A78BFA',alteracao:'#E3B341',decisao:'#4ADE80',proximos_passos:'#F85149'}[t]||'var(--text2)'}
+
+async function loadAgreements(){
+  const list=document.getElementById('agreements-list');
+  if(!currentProject){list.innerHTML='<div class="no-project"><p>Seu projeto ainda não foi configurado.</p></div>';return}
+  const [agreeRes,profsRes]=await Promise.all([
+    sb.from('agreements').select('*').eq('project_id',currentProject.id).order('created_at',{ascending:false}),
+    sb.from('profiles').select('id, name'),
+  ]);
+  const data=agreeRes.data||[];
+  const profMap={};(profsRes.data||[]).forEach(p=>{profMap[p.id]=p});
+  if(!data.length){list.innerHTML='<div class="empty">Nenhum combinado registrado ainda. Use o botão acima para registrar uma solicitação ou anotação!</div>';return}
+  list.innerHTML=data.map(a=>{
+    const author=profMap[a.created_by]?.name||(a.created_by_role==='admin'?'Jenneffer':'Cliente');
+    const dateInfo=a.type==='reuniao'&&a.meeting_date?`📅 ${fmtDateShort(a.meeting_date)}`:
+                   (a.type==='sprint'&&(a.start_date||a.end_date))?`⏱️ ${a.start_date?fmtDateShort(a.start_date):'?'} → ${a.end_date?fmtDateShort(a.end_date):'?'}`:'';
+    const own=a.created_by===currentUser.id;
+    return `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${agreementTypeColor(a.type)};border-radius:var(--radius);padding:16px 18px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:20px;flex-shrink:0">${agreementTypeIcon(a.type)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:${agreementTypeColor(a.type)}">${agreementTypeLabel(a.type)}</span>
+            ${statusBadge(a.status)}
+          </div>
+          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">${escapeHtml(a.title)}</div>
+          ${dateInfo?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px">${dateInfo}</div>`:''}
+          ${a.description?`<div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:6px;white-space:pre-wrap">${escapeHtml(a.description)}</div>`:''}
+          <div style="font-size:11px;color:var(--text3);margin-top:8px">por ${escapeHtml(author)} · ${fmtDate(a.created_at)}</div>
+        </div>
+        ${own?`<button class="btn btn-ghost btn-sm" onclick="deleteClientAgreement('${a.id}')" style="color:var(--red)">✕</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAddAgreement(){
+  if(!currentProject){showToast('Projeto não configurado',true);return}
+  document.getElementById('ag-type').value='alteracao';
+  document.getElementById('ag-status').value='pendente';
+  document.getElementById('ag-title').value='';
+  document.getElementById('ag-desc').value='';
+  document.getElementById('ag-meeting-date').value='';
+  toggleAgFields();
+  document.getElementById('modal-agreement').style.display='flex';
+}
+
+function closeAgreementModal(){
+  document.getElementById('modal-agreement').style.display='none';
+}
+
+function toggleAgFields(){
+  const type=document.getElementById('ag-type').value;
+  document.getElementById('ag-meeting-row').style.display=type==='reuniao'?'block':'none';
+}
+
+async function saveClientAgreement(){
+  const type=document.getElementById('ag-type').value;
+  const title=document.getElementById('ag-title').value.trim();
+  const desc=document.getElementById('ag-desc').value.trim();
+  const status=document.getElementById('ag-status').value;
+  const meetingDate=document.getElementById('ag-meeting-date').value;
+  if(!type||!title){showToast('Preencha tipo e título',true);return}
+  const payload={
+    project_id:currentProject.id,
+    type,title,description:desc,status,
+    created_by:currentUser.id,
+    created_by_role:'client'
+  };
+  if(type==='reuniao')payload.meeting_date=meetingDate||null;
+  const {error}=await sb.from('agreements').insert(payload);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeAgreementModal();
+  showToast('✓ Combinado registrado!');
+  loadAgreements();
+}
+
+async function deleteClientAgreement(id){
+  if(!confirm('Excluir este combinado?'))return;
+  await sb.from('agreements').delete().eq('id',id);
+  showToast('Combinado excluído');
+  loadAgreements();
+}
+
+// ──────────── DOCUMENTOS ────────────
+async function loadDocumentos(){
+  const el=document.getElementById('docs-content');
+  if(!currentProject){el.innerHTML='<div class="empty">Projeto não configurado</div>';return}
+  const {data}=await sb.from('documents').select('*').eq('project_id',currentProject.id).order('created_at',{ascending:false});
+  if(!data?.length){el.innerHTML='<div class="empty">Nenhum documento ainda. Envie seu primeiro arquivo acima!</div>';return}
+  const getIcon=n=>{
+    if(/\.(png|jpg|jpeg|webp)$/i.test(n))return{icon:'🖼️',bg:'rgba(26,122,74,.15)'};
+    if(/\.pdf$/i.test(n))return{icon:'📄',bg:'rgba(248,81,73,.15)'};
+    if(/\.(doc|docx)$/i.test(n))return{icon:'📝',bg:'rgba(33,136,255,.15)'};
+    if(/\.(xls|xlsx)$/i.test(n))return{icon:'📊',bg:'rgba(26,122,74,.15)'};
+    return{icon:'📎',bg:'var(--dark3)'};
+  };
+  el.innerHTML=data.map(d=>{
+    const {icon,bg}=getIcon(d.name);
+    const own=d.uploaded_by===currentUser.id;
+    return `<div class="doc-item">
+      <div class="doc-icon" style="background:${bg}">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(d.name)}</div>
+        <div style="font-size:11px;color:var(--text3)">${fmtDate(d.created_at)}${d.size?' · '+fmtSize(d.size):''} · ${own?'Enviado por você':'Enviado pela Jenneffer'}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="downloadDoc('${escapeHtml(d.path)}','${escapeHtml(d.name)}')">⬇ Baixar</button>
+      ${own?`<button class="btn btn-ghost btn-sm" onclick="deleteDoc('${d.id}','${escapeHtml(d.path)}')" style="color:var(--red)">✕</button>`:''}
+    </div>`;
+  }).join('');
+}
+async function uploadDoc(ev){
+  const files=ev.target.files;
+  if(!files||!files.length)return;
+  if(!currentProject){showToast('Projeto não configurado',true);return}
+  for(const file of files){
+    if(file.size>52428800){showToast(`${file.name}: muito grande (máx 50MB)`,true);continue}
+    const path=`${currentProject.id}/${Date.now()}-${file.name}`;
+    const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
+    if(upErr){showToast('Erro upload: '+upErr.message,true);continue}
+    const {error:dbErr}=await sb.from('documents').insert({user_id:currentUser.id,project_id:currentProject.id,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type});
+    if(dbErr){showToast('Erro: '+dbErr.message,true);continue}
+    showToast(`✓ ${file.name} enviado!`);
+  }
+  document.getElementById('file-input').value='';
+  loadDocumentos();
+}
+async function downloadDoc(path,name){
+  const {data,error}=await sb.storage.from('client-documents').createSignedUrl(path,60);
+  if(error){showToast('Erro: '+error.message,true);return}
+  if(data?.signedUrl){const a=document.createElement('a');a.href=data.signedUrl;a.download=name;a.click()}
+}
+async function deleteDoc(id,path){
+  if(!confirm('Excluir este documento? Esta ação não pode ser desfeita.'))return;
+  await sb.storage.from('client-documents').remove([path]);
+  await sb.from('documents').delete().eq('id',id);
+  showToast('Documento excluído');
+  loadDocumentos();
+}
+</script>
+</body>
+</html>
