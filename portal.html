@@ -605,33 +605,102 @@ async function loadChecklist(){
     sb.from('checklist_states').select('*').eq('project_id',currentProject.id),
   ]);
   const items=itRes.data||[];
-  const stateMap={};(stRes.data||[]).forEach(s=>{stateMap[s.item_id]={id:s.id,done:s.done}});
+  const stateMap={};(stRes.data||[]).forEach(s=>{stateMap[s.item_id]=s});
   if(!items.length){el.innerHTML='<div class="empty">Nenhum item no checklist ainda. A Jenneffer adicionará em breve!</div>';return}
+
   const cats={};items.forEach(it=>{(cats[it.category]=cats[it.category]||[]).push(it)});
   let html='';
   for(const [cat,arr] of Object.entries(cats)){
     html+=`<div class="check-cat">${escapeHtml(cat)}</div>`;
     html+=arr.map(it=>{
-      const done=!!stateMap[it.id]?.done;
-      return `<div class="check-item">
-        <div class="check-box ${done?'done':''}" onclick="toggleCheck('${it.id}',${!done})">${done?'✓':''}</div>
-        <div class="check-info">
-          <div class="check-title ${done?'done':''}">${escapeHtml(it.title)}</div>
+      const s=stateMap[it.id];
+      const isApproved=s?.done;
+      const isAwaiting=s&&s.sent_by_client&&!s.done&&!s.rejected_at;
+      const isRejected=s?.rejected_at&&!s.sent_by_client;
+
+      let statusBox='';
+      let bgColor='';
+      let borderColor='var(--border)';
+
+      if(isApproved){
+        statusBox=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span class="badge bg-green" style="font-size:10.5px">✓ Aprovado</span><span style="font-size:10px;color:var(--text3)">Pela Jenneffer</span></div>`;
+        bgColor='rgba(26,122,74,.05)';
+        borderColor='rgba(26,122,74,.3)';
+      } else if(isAwaiting){
+        statusBox=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="badge bg-amber" style="font-size:10.5px">🟡 Em validação</span><button onclick="cancelSend('${it.id}')" style="background:none;border:none;color:var(--text3);font-size:10.5px;cursor:pointer;text-decoration:underline">cancelar envio</button></div>`;
+        bgColor='rgba(227,179,65,.05)';
+        borderColor='rgba(227,179,65,.3)';
+      } else if(isRejected){
+        statusBox=`<button class="btn btn-primary btn-sm" onclick="markAsSent('${it.id}')">Reenviar</button>`;
+        bgColor='rgba(248,81,73,.04)';
+        borderColor='rgba(248,81,73,.3)';
+      } else {
+        statusBox=`<button class="btn btn-primary btn-sm" onclick="markAsSent('${it.id}')">Marcar como enviado</button>`;
+      }
+
+      const rejectionNote=isRejected&&s?.rejection_note?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;background:rgba(248,81,73,.08);padding:6px 9px;border-radius:6px;border-left:2px solid var(--red);line-height:1.45"><strong>Motivo da rejeição:</strong> ${escapeHtml(s.rejection_note)}</div>`:'';
+
+      return `<div class="check-item" style="background:${bgColor};border-color:${borderColor};flex-wrap:wrap;align-items:flex-start">
+        <div class="check-info" style="flex:1;min-width:200px">
+          <div class="check-title ${isApproved?'done':''}" style="${isApproved?'text-decoration:line-through':''}">${escapeHtml(it.title)}</div>
           ${it.description?`<div class="check-desc">${escapeHtml(it.description)}</div>`:''}
+          ${rejectionNote}
         </div>
-        ${it.urgent?'<span class="badge bg-red" style="font-size:10px">Urgente</span>':''}
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+          ${it.urgent&&!isApproved?'<span class="badge bg-red" style="font-size:10px">Urgente</span>':''}
+          ${statusBox}
+        </div>
       </div>`;
     }).join('');
   }
-  el.innerHTML=html;
+
+  // Adiciona barra de progresso resumo
+  const totalApproved=items.filter(i=>stateMap[i.id]?.done).length;
+  const totalAwaiting=items.filter(i=>{const s=stateMap[i.id];return s&&s.sent_by_client&&!s.done&&!s.rejected_at}).length;
+  const pct=items.length?Math.round(totalApproved/items.length*100):0;
+
+  const summaryHtml=`<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div style="color:var(--text2)"><strong style="color:var(--text)">${totalApproved}/${items.length}</strong> aprovados${totalAwaiting>0?` · <span style="color:var(--amber)">${totalAwaiting} em validação</span>`:''}</div>
+      <div style="font-size:12px;color:var(--text3)">${pct}%</div>
+    </div>
+    <div style="height:6px;background:var(--dark3);border-radius:3px;overflow:hidden">
+      <div style="height:100%;background:var(--green);width:${pct}%;transition:width .4s"></div>
+    </div>
+  </div>`;
+
+  el.innerHTML=summaryHtml+html;
 }
-async function toggleCheck(itemId,newState){
+
+async function markAsSent(itemId){
+  const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProject.id).eq('item_id',itemId).maybeSingle();
+  const payload={
+    sent_by_client:true,
+    sent_at:new Date().toISOString(),
+    rejected_at:null,
+    rejection_note:null,
+    updated_at:new Date().toISOString()
+  };
+  if(existing){
+    await sb.from('checklist_states').update(payload).eq('id',existing.id);
+  } else {
+    await sb.from('checklist_states').insert({user_id:currentUser.id,project_id:currentProject.id,item_id:itemId,...payload});
+  }
+  showToast('✓ Marcado como enviado! Aguardando validação.');
+  loadChecklist();
+}
+
+async function cancelSend(itemId){
+  if(!confirm('Cancelar envio? O item voltará para "Pendente".'))return;
   const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProject.id).eq('item_id',itemId).maybeSingle();
   if(existing){
-    await sb.from('checklist_states').update({done:newState,updated_at:new Date().toISOString()}).eq('id',existing.id);
-  } else {
-    await sb.from('checklist_states').insert({user_id:currentUser.id,project_id:currentProject.id,item_id:itemId,done:newState});
+    await sb.from('checklist_states').update({
+      sent_by_client:false,
+      sent_at:null,
+      updated_at:new Date().toISOString()
+    }).eq('id',existing.id);
   }
+  showToast('Envio cancelado');
   loadChecklist();
 }
 
