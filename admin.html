@@ -238,7 +238,7 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
           <div class="stat"><div class="stat-label">Clientes ativos</div><div class="stat-val" id="st-clients">—</div><div class="stat-sub">no sistema</div></div>
           <div class="stat"><div class="stat-label">Combinados abertos</div><div class="stat-val" id="st-msgs" style="color:var(--amber)">—</div><div class="stat-sub">pendentes/em andamento</div></div>
           <div class="stat"><div class="stat-label">Documentos</div><div class="stat-val" id="st-docs">—</div><div class="stat-sub">enviados (24h)</div></div>
-          <div class="stat"><div class="stat-label">Checklist</div><div class="stat-val" id="st-check" style="color:var(--green)">—</div><div class="stat-sub">itens concluídos</div></div>
+          <div class="stat"><div class="stat-label">Aguardando validar</div><div class="stat-val" id="st-check" style="color:var(--amber)">—</div><div class="stat-sub">itens do checklist</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 360px;gap:16px">
           <div class="card">
@@ -621,19 +621,21 @@ async function loadDashboard(){
     sb.from('projects').select('*').order('created_at',{ascending:false}),
     sb.from('agreements').select('*').order('created_at',{ascending:false}).limit(20),
     sb.from('documents').select('*').gte('created_at',new Date(Date.now()-86400000).toISOString()),
-    sb.from('checklist_states').select('*').eq('done',true),
+    sb.from('checklist_states').select('*'),
     sb.from('profiles').select('id, name, company'),
   ]);
   const profMap={};(profsRes.data||[]).forEach(p=>{profMap[p.id]=p});
   const projects=(projRes.data||[]).map(p=>({...p, profiles:profMap[p.client_id]||{name:'—',company:''}}));
   const agreements=agreeRes.data||[];
+  const allStates=checksRes.data||[];
+  const awaitingValidation=allStates.filter(s=>s.sent_by_client&&!s.done&&!s.rejected_at).length;
   const projMap={};projects.forEach(p=>{projMap[p.id]=p});
   allClients=projects;
   const pendingAgreements=agreements.filter(a=>a.status==='pendente'||a.status==='em_andamento');
   document.getElementById('st-clients').textContent=projects.length;
   document.getElementById('st-msgs').textContent=pendingAgreements.length;
   document.getElementById('st-docs').textContent=(docsRes.data||[]).length;
-  document.getElementById('st-check').textContent=(checksRes.data||[]).length;
+  document.getElementById('st-check').textContent=awaitingValidation;
   setBadge('nav-agreements-count',pendingAgreements.length);
   setBadge('nav-clients-count',projects.length);
   const list=document.getElementById('dash-clients-list');
@@ -766,26 +768,132 @@ async function loadClientChecklist(){
   ]);
   const items=itRes.data||[];
   const states=stRes.data||[];
-  const stateMap={};states.forEach(s=>{stateMap[s.item_id]=s.done});
-  const done=items.filter(i=>stateMap[i.id]).length;
-  document.getElementById('check-summary').textContent=`${done} de ${items.length} itens concluídos`;
+  const stateMap={};states.forEach(s=>{stateMap[s.item_id]=s});
+
+  // Status do item:
+  // - done=true → APROVADO ✅
+  // - sent_by_client=true && done=false && !rejected_at → AGUARDANDO VALIDAÇÃO 🟡
+  // - rejected_at && sent_by_client=false → REJEITADO ⚠️
+  // - sem registro ou sent_by_client=false → PENDENTE ⬜
+  const approved=items.filter(i=>stateMap[i.id]?.done).length;
+  const awaiting=items.filter(i=>{const s=stateMap[i.id];return s&&s.sent_by_client&&!s.done&&!s.rejected_at}).length;
+
+  let summary=`${approved} de ${items.length} aprovados`;
+  if(awaiting>0)summary+=` · 🟡 ${awaiting} aguardando você validar`;
+  document.getElementById('check-summary').innerHTML=summary;
+
   if(!items.length){list.innerHTML='<div class="empty">Nenhum item no checklist ainda</div>';return}
+
   const cats={};items.forEach(it=>{(cats[it.category]=cats[it.category]||[]).push(it)});
   let html='';
   for(const [cat,arr] of Object.entries(cats)){
-    html+=`<div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">${escapeHtml(cat)}</div>`;
-    html+=arr.map(it=>`
-      <div class="check-admin-item">
-        <div class="check-admin-done" style="background:${stateMap[it.id]?'var(--green)':'var(--border2)'}">${stateMap[it.id]?'✓':''}</div>
-        <div class="check-admin-info">
-          <div class="check-admin-title">${escapeHtml(it.title)}</div>
-          <div class="check-admin-cat">${escapeHtml(it.description||'')}</div>
+    html+=`<div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px">${escapeHtml(cat)}</div>`;
+    html+=arr.map(it=>{
+      const s=stateMap[it.id];
+      const isApproved=s?.done;
+      const isAwaiting=s&&s.sent_by_client&&!s.done&&!s.rejected_at;
+      const isRejected=s?.rejected_at&&!s.sent_by_client;
+
+      let statusBadgeHtml='';
+      let actionsHtml='';
+      let bgColor='transparent';
+      let borderColor='var(--border)';
+
+      if(isApproved){
+        statusBadgeHtml='<span class="badge bg-green" style="font-size:10.5px">✓ Aprovado</span>';
+        actionsHtml=`<button class="btn btn-ghost btn-sm" onclick="adminUnapprove('${it.id}')" title="Reverter aprovação">↺</button>`;
+        bgColor='rgba(26,122,74,.05)';
+        borderColor='rgba(26,122,74,.3)';
+      } else if(isAwaiting){
+        statusBadgeHtml='<span class="badge bg-amber" style="font-size:10.5px">🟡 Aguardando você</span>';
+        actionsHtml=`
+          <button class="btn btn-primary btn-sm" onclick="adminApprove('${it.id}')">✓ Aprovar</button>
+          <button class="btn btn-ghost btn-sm" onclick="adminReject('${it.id}')" style="color:var(--red)">✕ Rejeitar</button>
+        `;
+        bgColor='rgba(227,179,65,.08)';
+        borderColor='rgba(227,179,65,.4)';
+      } else if(isRejected){
+        statusBadgeHtml='<span class="badge bg-red" style="font-size:10.5px">⚠ Rejeitado</span>';
+        bgColor='rgba(248,81,73,.05)';
+        borderColor='rgba(248,81,73,.3)';
+      } else {
+        statusBadgeHtml='<span class="badge bg-gray" style="font-size:10.5px">⬜ Pendente</span>';
+      }
+
+      const rejectionNote=s?.rejection_note?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;background:rgba(248,81,73,.08);padding:6px 9px;border-radius:6px;border-left:2px solid var(--red)"><strong>Motivo:</strong> ${escapeHtml(s.rejection_note)}</div>`:'';
+
+      return `<div class="check-admin-item" style="background:${bgColor};border:1px solid ${borderColor};flex-wrap:wrap;align-items:flex-start;padding:12px 14px">
+        <div style="flex:1;min-width:200px">
+          <div class="check-admin-title" style="${isApproved?'text-decoration:line-through;color:var(--text3)':''};margin-bottom:4px">${escapeHtml(it.title)}</div>
+          ${it.description?`<div class="check-admin-cat">${escapeHtml(it.description)}</div>`:''}
+          ${rejectionNote}
         </div>
-        ${it.urgent?'<span class="badge bg-red" style="font-size:10px">Urgente</span>':''}
-        <button class="btn btn-ghost btn-sm" onclick="deleteCheckItem('${it.id}')">✕</button>
-      </div>`).join('');
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          ${statusBadgeHtml}
+          ${it.urgent?'<span class="badge bg-red" style="font-size:10px">Urgente</span>':''}
+          ${actionsHtml}
+          <button class="btn btn-ghost btn-sm" onclick="deleteCheckItem('${it.id}')" style="color:var(--text3)">✕</button>
+        </div>
+      </div>`;
+    }).join('');
   }
   list.innerHTML=html;
+}
+
+async function adminApprove(itemId){
+  const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProjectId).eq('item_id',itemId).maybeSingle();
+  const payload={
+    done:true,
+    approved_at:new Date().toISOString(),
+    approved_by:currentUser.id,
+    rejected_at:null,
+    rejection_note:null,
+    updated_at:new Date().toISOString()
+  };
+  if(existing){
+    await sb.from('checklist_states').update(payload).eq('id',existing.id);
+  } else {
+    await sb.from('checklist_states').insert({user_id:currentUser.id,project_id:currentProjectId,item_id:itemId,sent_by_client:true,...payload});
+  }
+  showToast('✓ Item aprovado!');
+  loadClientChecklist();
+}
+
+async function adminReject(itemId){
+  const note=prompt('Motivo da rejeição (opcional, mas recomendado):\nO cliente vai ver esta mensagem.');
+  if(note===null)return; // cancelou
+  const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProjectId).eq('item_id',itemId).maybeSingle();
+  const payload={
+    done:false,
+    sent_by_client:false,  // volta pro estado "cliente precisa reenviar"
+    rejected_at:new Date().toISOString(),
+    rejection_note:note||null,
+    approved_at:null,
+    approved_by:null,
+    updated_at:new Date().toISOString()
+  };
+  if(existing){
+    await sb.from('checklist_states').update(payload).eq('id',existing.id);
+  } else {
+    await sb.from('checklist_states').insert({user_id:currentUser.id,project_id:currentProjectId,item_id:itemId,...payload});
+  }
+  showToast('Item rejeitado. Cliente foi notificado.');
+  loadClientChecklist();
+}
+
+async function adminUnapprove(itemId){
+  if(!confirm('Reverter aprovação? O item voltará para "Pendente".'))return;
+  const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProjectId).eq('item_id',itemId).maybeSingle();
+  if(existing){
+    await sb.from('checklist_states').update({
+      done:false,sent_by_client:false,
+      approved_at:null,approved_by:null,
+      rejected_at:null,rejection_note:null,
+      updated_at:new Date().toISOString()
+    }).eq('id',existing.id);
+  }
+  showToast('Aprovação revertida');
+  loadClientChecklist();
 }
 async function saveCheckItem(){
   const cat=document.getElementById('ci-cat').value.trim();
