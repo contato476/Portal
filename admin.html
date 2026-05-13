@@ -1329,10 +1329,26 @@ async function loadClientDocs(){
     </div>`;
   }).join('');
 }
+// Sanitiza nome de arquivo pra path do Supabase Storage
+function sanitizeFileName(name){
+  const lastDot=name.lastIndexOf('.');
+  const ext=lastDot>0?name.substring(lastDot):'';
+  let base=lastDot>0?name.substring(0,lastDot):name;
+  base=base
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9_-]+/g,'_')
+    .replace(/_+/g,'_')
+    .replace(/^_|_$/g,'')
+    .substring(0,80);
+  if(!base)base='arquivo';
+  return base+ext.toLowerCase().replace(/[^a-z0-9.]/g,'');
+}
+
 async function adminUploadDoc(ev){
   const file=ev.target.files[0];
   if(!file)return;
-  const path=`${currentProjectId}/admin-${Date.now()}-${file.name}`;
+  const safeName=sanitizeFileName(file.name);
+  const path=`${currentProjectId}/admin-${Date.now()}-${safeName}`;
   const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
   if(upErr){showToast('Erro upload: '+upErr.message,true);return}
   const {error:dbErr}=await sb.from('documents').insert({user_id:currentClientId,project_id:currentProjectId,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type});
