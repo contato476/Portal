@@ -245,6 +245,7 @@ textarea.form-input{resize:vertical;min-height:80px}
         <div class="sb-av" id="sb-av">C</div>
         <div>
           <div class="sb-user-name" id="sb-name">Cliente</div>
+          <div class="sb-logout" onclick="openChangePassword()" style="color:var(--text2)">Alterar senha</div>
           <div class="sb-logout" onclick="doLogout()">Sair</div>
         </div>
       </div>
@@ -334,6 +335,27 @@ textarea.form-input{resize:vertical;min-height:80px}
     <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn btn-ghost" onclick="closeAgreementModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveClientAgreement()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ALTERAR SENHA -->
+<div id="modal-password" style="display:none;position:fixed;inset:0;background:rgba(13,17,23,.8);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+  <div style="background:var(--dark2);border:1px solid var(--border);border-radius:16px;padding:26px;width:420px;max-width:96vw">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:8px">🔐 Alterar minha senha</div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:18px;line-height:1.5">Defina uma nova senha. Ela vai funcionar a partir do próximo login.</div>
+    <div class="form-group">
+      <label class="form-label">Nova senha</label>
+      <input class="form-input" id="cp-new" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirme a nova senha</label>
+      <input class="form-input" id="cp-confirm" type="password" placeholder="Repita a senha" autocomplete="new-password">
+    </div>
+    <div id="cp-err" style="background:var(--red-l);border:1px solid var(--red);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--red);margin-top:8px;display:none"></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" onclick="closeChangePassword()">Cancelar</button>
+      <button class="btn btn-primary" id="cp-btn" onclick="saveNewPassword()">Salvar nova senha</button>
     </div>
   </div>
 </div>
@@ -484,6 +506,37 @@ async function loadProject(){
 async function doLogout(){
   await sb.auth.signOut();
   location.reload();
+}
+
+// ──────────── ALTERAR SENHA ────────────
+function openChangePassword(){
+  document.getElementById('cp-new').value='';
+  document.getElementById('cp-confirm').value='';
+  document.getElementById('cp-err').style.display='none';
+  document.getElementById('modal-password').style.display='flex';
+}
+
+function closeChangePassword(){
+  document.getElementById('modal-password').style.display='none';
+}
+
+async function saveNewPassword(){
+  const newPass=document.getElementById('cp-new').value;
+  const confirm=document.getElementById('cp-confirm').value;
+  const err=document.getElementById('cp-err');
+  const btn=document.getElementById('cp-btn');
+  err.style.display='none';
+
+  if(!newPass||newPass.length<8){err.textContent='A senha deve ter pelo menos 8 caracteres';err.style.display='block';return}
+  if(newPass!==confirm){err.textContent='As senhas não coincidem';err.style.display='block';return}
+
+  btn.disabled=true;btn.textContent='Salvando...';
+  const {error}=await sb.auth.updateUser({password:newPass});
+  if(error){err.textContent='Erro: '+error.message;err.style.display='block';btn.disabled=false;btn.textContent='Salvar nova senha';return}
+
+  closeChangePassword();
+  showToast('✓ Senha alterada com sucesso!');
+  btn.disabled=false;btn.textContent='Salvar nova senha';
 }
 
 window.addEventListener('DOMContentLoaded',async()=>{
