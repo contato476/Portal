@@ -440,7 +440,7 @@ async function doResetPassword(){
   const ok=document.getElementById('reset-ok');
   err.style.display='none';ok.style.display='none';
   if(!email){err.textContent='Informe o e-mail';err.style.display='block';return}
-  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/portal.html'});
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/reset.html'});
   if(error){err.textContent=error.message;err.style.display='block';return}
   ok.textContent='✓ Link de recuperação enviado! Verifique sua caixa de entrada.';
   ok.style.display='block';
@@ -897,13 +897,30 @@ async function loadDocumentos(){
     </div>`;
   }).join('');
 }
+// Sanitiza nome de arquivo pra path do Supabase Storage
+// Remove acentos, espaços, caracteres especiais — mantém apenas a-z, 0-9, ponto, hífen e underline
+function sanitizeFileName(name){
+  const lastDot=name.lastIndexOf('.');
+  const ext=lastDot>0?name.substring(lastDot):'';
+  let base=lastDot>0?name.substring(0,lastDot):name;
+  base=base
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // remove acentos
+    .replace(/[^a-zA-Z0-9_-]+/g,'_')                  // troca outros chars por _
+    .replace(/_+/g,'_')                                // múltiplos _ vira um só
+    .replace(/^_|_$/g,'')                              // remove _ do começo/fim
+    .substring(0,80);                                  // limita tamanho
+  if(!base)base='arquivo';
+  return base+ext.toLowerCase().replace(/[^a-z0-9.]/g,'');
+}
+
 async function uploadDoc(ev){
   const files=ev.target.files;
   if(!files||!files.length)return;
   if(!currentProject){showToast('Projeto não configurado',true);return}
   for(const file of files){
     if(file.size>52428800){showToast(`${file.name}: muito grande (máx 50MB)`,true);continue}
-    const path=`${currentProject.id}/${Date.now()}-${file.name}`;
+    const safeName=sanitizeFileName(file.name);
+    const path=`${currentProject.id}/${Date.now()}-${safeName}`;
     const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
     if(upErr){showToast('Erro upload: '+upErr.message,true);continue}
     const {error:dbErr}=await sb.from('documents').insert({user_id:currentUser.id,project_id:currentProject.id,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type});
