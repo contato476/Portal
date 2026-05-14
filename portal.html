@@ -607,16 +607,9 @@ async function loadHome(){
   const openAgreements=(agRes.data||[]).length;
   const docs=(docRes.data||[]).length;
 
-  // Cálculo do avanço GERAL do projeto
-  // Combina checklist (peso 40%) + cronograma (peso 60%) — cronograma tem mais peso
-  // porque representa o trabalho de execução real
-  const checklistPct=totalItems?(doneItems/totalItems):0;
-  const phasePct=totalPhases?(donePhases/totalPhases):0;
-  let overallPct;
-  if(totalItems===0&&totalPhases===0)overallPct=0;
-  else if(totalItems===0)overallPct=Math.round(phasePct*100);
-  else if(totalPhases===0)overallPct=Math.round(checklistPct*100);
-  else overallPct=Math.round((checklistPct*0.4+phasePct*0.6)*100);
+  // Cálculo do avanço do projeto — APENAS pelo cronograma
+  // O checklist é só pra controle de material recebido, não conta no avanço
+  const overallPct=totalPhases?Math.round(donePhases/totalPhases*100):0;
 
   // Determina cor da barra baseada no progresso
   let barColor='var(--green)';
