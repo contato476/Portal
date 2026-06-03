@@ -19,11 +19,14 @@
 .cal-cell.today .cal-daynum{color:var(--green2);font-weight:700}
 .cal-chip{font-size:10px;padding:2px 6px;border-radius:5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:500}
 .cal-chip.done{opacity:.45;text-decoration:line-through}
+.cal-chip.gcal{background:rgba(255,255,255,.08);color:var(--text2);border-left:2px solid #EA4335;cursor:default}
 .cal-more{font-size:9.5px;color:var(--text3);padding-left:2px}
 .month-nav{display:flex;align-items:center;gap:10px}
 .month-label{font-size:15px;font-weight:500;min-width:150px;text-align:center;text-transform:capitalize}
-.toggle-row{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text2)}
+.toggle-row{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text2);flex-wrap:wrap}
 .toggle-row label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.gcal-status{font-size:11px;color:var(--text3)}
+.gcal-status.on{color:#4ADE80}
 @media(max-width:768px){.cal-cell{min-height:64px}.cal-chip{font-size:8.5px;padding:1px 4px}}
 </style>
 </head>
@@ -53,7 +56,10 @@
   <div class="main-area">
     <div class="topbar">
       <div class="topbar-title">Agenda</div>
-      <button class="btn btn-primary" onclick="openNewEvent()">+ Evento</button>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-ghost" onclick="openGcalConfig()">⚙️ Google Agenda</button>
+        <button class="btn btn-primary" onclick="openNewEvent()">+ Evento</button>
+      </div>
     </div>
     <div class="main-content">
 
@@ -65,8 +71,9 @@
           <button class="btn btn-ghost btn-sm" onclick="goToday()">Hoje</button>
         </div>
         <div class="toggle-row">
-          <label><input type="checkbox" id="show-tasks" checked onchange="renderCalendar()"> Mostrar prazos de tarefas</label>
-          <span><span class="badge bg-green">Compromisso</span> <span class="badge bg-blue">Reunião</span> <span class="badge bg-amber">Entrega</span> <span class="badge bg-purple">Pessoal</span></span>
+          <label><input type="checkbox" id="show-tasks" checked onchange="renderCalendar()"> Prazos de tarefas</label>
+          <label id="gcal-toggle-wrap" style="display:none"><input type="checkbox" id="show-gcal" checked onchange="renderCalendar()"> Google Agenda</label>
+          <span class="gcal-status" id="gcal-status"></span>
         </div>
       </div>
 
@@ -126,8 +133,33 @@
     <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="e-desc" style="min-height:56px"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-ev" style="margin-right:auto;display:none" onclick="deleteEvent()">Excluir</button>
+      <button class="btn btn-ghost" onclick="sendToGoogle()" title="Abre o Google Agenda com este evento preenchido">📅 Enviar pro Google</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-ev')">Cancelar</button>
       <button class="btn btn-primary" id="btn-save-ev" onclick="saveEvent()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIG GOOGLE AGENDA -->
+<div class="overlay" id="modal-gcal">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">Conectar Google Agenda</div>
+    <div style="font-size:12.5px;color:var(--text2);line-height:1.7;margin-bottom:14px">
+      Para ver seus compromissos do Google aqui no sistema:<br>
+      1. Abra o <b>Google Agenda</b> no computador<br>
+      2. Em "Minhas agendas", passe o mouse na sua agenda → <b>⋮ → Configurações e compartilhamento</b><br>
+      3. Role até <b>"Endereço secreto no formato iCal"</b> e copie o link<br>
+      4. Cole abaixo e salve
+    </div>
+    <div class="form-group">
+      <label class="form-label">Endereço secreto iCal</label>
+      <input class="form-input" id="g-url" placeholder="https://calendar.google.com/calendar/ical/...basic.ics">
+    </div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.6">⚠️ Esse link é secreto: quem tiver ele consegue ver sua agenda. Ele fica guardado no seu banco Supabase, visível só pra você. Os eventos do Google aparecem como leitura (alterações são feitas no próprio Google).</div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-gcal" style="margin-right:auto;display:none" onclick="removeGcal()">Desconectar</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-gcal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGcal()">Salvar e conectar</button>
     </div>
   </div>
 </div>
@@ -145,8 +177,9 @@ const TYPE_STYLE = {
 const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 let events = [], tasks = [], contacts = [], projects = [];
+let gcalUrl = null, gcalOccurrences = [];
 let editingEvId = null;
-let viewYear, viewMonth; // mês visível
+let viewYear, viewMonth;
 
 window.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
@@ -158,11 +191,12 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadAll(){
-  const [evRes, taskRes, cRes, pRes] = await Promise.all([
+  const [evRes, taskRes, cRes, pRes, setRes] = await Promise.all([
     sb.from('agenda_events').select('*').order('start_at'),
     sb.from('tasks').select('id,title,due_date,status').not('due_date','is',null).in('status',['pendente','em_andamento']),
     sb.from('crm_contacts').select('id,name').order('name'),
     sb.from('projects').select('id,name').order('name'),
+    sb.from('app_settings').select('*').eq('key','gcal_ics_url').maybeSingle(),
   ]);
   if(evRes.error){
     document.getElementById('cal-grid').innerHTML = isMissingTable(evRes.error)?SQL_HINT:'<div class="empty" style="grid-column:1/-1">Erro: '+escapeHtml(evRes.error.message)+'</div>';
@@ -174,10 +208,188 @@ async function loadAll(){
   projects = pRes.data||[];
   document.getElementById('e-contact').innerHTML = '<option value="">—</option>'+contacts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   document.getElementById('e-project').innerHTML = '<option value="">—</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+
+  if(setRes.error && isMissingTable(setRes.error)){
+    document.getElementById('gcal-status').textContent = 'Google: rode sql/02_app_settings.sql para ativar';
+  } else {
+    gcalUrl = setRes.data ? setRes.data.value : null;
+  }
   renderCalendar();
   renderUpcoming();
+  if(gcalUrl) fetchGoogle();
 }
 
+// ──────────── GOOGLE AGENDA ────────────
+function setGcalStatus(msg, ok){
+  const el = document.getElementById('gcal-status');
+  el.textContent = msg;
+  el.className = 'gcal-status'+(ok?' on':'');
+}
+
+async function fetchGoogle(){
+  setGcalStatus('Google: carregando...');
+  try{
+    const r = await fetch('/api/gcal?url='+encodeURIComponent(gcalUrl));
+    if(!r.ok){
+      const j = await r.json().catch(()=>({}));
+      setGcalStatus('Google: erro — '+(j.error||r.status));
+      return;
+    }
+    const text = await r.text();
+    const raw = parseICS(text);
+    const winStart = new Date(Date.now()-60*86400000);
+    const winEnd = new Date(Date.now()+120*86400000);
+    gcalOccurrences = [];
+    raw.forEach(ev=>{
+      if(ev.cancelled || !ev.start || !ev.title) return;
+      expandOccurrences(ev, winStart, winEnd).forEach(d=>{
+        gcalOccurrences.push({
+          date: d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'),
+          time: ev.allDay?'':d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+          title: ev.title,
+          location: ev.location||'',
+          allDay: ev.allDay,
+        });
+      });
+    });
+    document.getElementById('gcal-toggle-wrap').style.display = 'flex';
+    setGcalStatus('Google: conectado ✓ ('+gcalOccurrences.length+' eventos)', true);
+    renderCalendar();
+  }catch(e){
+    setGcalStatus('Google: falha de conexão');
+  }
+}
+
+// Parser de iCal (formato do Google)
+function parseICS(text){
+  const lines = text.replace(/\r\n[ \t]/g,'').replace(/\r/g,'').split('\n');
+  const out = []; let cur = null;
+  for(const line of lines){
+    if(line==='BEGIN:VEVENT'){cur={};continue}
+    if(line==='END:VEVENT'){if(cur)out.push(cur);cur=null;continue}
+    if(!cur)continue;
+    const i = line.indexOf(':');
+    if(i<0)continue;
+    const key = line.slice(0,i), val = line.slice(i+1);
+    const name = key.split(';')[0];
+    if(name==='DTSTART'){cur.start=parseICSDate(val);cur.allDay=/^\d{8}$/.test(val)}
+    else if(name==='DTEND'){cur.end=parseICSDate(val)}
+    else if(name==='SUMMARY'){cur.title=val.replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\n/g,' ')}
+    else if(name==='LOCATION'){cur.location=val.replace(/\\,/g,',')}
+    else if(name==='RRULE'){cur.rrule=val}
+    else if(name==='EXDATE'){(cur.exdates=cur.exdates||[]).push(...val.split(',').map(parseICSDate).filter(Boolean))}
+    else if(name==='STATUS'&&val==='CANCELLED'){cur.cancelled=true}
+  }
+  return out;
+}
+function parseICSDate(v){
+  const m = String(v).match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/);
+  if(!m) return null;
+  if(m[7]) return new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]));
+  return new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0));
+}
+// Expande recorrências (DAILY/WEEKLY/MONTHLY/YEARLY com INTERVAL, UNTIL, COUNT, BYDAY semanal)
+function expandOccurrences(ev, winStart, winEnd){
+  if(!ev.rrule){
+    return (ev.start>=winStart && ev.start<=winEnd) ? [ev.start] : [];
+  }
+  const R = Object.fromEntries(ev.rrule.split(';').map(p=>p.split('=')));
+  const freq = R.FREQ;
+  const interval = +(R.INTERVAL||1);
+  const until = R.UNTIL ? parseICSDate(R.UNTIL) : null;
+  const maxCount = R.COUNT ? +R.COUNT : Infinity;
+  const dowMap = {SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6};
+  const bydays = (freq==='WEEKLY' && R.BYDAY) ? R.BYDAY.split(',').map(s=>dowMap[s.slice(-2)]).filter(x=>x!=null).sort() : null;
+  const occ = [];
+  let produced = 0, guard = 0;
+
+  if(bydays){
+    const weekStart = new Date(ev.start);
+    weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+    outer: while(guard++<3000){
+      for(const dow of bydays){
+        const d = new Date(weekStart);
+        d.setDate(d.getDate()+dow);
+        d.setHours(ev.start.getHours(), ev.start.getMinutes(), 0, 0);
+        if(d<ev.start) continue;
+        if(until && d>until) break outer;
+        if(produced>=maxCount) break outer;
+        produced++;
+        if(d>=winStart && d<=winEnd) occ.push(d);
+        if(d>winEnd) break outer;
+      }
+      weekStart.setDate(weekStart.getDate()+7*interval);
+    }
+  } else {
+    let d = new Date(ev.start);
+    while(guard++<3000 && produced<maxCount){
+      if(until && d>until) break;
+      produced++;
+      if(d>=winStart && d<=winEnd) occ.push(new Date(d));
+      if(d>winEnd) break;
+      if(freq==='DAILY') d.setDate(d.getDate()+interval);
+      else if(freq==='WEEKLY') d.setDate(d.getDate()+7*interval);
+      else if(freq==='MONTHLY') d.setMonth(d.getMonth()+interval);
+      else if(freq==='YEARLY') d.setFullYear(d.getFullYear()+interval);
+      else break;
+    }
+  }
+  const ex = new Set((ev.exdates||[]).map(x=>x.getTime()));
+  return occ.filter(d=>!ex.has(d.getTime()));
+}
+
+function openGcalConfig(){
+  document.getElementById('g-url').value = gcalUrl||'';
+  document.getElementById('btn-del-gcal').style.display = gcalUrl?'inline-flex':'none';
+  openModal('modal-gcal');
+}
+async function saveGcal(){
+  const url = document.getElementById('g-url').value.trim();
+  if(!url || !url.includes('calendar.google.com')){showToast('Cole o endereço secreto iCal do Google',true);return}
+  const {error} = await sb.from('app_settings').upsert({key:'gcal_ics_url', value:url, updated_at:new Date().toISOString()});
+  if(error){showToast(isMissingTable(error)?'Rode o sql/02_app_settings.sql no Supabase primeiro':'Erro: '+error.message,true);return}
+  gcalUrl = url;
+  closeModal('modal-gcal');
+  showToast('Google Agenda conectado ✓');
+  fetchGoogle();
+}
+async function removeGcal(){
+  if(!confirm('Desconectar o Google Agenda?')) return;
+  await sb.from('app_settings').delete().eq('key','gcal_ics_url');
+  gcalUrl = null;
+  gcalOccurrences = [];
+  document.getElementById('gcal-toggle-wrap').style.display='none';
+  setGcalStatus('');
+  closeModal('modal-gcal');
+  renderCalendar();
+  showToast('Google Agenda desconectado');
+}
+
+// Botão "Enviar pro Google" no modal de evento
+function sendToGoogle(){
+  const title = document.getElementById('e-title').value.trim();
+  const date = document.getElementById('e-date').value;
+  if(!title||!date){showToast('Preencha título e data primeiro',true);return}
+  const allDay = document.getElementById('e-allday').checked;
+  const st = document.getElementById('e-start').value;
+  const en = document.getElementById('e-end').value;
+  let dates;
+  if(allDay||!st){
+    const d2 = new Date(date+'T00:00:00'); d2.setDate(d2.getDate()+1);
+    dates = date.replace(/-/g,'')+'/'+d2.toISOString().slice(0,10).replace(/-/g,'');
+  } else {
+    const toG = (t)=>date.replace(/-/g,'')+'T'+t.replace(':','')+'00';
+    dates = toG(st)+'/'+toG(en||st);
+  }
+  const params = new URLSearchParams({
+    action:'TEMPLATE', text:title, dates,
+    details:document.getElementById('e-desc').value||'',
+    location:document.getElementById('e-location').value||'',
+  });
+  window.open('https://calendar.google.com/calendar/render?'+params.toString(),'_blank');
+}
+
+// ──────────── CALENDÁRIO ────────────
 function localDateStr(iso){
   const d = new Date(iso);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -188,9 +400,9 @@ function renderCalendar(){
   document.getElementById('month-label').textContent = label;
   const today = todayISO();
   const showTasks = document.getElementById('show-tasks').checked;
+  const showG = document.getElementById('show-gcal').checked;
   const first = new Date(viewYear, viewMonth, 1);
-  const startOffset = first.getDay();
-  const gridStart = new Date(viewYear, viewMonth, 1-startOffset);
+  const gridStart = new Date(viewYear, viewMonth, 1-first.getDay());
   let html = '';
   for(let i=0;i<42;i++){
     const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate()+i);
@@ -199,12 +411,14 @@ function renderCalendar(){
     const isToday = ds===today;
     const dayEvents = events.filter(e=>localDateStr(e.start_at)===ds);
     const dayTasks = showTasks ? tasks.filter(t=>t.due_date===ds) : [];
+    const dayG = showG ? gcalOccurrences.filter(g=>g.date===ds) : [];
     const chips = [
       ...dayEvents.map(e=>{
         const st = TYPE_STYLE[e.type]||TYPE_STYLE.compromisso;
         const time = e.all_day?'':new Date(e.start_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' ';
         return `<div class="cal-chip${e.done?' done':''}" style="background:${st.bg};color:${st.color}" onclick="event.stopPropagation();openEditEvent('${e.id}')" title="${escapeHtml(e.title)}">${time}${escapeHtml(e.title)}</div>`;
       }),
+      ...dayG.map(g=>`<div class="cal-chip gcal" onclick="event.stopPropagation()" title="Google: ${escapeHtml(g.title)}${g.location?' — '+escapeHtml(g.location):''}">${g.time?g.time+' ':''}${escapeHtml(g.title)}</div>`),
       ...dayTasks.map(t=>`<div class="cal-chip" style="background:var(--dark3);color:var(--text2);border:1px dashed var(--border2)" onclick="event.stopPropagation();location.href='tarefas.html'" title="Tarefa: ${escapeHtml(t.title)}">✓ ${escapeHtml(t.title)}</div>`),
     ];
     const visible = chips.slice(0,3);
@@ -253,6 +467,7 @@ function toggleAllDay(){
   document.getElementById('e-end').disabled = off;
 }
 
+// ──────────── EVENTOS (CRUD) ────────────
 function openNewEvent(dateStr){
   editingEvId = null;
   document.getElementById('modal-ev-title').textContent = 'Novo evento';
