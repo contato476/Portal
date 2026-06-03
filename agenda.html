@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border)}
+.cal-dow{padding:9px 6px;text-align:center;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-cell{min-height:96px;border-bottom:1px solid rgba(255,255,255,.05);border-right:1px solid rgba(255,255,255,.05);padding:6px;cursor:pointer;transition:background .1s;position:relative}
+.cal-cell:hover{background:rgba(255,255,255,.03)}
+.cal-cell.other{opacity:.35}
+.cal-cell.today{background:rgba(26,122,74,.08)}
+.cal-daynum{font-size:11.5px;color:var(--text2);font-weight:500;margin-bottom:4px}
+.cal-cell.today .cal-daynum{color:var(--green2);font-weight:700}
+.cal-chip{font-size:10px;padding:2px 6px;border-radius:5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:500}
+.cal-chip.done{opacity:.45;text-decoration:line-through}
+.cal-more{font-size:9.5px;color:var(--text3);padding-left:2px}
+.month-nav{display:flex;align-items:center;gap:10px}
+.month-label{font-size:15px;font-weight:500;min-width:150px;text-align:center;text-transform:capitalize}
+.toggle-row{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text2)}
+.toggle-row label{display:flex;gap:5px;align-items:center;cursor:pointer}
+@media(max-width:768px){.cal-cell{min-height:64px}.cal-chip{font-size:8.5px;padding:1px 4px}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Agenda</div>
+      <button class="btn btn-primary" onclick="openNewEvent()">+ Evento</button>
+    </div>
+    <div class="main-content">
+
+      <div class="page-hd" style="margin-bottom:14px">
+        <div class="month-nav">
+          <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">←</button>
+          <div class="month-label" id="month-label">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">→</button>
+          <button class="btn btn-ghost btn-sm" onclick="goToday()">Hoje</button>
+        </div>
+        <div class="toggle-row">
+          <label><input type="checkbox" id="show-tasks" checked onchange="renderCalendar()"> Mostrar prazos de tarefas</label>
+          <span><span class="badge bg-green">Compromisso</span> <span class="badge bg-blue">Reunião</span> <span class="badge bg-amber">Entrega</span> <span class="badge bg-purple">Pessoal</span></span>
+        </div>
+      </div>
+
+      <div class="card" style="overflow:hidden;margin-bottom:16px">
+        <div class="cal-head" id="cal-head"></div>
+        <div class="cal-grid" id="cal-grid"><div class="loading" style="grid-column:1/-1">Carregando...</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Próximos eventos</div></div>
+        <div id="upcoming-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: EVENTO -->
+<div class="overlay" id="modal-ev">
+  <div class="modal" style="width:540px">
+    <div class="modal-title" id="modal-ev-title">Novo evento</div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="e-title" placeholder="Ex.: Reunião de alinhamento — Maria"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-input form-select" id="e-type">
+          <option value="compromisso">📌 Compromisso</option>
+          <option value="reuniao">🗓️ Reunião</option>
+          <option value="entrega">📦 Entrega</option>
+          <option value="pessoal">🏠 Pessoal</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Data *</label><input class="form-input" id="e-date" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Início</label><input class="form-input" id="e-start" type="time"></div>
+      <div class="form-group"><label class="form-label">Fim</label><input class="form-input" id="e-end" type="time"></div>
+    </div>
+    <div class="form-group"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;color:var(--text2);cursor:pointer"><input type="checkbox" id="e-allday" onchange="toggleAllDay()"> Dia inteiro (sem horário)</label></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Contato (CRM)</label>
+        <select class="form-input form-select" id="e-contact"><option value="">—</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Projeto</label>
+        <select class="form-input form-select" id="e-project"><option value="">—</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Local / link</label><input class="form-input" id="e-location" placeholder="Ex.: Google Meet, escritório..."></div>
+      <div class="form-group"><label class="form-label">Concluído?</label>
+        <select class="form-input form-select" id="e-done">
+          <option value="false">Não</option>
+          <option value="true">Sim ✓</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="e-desc" style="min-height:56px"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-ev" style="margin-right:auto;display:none" onclick="deleteEvent()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-ev')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-ev" onclick="saveEvent()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+const TYPE_STYLE = {
+  compromisso:{bg:'rgba(26,122,74,.25)', color:'#4ADE80', icon:'📌'},
+  reuniao:{bg:'rgba(33,136,255,.22)', color:'#60A5FA', icon:'🗓️'},
+  entrega:{bg:'rgba(227,179,65,.22)', color:'#E3B341', icon:'📦'},
+  pessoal:{bg:'rgba(139,92,246,.22)', color:'#A78BFA', icon:'🏠'},
+};
+const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+let events = [], tasks = [], contacts = [], projects = [];
+let editingEvId = null;
+let viewYear, viewMonth; // mês visível
+
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+  document.getElementById('cal-head').innerHTML = DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  renderSidebar('agenda');
+  requireAdmin(loadAll);
+});
+
+async function loadAll(){
+  const [evRes, taskRes, cRes, pRes] = await Promise.all([
+    sb.from('agenda_events').select('*').order('start_at'),
+    sb.from('tasks').select('id,title,due_date,status').not('due_date','is',null).in('status',['pendente','em_andamento']),
+    sb.from('crm_contacts').select('id,name').order('name'),
+    sb.from('projects').select('id,name').order('name'),
+  ]);
+  if(evRes.error){
+    document.getElementById('cal-grid').innerHTML = isMissingTable(evRes.error)?SQL_HINT:'<div class="empty" style="grid-column:1/-1">Erro: '+escapeHtml(evRes.error.message)+'</div>';
+    return;
+  }
+  events = evRes.data||[];
+  tasks = taskRes.data||[];
+  contacts = cRes.data||[];
+  projects = pRes.data||[];
+  document.getElementById('e-contact').innerHTML = '<option value="">—</option>'+contacts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  document.getElementById('e-project').innerHTML = '<option value="">—</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  renderCalendar();
+  renderUpcoming();
+}
+
+function localDateStr(iso){
+  const d = new Date(iso);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function renderCalendar(){
+  const label = new Date(viewYear, viewMonth, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  document.getElementById('month-label').textContent = label;
+  const today = todayISO();
+  const showTasks = document.getElementById('show-tasks').checked;
+  const first = new Date(viewYear, viewMonth, 1);
+  const startOffset = first.getDay();
+  const gridStart = new Date(viewYear, viewMonth, 1-startOffset);
+  let html = '';
+  for(let i=0;i<42;i++){
+    const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate()+i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const other = d.getMonth()!==viewMonth;
+    const isToday = ds===today;
+    const dayEvents = events.filter(e=>localDateStr(e.start_at)===ds);
+    const dayTasks = showTasks ? tasks.filter(t=>t.due_date===ds) : [];
+    const chips = [
+      ...dayEvents.map(e=>{
+        const st = TYPE_STYLE[e.type]||TYPE_STYLE.compromisso;
+        const time = e.all_day?'':new Date(e.start_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' ';
+        return `<div class="cal-chip${e.done?' done':''}" style="background:${st.bg};color:${st.color}" onclick="event.stopPropagation();openEditEvent('${e.id}')" title="${escapeHtml(e.title)}">${time}${escapeHtml(e.title)}</div>`;
+      }),
+      ...dayTasks.map(t=>`<div class="cal-chip" style="background:var(--dark3);color:var(--text2);border:1px dashed var(--border2)" onclick="event.stopPropagation();location.href='tarefas.html'" title="Tarefa: ${escapeHtml(t.title)}">✓ ${escapeHtml(t.title)}</div>`),
+    ];
+    const visible = chips.slice(0,3);
+    const more = chips.length-visible.length;
+    html += `<div class="cal-cell${other?' other':''}${isToday?' today':''}" onclick="openNewEvent('${ds}')">
+      <div class="cal-daynum">${d.getDate()}</div>
+      ${visible.join('')}${more>0?`<div class="cal-more">+${more} mais</div>`:''}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function renderUpcoming(){
+  const el = document.getElementById('upcoming-list');
+  const now = new Date(Date.now()-3600000).toISOString();
+  const next = events.filter(e=>e.start_at>=now && !e.done).slice(0,8);
+  if(!next.length){el.innerHTML='<div class="empty">Nenhum evento futuro — clique num dia do calendário pra criar</div>';return}
+  el.innerHTML = next.map(e=>{
+    const st = TYPE_STYLE[e.type]||TYPE_STYLE.compromisso;
+    const c = e.contact_id && contacts.find(x=>x.id===e.contact_id);
+    return `<div class="list-item" style="cursor:pointer" onclick="openEditEvent('${e.id}')">
+      <div style="font-size:16px">${st.icon}</div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(e.title)}</div>
+        <div class="li-sub">${e.all_day?fmtDateShort(localDateStr(e.start_at))+' · dia todo':fmtDate(e.start_at)}${c?' · '+escapeHtml(c.name):''}${e.location?' · '+escapeHtml(e.location):''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function changeMonth(delta){
+  const d = new Date(viewYear, viewMonth+delta, 1);
+  viewYear = d.getFullYear();
+  viewMonth = d.getMonth();
+  renderCalendar();
+}
+function goToday(){
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+  renderCalendar();
+}
+function toggleAllDay(){
+  const off = document.getElementById('e-allday').checked;
+  document.getElementById('e-start').disabled = off;
+  document.getElementById('e-end').disabled = off;
+}
+
+function openNewEvent(dateStr){
+  editingEvId = null;
+  document.getElementById('modal-ev-title').textContent = 'Novo evento';
+  document.getElementById('btn-del-ev').style.display = 'none';
+  document.getElementById('e-title').value='';
+  document.getElementById('e-type').value='compromisso';
+  document.getElementById('e-date').value = (typeof dateStr==='string'&&dateStr)?dateStr:todayISO();
+  document.getElementById('e-start').value='';
+  document.getElementById('e-end').value='';
+  document.getElementById('e-allday').checked=false;
+  toggleAllDay();
+  document.getElementById('e-contact').value='';
+  document.getElementById('e-project').value='';
+  document.getElementById('e-location').value='';
+  document.getElementById('e-done').value='false';
+  document.getElementById('e-desc').value='';
+  openModal('modal-ev');
+}
+
+function openEditEvent(id){
+  const e = events.find(x=>x.id===id);
+  if(!e) return;
+  editingEvId = id;
+  document.getElementById('modal-ev-title').textContent = 'Editar evento';
+  document.getElementById('btn-del-ev').style.display = 'inline-flex';
+  document.getElementById('e-title').value = e.title;
+  document.getElementById('e-type').value = e.type;
+  const sd = new Date(e.start_at);
+  document.getElementById('e-date').value = localDateStr(e.start_at);
+  document.getElementById('e-allday').checked = e.all_day;
+  document.getElementById('e-start').value = e.all_day?'':sd.toTimeString().slice(0,5);
+  document.getElementById('e-end').value = (e.end_at&&!e.all_day)?new Date(e.end_at).toTimeString().slice(0,5):'';
+  toggleAllDay();
+  document.getElementById('e-contact').value = e.contact_id||'';
+  document.getElementById('e-project').value = e.project_id||'';
+  document.getElementById('e-location').value = e.location||'';
+  document.getElementById('e-done').value = String(e.done);
+  document.getElementById('e-desc').value = e.description||'';
+  openModal('modal-ev');
+}
+
+async function saveEvent(){
+  const title = document.getElementById('e-title').value.trim();
+  const date = document.getElementById('e-date').value;
+  if(!title){showToast('Dê um título ao evento',true);return}
+  if(!date){showToast('Escolha a data',true);return}
+  const allDay = document.getElementById('e-allday').checked;
+  const startTime = document.getElementById('e-start').value;
+  const endTime = document.getElementById('e-end').value;
+  const startAt = new Date(date+'T'+(allDay||!startTime?'00:00':startTime)).toISOString();
+  const endAt = (!allDay&&endTime)?new Date(date+'T'+endTime).toISOString():null;
+  const payload = {
+    title,
+    type: document.getElementById('e-type').value,
+    start_at: startAt,
+    end_at: endAt,
+    all_day: allDay||!startTime,
+    contact_id: document.getElementById('e-contact').value||null,
+    project_id: document.getElementById('e-project').value||null,
+    location: document.getElementById('e-location').value.trim()||null,
+    done: document.getElementById('e-done').value==='true',
+    description: document.getElementById('e-desc').value.trim()||null,
+  };
+  const btn = document.getElementById('btn-save-ev');
+  btn.disabled = true;
+  const {error} = editingEvId
+    ? await sb.from('agenda_events').update(payload).eq('id',editingEvId)
+    : await sb.from('agenda_events').insert(payload);
+  btn.disabled = false;
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-ev');
+  showToast(editingEvId?'Evento atualizado ✓':'Evento criado ✓');
+  loadAll();
+}
+
+async function deleteEvent(){
+  if(!editingEvId) return;
+  if(!confirm('Excluir este evento?')) return;
+  const {error} = await sb.from('agenda_events').delete().eq('id',editingEvId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-ev');
+  showToast('Evento excluído');
+  loadAll();
+}
+</script>
+</body>
+</html>
