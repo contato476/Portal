@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Gerencial — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.painel-grid{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
+.painel-col{display:flex;flex-direction:column;gap:16px}
+.task-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;transition:all .15s}
+.task-check:hover{border-color:var(--green)}
+.task-check.done{background:var(--green);border-color:var(--green)}
+.task-late{border-left:3px solid var(--red)}
+.funil-row{display:flex;align-items:center;gap:10px;padding:7px 17px;font-size:12.5px}
+.funil-bar{height:8px;border-radius:4px;background:var(--green);min-width:4px;transition:width .3s}
+.funil-label{width:90px;color:var(--text2);flex-shrink:0}
+.funil-n{margin-left:auto;color:var(--text);font-weight:500;font-size:12px}
+@media(max-width:1000px){.painel-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Painel Gerencial</div>
+      <button class="btn btn-primary" onclick="openModal('modal-task')">+ Tarefa rápida</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Tarefas hoje</div><div class="stat-val" id="st-hoje">—</div><div class="stat-sub">para fazer</div></div>
+        <div class="stat"><div class="stat-label">Atrasadas</div><div class="stat-val" id="st-atrasadas" style="color:var(--red)">—</div><div class="stat-sub">tarefas vencidas</div></div>
+        <div class="stat"><div class="stat-label">Saldo do mês</div><div class="stat-val" id="st-saldo" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-saldo-sub">recebido − pago</div></div>
+        <div class="stat"><div class="stat-label">Negócios abertos</div><div class="stat-val" id="st-deals" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-deals-sub">no funil do CRM</div></div>
+      </div>
+
+      <div class="painel-grid">
+        <div class="painel-col">
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Tarefas — hoje e atrasadas</div><button class="btn btn-ghost btn-sm" onclick="openModal('modal-task')">+ Nova</button></div>
+            <div id="tasks-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Contas próximas (7 dias)</div></div>
+            <div id="fin-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Projetos em andamento</div></div>
+            <div id="proj-list"><div class="loading">Carregando...</div></div>
+          </div>
+        </div>
+        <div class="painel-col">
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Próximos eventos (7 dias)</div></div>
+            <div id="agenda-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Funil de vendas</div></div>
+            <div id="funil-list" style="padding:10px 0"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Contratos pendentes</div></div>
+            <div id="contracts-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: TAREFA RÁPIDA -->
+<div class="overlay" id="modal-task">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">Nova tarefa</div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="t-title" placeholder="O que precisa ser feito?"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Prazo</label><input class="form-input" id="t-due" type="date"></div>
+      <div class="form-group"><label class="form-label">Prioridade</label>
+        <select class="form-input form-select" id="t-priority">
+          <option value="baixa">Baixa</option>
+          <option value="media" selected>Média</option>
+          <option value="alta">Alta</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Projeto (opcional)</label>
+      <select class="form-input form-select" id="t-project"><option value="">— Sem projeto —</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-task" onclick="quickAddTask()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+const STAGE_LABELS = {novo:'Novo', contato:'Contato', proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido'};
+const EVENT_ICONS = {compromisso:'📌', reuniao:'🗓️', entrega:'📦', pessoal:'🏠'};
+let projMap = {};
+
+window.addEventListener('DOMContentLoaded', () => requireAdmin(loadPainel));
+
+async function loadPainel(){
+  const today = todayISO();
+  const in7 = new Date(Date.now()+7*86400000).toISOString();
+  const monthStart = today.slice(0,8)+'01';
+
+  const [tasksRes, finRes, dealsRes, agendaRes, projRes, contractsRes] = await Promise.all([
+    sb.from('tasks').select('*').in('status',['pendente','em_andamento']).order('due_date',{ascending:true,nullsFirst:false}),
+    sb.from('fin_transactions').select('*').neq('status','cancelado'),
+    sb.from('crm_deals').select('*').not('stage','in','("fechado","perdido")'),
+    sb.from('agenda_events').select('*').gte('start_at', new Date(Date.now()-3600000).toISOString()).lte('start_at', in7).order('start_at'),
+    sb.from('projects').select('*').eq('status','em_andamento').order('end_date',{ascending:true,nullsFirst:false}),
+    sb.from('contracts').select('*').in('status',['rascunho','enviado']).order('created_at',{ascending:false}),
+  ]);
+
+  // Se as tabelas novas ainda não existem, orienta rodar o SQL
+  if(isMissingTable(tasksRes.error)){
+    ['tasks-list','fin-list','agenda-list','funil-list','contracts-list'].forEach(id=>document.getElementById(id).innerHTML=SQL_HINT);
+    document.getElementById('st-hoje').textContent='—';
+    loadProjects(projRes);
+    return;
+  }
+
+  (projRes.data||[]).forEach(p=>projMap[p.id]=p);
+  renderTasks(tasksRes.data||[], today);
+  renderFinance(finRes.data||[], today, monthStart);
+  renderFunil(dealsRes.data||[]);
+  renderAgenda(agendaRes.data||[]);
+  renderContracts(contractsRes.data||[]);
+  loadProjects(projRes);
+  fillProjectSelect();
+}
+
+function renderTasks(tasks, today){
+  const hoje = tasks.filter(t=>t.due_date===today);
+  const atrasadas = tasks.filter(t=>t.due_date && t.due_date<today);
+  const semData = tasks.filter(t=>!t.due_date || t.due_date>today).slice(0,3);
+  document.getElementById('st-hoje').textContent = hoje.length;
+  document.getElementById('st-atrasadas').textContent = atrasadas.length;
+  const el = document.getElementById('tasks-list');
+  const show = [...atrasadas, ...hoje, ...semData];
+  if(!show.length){el.innerHTML='<div class="empty">Nenhuma tarefa pendente 🎉</div>';return}
+  el.innerHTML = show.map(t=>{
+    const late = t.due_date && t.due_date<today;
+    const proj = t.project_id && projMap[t.project_id];
+    const pr = {alta:'<span class="badge bg-red">Alta</span>',media:'',baixa:'<span class="badge bg-gray">Baixa</span>'}[t.priority]||'';
+    return `<div class="list-item${late?' task-late':''}">
+      <div class="task-check" onclick="completeTask('${t.id}')" title="Concluir"></div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(t.title)}</div>
+        <div class="li-sub">${late?'<span style="color:var(--red)">Venceu '+fmtDateShort(t.due_date)+'</span>':(t.due_date?'Prazo '+fmtDateShort(t.due_date):'Sem prazo')}${proj?' · '+escapeHtml(proj.name):''}</div>
+      </div>${pr}</div>`;
+  }).join('');
+}
+
+function renderFinance(txs, today, monthStart){
+  const paidMonth = txs.filter(t=>t.status==='pago' && t.paid_at && t.paid_at>=monthStart && t.paid_at<=today);
+  const inflow = paidMonth.filter(t=>t.kind==='receita').reduce((s,t)=>s+Number(t.amount),0);
+  const outflow = paidMonth.filter(t=>t.kind==='despesa').reduce((s,t)=>s+Number(t.amount),0);
+  const saldo = inflow-outflow;
+  const stEl = document.getElementById('st-saldo');
+  stEl.textContent = fmtMoney(saldo);
+  stEl.className = 'stat-val '+(saldo>=0?'money-pos':'money-neg');
+  stEl.style.fontSize='26px';stEl.style.paddingTop='6px';
+  document.getElementById('st-saldo-sub').textContent = `+${fmtMoney(inflow)} · −${fmtMoney(outflow)}`;
+
+  const in7str = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const proximas = txs.filter(t=>t.status==='pendente' && t.due_date && t.due_date<=in7str)
+    .sort((a,b)=>(a.due_date||'').localeCompare(b.due_date||''));
+  const el = document.getElementById('fin-list');
+  if(!proximas.length){el.innerHTML='<div class="empty">Nada a pagar ou receber nos próximos 7 dias</div>';return}
+  el.innerHTML = proximas.map(t=>{
+    const late = t.due_date<today;
+    return `<div class="list-item${late?' task-late':''}">
+      <div class="li-dot" style="background:${t.kind==='receita'?'#4ADE80':'var(--red)'}"></div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(t.description)}</div>
+        <div class="li-sub">${late?'<span style="color:var(--red)">Venceu</span> ':''}${fmtDateShort(t.due_date)} · ${t.kind==='receita'?'a receber':'a pagar'}</div>
+      </div>
+      <div class="${t.kind==='receita'?'money-pos':'money-neg'}" style="font-weight:600;font-size:13px">${t.kind==='receita'?'+':'−'}${fmtMoney(t.amount)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderFunil(deals){
+  const total = deals.reduce((s,d)=>s+Number(d.value),0);
+  document.getElementById('st-deals').textContent = fmtMoney(total);
+  document.getElementById('st-deals-sub').textContent = deals.length+' negócio'+(deals.length===1?'':'s')+' no funil';
+  const el = document.getElementById('funil-list');
+  const stages = ['novo','contato','proposta','negociacao'];
+  const counts = stages.map(s=>deals.filter(d=>d.stage===s).length);
+  const max = Math.max(...counts,1);
+  if(!deals.length){el.innerHTML='<div class="empty">Funil vazio — cadastre negócios no CRM</div>';return}
+  el.innerHTML = stages.map((s,i)=>`
+    <div class="funil-row">
+      <div class="funil-label">${STAGE_LABELS[s]}</div>
+      <div class="funil-bar" style="width:${Math.round(counts[i]/max*140)}px"></div>
+      <div class="funil-n">${counts[i]}</div>
+    </div>`).join('');
+}
+
+function renderAgenda(events){
+  const el = document.getElementById('agenda-list');
+  if(!events.length){el.innerHTML='<div class="empty">Sem eventos nos próximos 7 dias</div>';return}
+  el.innerHTML = events.slice(0,8).map(e=>`
+    <div class="list-item">
+      <div style="font-size:16px">${EVENT_ICONS[e.type]||'📌'}</div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(e.title)}</div>
+        <div class="li-sub">${e.all_day?fmtDateShort(e.start_at.slice(0,10))+' · dia todo':fmtDate(e.start_at)}${e.location?' · '+escapeHtml(e.location):''}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderContracts(contracts){
+  const el = document.getElementById('contracts-list');
+  if(!contracts.length){el.innerHTML='<div class="empty">Nenhum contrato pendente</div>';return}
+  el.innerHTML = contracts.slice(0,5).map(c=>`
+    <div class="list-item">
+      <div class="li-dot" style="background:${c.status==='enviado'?'var(--amber)':'var(--text3)'}"></div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(c.title)}</div>
+        <div class="li-sub">${c.status==='enviado'?'Aguardando assinatura':'Rascunho'}${c.value?' · '+fmtMoney(c.value):''}</div>
+      </div>
+    </div>`).join('');
+}
+
+function loadProjects(projRes){
+  const el = document.getElementById('proj-list');
+  const projects = projRes.data||[];
+  if(!projects.length){el.innerHTML='<div class="empty">Nenhum projeto em andamento</div>';return}
+  el.innerHTML = `<table><thead><tr><th>Projeto</th><th>Entrega</th><th>Status</th></tr></thead><tbody>${projects.map(p=>{
+    const lateProj = p.end_date && p.end_date < todayISO();
+    return `<tr class="clickable" onclick="location.href='admin.html'">
+      <td><div class="td-main">${escapeHtml(p.name)}</div></td>
+      <td style="font-size:12px;color:${lateProj?'var(--red)':'var(--text3)'}">${p.end_date?fmtDateShort(p.end_date):'—'}${lateProj?' ⚠️':''}</td>
+      <td><span class="badge bg-green">Em andamento</span></td>
+    </tr>`;}).join('')}</tbody></table>`;
+}
+
+function fillProjectSelect(){
+  const sel = document.getElementById('t-project');
+  sel.innerHTML = '<option value="">— Sem projeto —</option>' +
+    Object.values(projMap).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+}
+
+async function quickAddTask(){
+  const title = document.getElementById('t-title').value.trim();
+  if(!title){showToast('Dê um título à tarefa', true);return}
+  const btn = document.getElementById('btn-save-task');
+  btn.disabled = true;
+  const {error} = await sb.from('tasks').insert({
+    title,
+    due_date: document.getElementById('t-due').value || null,
+    priority: document.getElementById('t-priority').value,
+    project_id: document.getElementById('t-project').value || null,
+  });
+  btn.disabled = false;
+  if(error){showToast(isMissingTable(error)?'Rode o sql/01_gestao_schema.sql no Supabase primeiro':'Erro: '+error.message, true);return}
+  closeModal('modal-task');
+  document.getElementById('t-title').value='';
+  document.getElementById('t-due').value='';
+  showToast('Tarefa criada ✓');
+  loadPainel();
+}
+
+async function completeTask(id){
+  const {error} = await sb.from('tasks').update({status:'concluida', completed_at:new Date().toISOString()}).eq('id',id);
+  if(error){showToast('Erro: '+error.message, true);return}
+  showToast('Tarefa concluída ✓');
+  loadPainel();
+}
+</script>
+</body>
+</html>
