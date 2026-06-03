@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marketing — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.channel-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}
+.channel-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.channel-name{font-size:13px;font-weight:600;text-transform:capitalize}
+.channel-stats{display:flex;gap:18px;flex-wrap:wrap}
+.ch-stat .v{font-family:'Cormorant Garamond',serif;font-size:24px;line-height:1.1}
+.ch-stat .l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.growth{font-size:11px;font-weight:600}
+.growth.up{color:#4ADE80}
+.growth.down{color:var(--red)}
+.channels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:16px}
+.lead-row{display:flex;align-items:center;gap:10px;padding:7px 17px;font-size:12.5px}
+.lead-bar{height:8px;border-radius:4px;min-width:4px}
+.lead-label{width:90px;color:var(--text2);text-transform:capitalize;flex-shrink:0}
+.lead-n{margin-left:auto;color:var(--text);font-weight:500;font-size:12px}
+.month-nav{display:flex;align-items:center;gap:10px}
+.month-label{font-size:14px;font-weight:500;min-width:130px;text-align:center;text-transform:capitalize}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Marketing</div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-ghost" onclick="openReport()">📊 Relatório mensal</button>
+        <button class="btn btn-primary" onclick="openNewMetric()">+ Registrar métricas</button>
+      </div>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Seguidores (total)</div><div class="stat-val" id="st-fol">—</div><div class="stat-sub">soma dos canais</div></div>
+        <div class="stat"><div class="stat-label">Leads no mês</div><div class="stat-val" id="st-leads" style="color:#4ADE80">—</div><div class="stat-sub">gerados pelos canais</div></div>
+        <div class="stat"><div class="stat-label">Alcance no mês</div><div class="stat-val" id="st-reach">—</div><div class="stat-sub">contas alcançadas</div></div>
+        <div class="stat"><div class="stat-label">Posts no mês</div><div class="stat-val" id="st-posts">—</div><div class="stat-sub">conteúdos publicados</div></div>
+      </div>
+
+      <div class="channels-grid" id="channels-grid"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:16px" class="mkt-grid">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Registros</div>
+            <div class="month-nav">
+              <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">←</button>
+              <div class="month-label" id="month-label">—</div>
+              <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">→</button>
+            </div>
+          </div>
+          <div id="metrics-table"><div class="loading">Carregando...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Leads por canal (mês)</div></div>
+          <div id="leads-chart" style="padding:10px 0 14px"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: MÉTRICAS -->
+<div class="overlay" id="modal-mk">
+  <div class="modal" style="width:540px">
+    <div class="modal-title" id="modal-mk-title">Registrar métricas</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Registre os números do canal na data escolhida (ex.: toda sexta ou todo fim de mês). Preencha só o que tiver — o resto pode ficar em branco.</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Canal *</label>
+        <select class="form-input form-select" id="m-channel">
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="tiktok">TikTok</option>
+          <option value="youtube">YouTube</option>
+          <option value="site">Site</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Data *</label><input class="form-input" id="m-date" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Seguidores</label><input class="form-input" id="m-followers" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Alcance</label><input class="form-input" id="m-reach" type="number" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Impressões</label><input class="form-input" id="m-impressions" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Engajamento (curtidas+comentários...)</label><input class="form-input" id="m-engagement" type="number" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Leads gerados</label><input class="form-input" id="m-leads" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Posts publicados</label><input class="form-input" id="m-posts" type="number" min="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Anotações</label><textarea class="form-input" id="m-notes" style="min-height:50px" placeholder="O que funcionou? O que postou?"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-mk" style="margin-right:auto;display:none" onclick="deleteMetric()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-mk')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-mk" onclick="saveMetric()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RELATÓRIO -->
+<div class="overlay" id="modal-rep">
+  <div class="modal" style="width:440px">
+    <div class="modal-title">Relatório mensal do negócio</div>
+    <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:14px">Gera um resumo imprimível do mês com financeiro, vendas (CRM), projetos, tarefas e marketing — bom pra arquivar ou revisar o desempenho.</div>
+    <div class="form-group"><label class="form-label">Mês</label><input class="form-input" id="rep-month" type="month"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-rep')">Cancelar</button>
+      <button class="btn btn-primary" onclick="generateReport()">Gerar e imprimir</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+const CH_ICONS = {instagram:'📸', linkedin:'💼', tiktok:'🎵', youtube:'▶️', site:'🌐', outro:'📣'};
+const CH_COLORS = {instagram:'#E1306C', linkedin:'#0A66C2', tiktok:'#8B5CF6', youtube:'#F85149', site:'#22A060', outro:'#8B949E'};
+
+let metrics = [];
+let editingMkId = null;
+let viewMonth = todayISO().slice(0,7);
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('marketing'); requireAdmin(loadAll); });
+
+async function loadAll(){
+  const {data, error} = await sb.from('mkt_metrics').select('*').order('metric_date',{ascending:false});
+  if(error){
+    document.getElementById('metrics-table').innerHTML = isMissingTable(error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(error.message)+'</div>';
+    return;
+  }
+  metrics = data||[];
+  updateStats();
+  renderChannels();
+  renderTable();
+  renderLeadsChart();
+}
+
+function latestPerChannel(){
+  const map = {};
+  metrics.forEach(m=>{ if(!map[m.channel]) map[m.channel]=m; }); // já vem ordenado desc
+  return map;
+}
+function previousPerChannel(){
+  const map = {};
+  const seen = {};
+  metrics.forEach(m=>{
+    if(seen[m.channel] && !map[m.channel]) map[m.channel]=m;
+    seen[m.channel]=true;
+  });
+  return map;
+}
+
+function updateStats(){
+  const m = todayISO().slice(0,7);
+  const latest = latestPerChannel();
+  const fol = Object.values(latest).reduce((s,x)=>s+(x.followers||0),0);
+  const inM = metrics.filter(x=>x.metric_date.slice(0,7)===m);
+  document.getElementById('st-fol').textContent = fol.toLocaleString('pt-BR');
+  document.getElementById('st-leads').textContent = inM.reduce((s,x)=>s+(x.leads||0),0);
+  document.getElementById('st-reach').textContent = inM.reduce((s,x)=>s+(x.reach||0),0).toLocaleString('pt-BR');
+  document.getElementById('st-posts').textContent = inM.reduce((s,x)=>s+(x.posts||0),0);
+}
+
+function renderChannels(){
+  const el = document.getElementById('channels-grid');
+  const latest = latestPerChannel();
+  const prev = previousPerChannel();
+  const chans = Object.keys(latest);
+  if(!chans.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">Registre as métricas dos seus canais pra acompanhar a evolução aqui</div>';return}
+  el.innerHTML = chans.map(ch=>{
+    const l = latest[ch], p = prev[ch];
+    const growth = (p && p.followers && l.followers!=null) ? l.followers-p.followers : null;
+    return `<div class="channel-card">
+      <div class="channel-hd">
+        <div style="font-size:17px">${CH_ICONS[ch]||'📣'}</div>
+        <div class="channel-name">${escapeHtml(ch)}</div>
+        ${growth!=null?`<div class="growth ${growth>=0?'up':'down'}" style="margin-left:auto">${growth>=0?'▲':'▼'} ${Math.abs(growth).toLocaleString('pt-BR')}</div>`:''}
+      </div>
+      <div class="channel-stats">
+        <div class="ch-stat"><div class="v">${(l.followers??0).toLocaleString('pt-BR')}</div><div class="l">Seguidores</div></div>
+        <div class="ch-stat"><div class="v">${(l.reach??0).toLocaleString('pt-BR')}</div><div class="l">Alcance</div></div>
+        <div class="ch-stat"><div class="v">${l.leads??0}</div><div class="l">Leads</div></div>
+      </div>
+      <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Último registro: ${fmtDateShort(l.metric_date)}</div>
+    </div>`;
+  }).join('');
+}
+
+function changeMonth(delta){
+  const [y,m] = viewMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  viewMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderTable();
+  renderLeadsChart();
+}
+
+function renderTable(){
+  document.getElementById('month-label').textContent = new Date(viewMonth+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const list = metrics.filter(x=>x.metric_date.slice(0,7)===viewMonth);
+  const el = document.getElementById('metrics-table');
+  if(!list.length){el.innerHTML='<div class="empty">Nenhum registro neste mês</div>';return}
+  el.innerHTML = `<table>
+    <thead><tr><th>Data</th><th>Canal</th><th>Seguidores</th><th>Alcance</th><th>Leads</th><th>Posts</th></tr></thead>
+    <tbody>${list.map(x=>`
+      <tr class="clickable" onclick="openEditMetric('${x.id}')">
+        <td style="font-size:12px;color:var(--text3)">${fmtDateShort(x.metric_date)}</td>
+        <td style="text-transform:capitalize;font-size:12.5px">${CH_ICONS[x.channel]||''} ${escapeHtml(x.channel)}</td>
+        <td style="font-size:12.5px">${x.followers!=null?x.followers.toLocaleString('pt-BR'):'—'}</td>
+        <td style="font-size:12.5px">${x.reach!=null?x.reach.toLocaleString('pt-BR'):'—'}</td>
+        <td style="font-size:12.5px">${x.leads??'—'}</td>
+        <td style="font-size:12.5px">${x.posts??'—'}</td>
+      </tr>`).join('')}</tbody></table>`;
+}
+
+function renderLeadsChart(){
+  const el = document.getElementById('leads-chart');
+  const inM = metrics.filter(x=>x.metric_date.slice(0,7)===viewMonth);
+  const byCh = {};
+  inM.forEach(x=>{byCh[x.channel]=(byCh[x.channel]||0)+(x.leads||0)});
+  const rows = Object.entries(byCh).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if(!rows.length){el.innerHTML='<div class="empty" style="padding:20px">Sem leads registrados neste mês</div>';return}
+  const max = rows[0][1];
+  el.innerHTML = rows.map(([ch,v])=>`
+    <div class="lead-row">
+      <div class="lead-label">${CH_ICONS[ch]||''} ${escapeHtml(ch)}</div>
+      <div class="lead-bar" style="width:${Math.round(v/max*120)}px;background:${CH_COLORS[ch]||'#8B949E'}"></div>
+      <div class="lead-n">${v}</div>
+    </div>`).join('');
+}
+
+// ──────────── CRUD ────────────
+function openNewMetric(){
+  editingMkId = null;
+  document.getElementById('modal-mk-title').textContent = 'Registrar métricas';
+  document.getElementById('btn-del-mk').style.display = 'none';
+  document.getElementById('m-channel').value='instagram';
+  document.getElementById('m-date').value=todayISO();
+  ['m-followers','m-reach','m-impressions','m-engagement','m-leads','m-posts','m-notes'].forEach(id=>document.getElementById(id).value='');
+  openModal('modal-mk');
+}
+function openEditMetric(id){
+  const x = metrics.find(m=>m.id===id);
+  if(!x) return;
+  editingMkId = id;
+  document.getElementById('modal-mk-title').textContent = 'Editar registro';
+  document.getElementById('btn-del-mk').style.display = 'inline-flex';
+  document.getElementById('m-channel').value=x.channel;
+  document.getElementById('m-date').value=x.metric_date;
+  document.getElementById('m-followers').value=x.followers??'';
+  document.getElementById('m-reach').value=x.reach??'';
+  document.getElementById('m-impressions').value=x.impressions??'';
+  document.getElementById('m-engagement').value=x.engagement??'';
+  document.getElementById('m-leads').value=x.leads??'';
+  document.getElementById('m-posts').value=x.posts??'';
+  document.getElementById('m-notes').value=x.notes||'';
+  openModal('modal-mk');
+}
+function numOrNull(id){const v=document.getElementById(id).value;return v===''?null:Number(v)}
+async function saveMetric(){
+  const date = document.getElementById('m-date').value;
+  if(!date){showToast('Escolha a data',true);return}
+  const payload = {
+    channel: document.getElementById('m-channel').value,
+    metric_date: date,
+    followers: numOrNull('m-followers'),
+    reach: numOrNull('m-reach'),
+    impressions: numOrNull('m-impressions'),
+    engagement: numOrNull('m-engagement'),
+    leads: numOrNull('m-leads'),
+    posts: numOrNull('m-posts'),
+    notes: document.getElementById('m-notes').value.trim()||null,
+  };
+  const btn = document.getElementById('btn-save-mk');
+  btn.disabled = true;
+  const {error} = editingMkId
+    ? await sb.from('mkt_metrics').update(payload).eq('id',editingMkId)
+    : await sb.from('mkt_metrics').insert(payload);
+  btn.disabled = false;
+  if(error){showToast(error.message.includes('duplicate')?'Já existe registro desse canal nessa data — edite-o na tabela':'Erro: '+error.message,true);return}
+  closeModal('modal-mk');
+  showToast('Métricas salvas ✓');
+  loadAll();
+}
+async function deleteMetric(){
+  if(!editingMkId) return;
+  if(!confirm('Excluir este registro?')) return;
+  const {error} = await sb.from('mkt_metrics').delete().eq('id',editingMkId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-mk');
+  showToast('Registro excluído');
+  loadAll();
+}
+
+// ──────────── RELATÓRIO MENSAL ────────────
+function openReport(){
+  document.getElementById('rep-month').value = todayISO().slice(0,7);
+  openModal('modal-rep');
+}
+
+async function generateReport(){
+  const month = document.getElementById('rep-month').value;
+  if(!month){showToast('Escolha o mês',true);return}
+  showToast('Gerando relatório...');
+  const monthStart = month+'-01';
+  const nextM = new Date(+month.slice(0,4), +month.slice(5,7), 1);
+  const monthEnd = nextM.getFullYear()+'-'+String(nextM.getMonth()+1).padStart(2,'0')+'-01';
+  const label = new Date(month+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  const [finRes, dealsRes, tasksRes, projRes, ctRes] = await Promise.all([
+    sb.from('fin_transactions').select('*').neq('status','cancelado'),
+    sb.from('crm_deals').select('*'),
+    sb.from('tasks').select('*'),
+    sb.from('projects').select('*'),
+    sb.from('contracts').select('*'),
+  ]);
+  const fin = finRes.data||[], deals = dealsRes.data||[], tasks = tasksRes.data||[], projs = projRes.data||[], cts = ctRes.data||[];
+
+  const paidM = fin.filter(t=>t.status==='pago'&&t.paid_at&&t.paid_at>=monthStart&&t.paid_at<monthEnd);
+  const rec = paidM.filter(t=>t.kind==='receita').reduce((s,t)=>s+Number(t.amount),0);
+  const desp = paidM.filter(t=>t.kind==='despesa').reduce((s,t)=>s+Number(t.amount),0);
+  const pendRec = fin.filter(t=>t.status==='pendente'&&t.kind==='receita').reduce((s,t)=>s+Number(t.amount),0);
+
+  const dealsNew = deals.filter(d=>d.created_at>=monthStart&&d.created_at<monthEnd).length;
+  const dealsWon = deals.filter(d=>d.stage==='fechado'&&d.closed_at&&d.closed_at.slice(0,10)>=monthStart&&d.closed_at.slice(0,10)<monthEnd);
+  const wonVal = dealsWon.reduce((s,d)=>s+Number(d.value),0);
+  const openDeals = deals.filter(d=>!['fechado','perdido'].includes(d.stage));
+  const openVal = openDeals.reduce((s,d)=>s+Number(d.value),0);
+
+  const tasksDone = tasks.filter(t=>t.status==='concluida'&&t.completed_at&&t.completed_at.slice(0,10)>=monthStart&&t.completed_at.slice(0,10)<monthEnd).length;
+  const tasksLate = tasks.filter(t=>['pendente','em_andamento'].includes(t.status)&&t.due_date&&t.due_date<todayISO()).length;
+  const projAtivos = projs.filter(p=>p.status==='em_andamento').length;
+  const ctsSigned = cts.filter(c=>c.status==='assinado'&&c.signed_at&&c.signed_at>=monthStart&&c.signed_at<monthEnd).length;
+
+  const mktM = metrics.filter(x=>x.metric_date.slice(0,7)===month);
+  const mktByCh = {};
+  mktM.forEach(x=>{
+    mktByCh[x.channel] = mktByCh[x.channel]||{leads:0,reach:0,posts:0,followers:null};
+    mktByCh[x.channel].leads += x.leads||0;
+    mktByCh[x.channel].reach += x.reach||0;
+    mktByCh[x.channel].posts += x.posts||0;
+    if(x.followers!=null) mktByCh[x.channel].followers = Math.max(mktByCh[x.channel].followers||0, x.followers);
+  });
+
+  const fm = v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const esc = s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const mktRows = Object.entries(mktByCh).map(([ch,v])=>
+    `<tr><td style="text-transform:capitalize">${esc(ch)}</td><td>${v.followers!=null?v.followers.toLocaleString('pt-BR'):'—'}</td><td>${v.reach.toLocaleString('pt-BR')}</td><td>${v.leads}</td><td>${v.posts}</td></tr>`).join('');
+
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório ${esc(label)}</title>
+  <style>
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a1a;max-width:760px;margin:36px auto;padding:0 30px;font-size:13px;line-height:1.6}
+    h1{font-size:22px;margin-bottom:2px} .sub{color:#666;margin-bottom:26px;text-transform:capitalize}
+    h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #1A7A4A;padding-bottom:5px;margin:26px 0 12px;color:#1A7A4A}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .box{border:1px solid #ddd;border-radius:8px;padding:12px 14px}
+    .box .v{font-size:21px;font-weight:700} .box .l{font-size:10.5px;color:#777;text-transform:uppercase;letter-spacing:.04em}
+    .pos{color:#1A7A4A} .neg{color:#C0392B}
+    table{width:100%;border-collapse:collapse;margin-top:6px} th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #eee;font-size:12.5px} th{background:#f7f7f7;font-size:11px;text-transform:uppercase;color:#666}
+    .footer{margin-top:34px;color:#999;font-size:11px;text-align:center}
+    @media print{body{margin:8mm auto}}
+  </style></head><body>
+  <h1>Relatório mensal — Jenneffer Prazeres</h1>
+  <div class="sub">${esc(label)}</div>
+
+  <h2>Financeiro</h2>
+  <div class="grid">
+    <div class="box"><div class="v pos">${fm(rec)}</div><div class="l">Receitas recebidas</div></div>
+    <div class="box"><div class="v neg">${fm(desp)}</div><div class="l">Despesas pagas</div></div>
+    <div class="box"><div class="v ${rec-desp>=0?'pos':'neg'}">${fm(rec-desp)}</div><div class="l">Saldo do mês</div></div>
+  </div>
+  <p style="margin-top:8px;color:#666">A receber (pendente, total): <b>${fm(pendRec)}</b></p>
+
+  <h2>Vendas (CRM)</h2>
+  <div class="grid">
+    <div class="box"><div class="v">${dealsNew}</div><div class="l">Negócios criados</div></div>
+    <div class="box"><div class="v pos">${dealsWon.length} · ${fm(wonVal)}</div><div class="l">Fechados no mês</div></div>
+    <div class="box"><div class="v">${openDeals.length} · ${fm(openVal)}</div><div class="l">Em aberto no funil</div></div>
+  </div>
+
+  <h2>Projetos & produção</h2>
+  <div class="grid">
+    <div class="box"><div class="v">${projAtivos}</div><div class="l">Projetos em andamento</div></div>
+    <div class="box"><div class="v pos">${tasksDone}</div><div class="l">Tarefas concluídas</div></div>
+    <div class="box"><div class="v ${tasksLate?'neg':''}">${tasksLate}</div><div class="l">Tarefas atrasadas (hoje)</div></div>
+  </div>
+  <p style="margin-top:8px;color:#666">Contratos assinados no mês: <b>${ctsSigned}</b></p>
+
+  <h2>Marketing</h2>
+  ${mktRows?`<table><thead><tr><th>Canal</th><th>Seguidores</th><th>Alcance</th><th>Leads</th><th>Posts</th></tr></thead><tbody>${mktRows}</tbody></table>`:'<p style="color:#666">Sem métricas registradas neste mês.</p>'}
+
+  <div class="footer">Gerado em ${new Date().toLocaleDateString('pt-BR')} · Sistema de gestão Jenneffer Prazeres</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+  closeModal('modal-rep');
+}
+</script>
+</body>
+</html>
