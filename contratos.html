@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contratos — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.var-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.var-chip{display:inline-block;background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:2px 9px;font-size:11px;color:var(--text2);margin:2px;font-family:monospace}
+.preview-box{background:var(--dark3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;font-size:12.5px;line-height:1.7;color:var(--text2);max-height:260px;overflow-y:auto;white-space:pre-wrap}
+textarea.tpl-body{min-height:240px;font-family:monospace;font-size:12.5px;line-height:1.6}
+.wizard-steps{display:flex;gap:6px;margin-bottom:18px}
+.wstep{flex:1;height:3px;border-radius:2px;background:var(--dark3)}
+.wstep.on{background:var(--green)}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Contratos</div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-ghost" onclick="openNewTemplate()">+ Modelo</button>
+        <button class="btn btn-primary" onclick="openWizard()">+ Gerar contrato</button>
+      </div>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Rascunhos</div><div class="stat-val" id="st-rasc">—</div><div class="stat-sub">em preparação</div></div>
+        <div class="stat"><div class="stat-label">Enviados</div><div class="stat-val" id="st-env" style="color:var(--amber)">—</div><div class="stat-sub">aguardando assinatura</div></div>
+        <div class="stat"><div class="stat-label">Assinados</div><div class="stat-val" id="st-ass" style="color:#4ADE80">—</div><div class="stat-sub">no total</div></div>
+        <div class="stat"><div class="stat-label">Valor assinado (ano)</div><div class="stat-val money-pos" id="st-valor" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub">contratos fechados</div></div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos</div>
+        <div class="dtab" data-tab="modelos" onclick="switchTab('modelos')">Modelos</div>
+      </div>
+
+      <div class="dtab-view active" id="tab-contratos">
+        <div class="tbl-wrap" id="contracts-table"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <div class="dtab-view" id="tab-modelos">
+        <div class="tbl-wrap" id="templates-table"><div class="loading">Carregando...</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: MODELO -->
+<div class="overlay" id="modal-tpl">
+  <div class="modal" style="width:680px">
+    <div class="modal-title" id="modal-tpl-title">Novo modelo</div>
+    <div class="form-group"><label class="form-label">Nome do modelo *</label><input class="form-input" id="tp-name" placeholder="Ex.: Contrato de prestação de serviços"></div>
+    <div class="form-group">
+      <label class="form-label">Texto do contrato * — use variáveis entre chaves duplas, ex.: {{cliente}}</label>
+      <textarea class="form-input tpl-body" id="tp-body" placeholder="CONTRATO DE PRESTAÇÃO DE SERVIÇOS&#10;&#10;CONTRATANTE: {{cliente}}, inscrito sob o CPF/CNPJ {{cpf_cnpj}}..."></textarea>
+    </div>
+    <div style="font-size:11.5px;color:var(--text3)">Variáveis encontradas: <span id="tp-vars">—</span></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-tpl" style="margin-right:auto;display:none" onclick="deleteTemplate()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-tpl')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTemplate()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GERAR CONTRATO (wizard) -->
+<div class="overlay" id="modal-wiz">
+  <div class="modal" style="width:640px">
+    <div class="modal-title">Gerar contrato</div>
+    <div class="wizard-steps"><div class="wstep on" id="ws-1"></div><div class="wstep" id="ws-2"></div></div>
+
+    <div id="wiz-step1">
+      <div class="form-group"><label class="form-label">Modelo *</label>
+        <select class="form-input form-select" id="w-template"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Contato (CRM)</label>
+          <select class="form-input form-select" id="w-contact"><option value="">— Selecione —</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Projeto (opcional)</label>
+          <select class="form-input form-select" id="w-project"><option value="">—</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Título do contrato *</label><input class="form-input" id="w-title" placeholder="Ex.: Contrato — Site Maria"></div>
+        <div class="form-group"><label class="form-label">Valor (R$)</label><input class="form-input" id="w-value" type="number" min="0" step="0.01"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-wiz')">Cancelar</button>
+        <button class="btn btn-primary" onclick="wizStep2()">Preencher variáveis →</button>
+      </div>
+    </div>
+
+    <div id="wiz-step2" style="display:none">
+      <div class="form-section" style="margin-top:0">Variáveis do modelo</div>
+      <div class="var-grid" id="w-vars"></div>
+      <div class="form-section">Pré-visualização</div>
+      <div class="preview-box" id="w-preview"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" style="margin-right:auto" onclick="wizBack()">← Voltar</button>
+        <button class="btn btn-ghost" onclick="updatePreview()">Atualizar prévia</button>
+        <button class="btn btn-primary" id="btn-wiz-save" onclick="saveContract()">Gerar contrato</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONTRATO (ver/editar) -->
+<div class="overlay" id="modal-ct">
+  <div class="modal" style="width:680px">
+    <div class="modal-title" id="modal-ct-title">Contrato</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="ct-title"></div>
+      <div class="form-group"><label class="form-label">Valor (R$)</label><input class="form-input" id="ct-value" type="number" min="0" step="0.01"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-input form-select" id="ct-status">
+          <option value="rascunho">Rascunho</option>
+          <option value="enviado">Enviado</option>
+          <option value="assinado">Assinado ✓</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Data da assinatura</label><input class="form-input" id="ct-signed" type="date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Texto do contrato</label><textarea class="form-input tpl-body" id="ct-body"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" style="margin-right:auto" onclick="deleteContract()">Excluir</button>
+      <button class="btn btn-ghost" onclick="printContract()">🖨️ Imprimir / PDF</button>
+      <button class="btn btn-ghost" onclick="launchRevenue()" title="Cria uma receita pendente no financeiro com o valor do contrato">💰 Lançar receita</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-ct')">Fechar</button>
+      <button class="btn btn-primary" onclick="updateContract()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+const CT_BADGE = {
+  rascunho:'<span class="badge bg-gray">Rascunho</span>',
+  enviado:'<span class="badge bg-amber">Enviado</span>',
+  assinado:'<span class="badge bg-green">Assinado</span>',
+  cancelado:'<span class="badge bg-red">Cancelado</span>',
+};
+const DEFAULT_TEMPLATE = {
+  name: 'Contrato de prestação de serviços (exemplo)',
+  body: `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+CONTRATADA: Jenneffer Prazeres, doravante denominada CONTRATADA.
+
+CONTRATANTE: {{cliente}}, {{cpf_cnpj}}, com endereço em {{endereco}}, doravante denominado(a) CONTRATANTE.
+
+As partes acima qualificadas celebram o presente Contrato de Prestação de Serviços, que se regerá pelas cláusulas seguintes:
+
+CLÁUSULA 1ª — DO OBJETO
+A CONTRATADA prestará ao CONTRATANTE o seguinte serviço: {{servico}}.
+
+CLÁUSULA 2ª — DO PRAZO
+O serviço será executado no prazo de {{prazo}}, contado a partir da assinatura deste contrato e do pagamento da entrada, quando aplicável.
+
+CLÁUSULA 3ª — DO VALOR E FORMA DE PAGAMENTO
+Pelo serviço descrito, o CONTRATANTE pagará à CONTRATADA o valor total de R$ {{valor}}, na seguinte forma: {{forma_pagamento}}.
+
+CLÁUSULA 4ª — DAS OBRIGAÇÕES DA CONTRATADA
+Executar o serviço com qualidade e dentro do prazo acordado, mantendo o CONTRATANTE informado sobre o andamento.
+
+CLÁUSULA 5ª — DAS OBRIGAÇÕES DO CONTRATANTE
+Fornecer as informações e materiais necessários à execução do serviço e efetuar os pagamentos nas datas acordadas.
+
+CLÁUSULA 6ª — DAS ALTERAÇÕES
+Alterações de escopo não previstas neste contrato serão orçadas à parte, mediante acordo entre as partes.
+
+CLÁUSULA 7ª — DA RESCISÃO
+O presente contrato poderá ser rescindido por qualquer das partes mediante aviso prévio de 15 (quinze) dias, ficando devidos os valores proporcionais aos serviços já executados.
+
+E por estarem justas e acordadas, as partes assinam o presente instrumento.
+
+{{cidade}}, {{data}}.
+
+
+_______________________________
+Jenneffer Prazeres — CONTRATADA
+
+
+_______________________________
+{{cliente}} — CONTRATANTE`,
+};
+
+let templates = [], contracts = [], contacts = [], projects = [];
+let tplMap = {}, contactMap = {};
+let editingTplId = null, editingCtId = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('contratos');
+  requireAdmin(loadAll);
+  document.getElementById('tp-body').addEventListener('input', updateTplVars);
+});
+
+async function loadAll(){
+  const [tplRes, ctRes, cRes, pRes] = await Promise.all([
+    sb.from('contract_templates').select('*').order('name'),
+    sb.from('contracts').select('*').order('created_at',{ascending:false}),
+    sb.from('crm_contacts').select('*').order('name'),
+    sb.from('projects').select('id,name').order('name'),
+  ]);
+  if(tplRes.error){
+    document.getElementById('contracts-table').innerHTML = isMissingTable(tplRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(tplRes.error.message)+'</div>';
+    document.getElementById('templates-table').innerHTML = '';
+    return;
+  }
+  templates = tplRes.data||[];
+  contracts = ctRes.data||[];
+  contacts = cRes.data||[];
+  projects = pRes.data||[];
+  tplMap = {}; templates.forEach(t=>tplMap[t.id]=t);
+  contactMap = {}; contacts.forEach(c=>contactMap[c.id]=c);
+  updateStats();
+  renderContracts();
+  renderTemplates();
+  fillWizSelects();
+}
+
+function updateStats(){
+  const y = todayISO().slice(0,4);
+  document.getElementById('st-rasc').textContent = contracts.filter(c=>c.status==='rascunho').length;
+  document.getElementById('st-env').textContent = contracts.filter(c=>c.status==='enviado').length;
+  const ass = contracts.filter(c=>c.status==='assinado');
+  document.getElementById('st-ass').textContent = ass.length;
+  const valY = ass.filter(c=>c.signed_at && c.signed_at.slice(0,4)===y).reduce((s,c)=>s+Number(c.value||0),0);
+  document.getElementById('st-valor').textContent = fmtMoney(valY);
+}
+
+function switchTab(name){
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.dtab-view').forEach(v=>v.classList.remove('active'));
+  document.querySelector(`.dtab[data-tab="${name}"]`)?.classList.add('active');
+  document.getElementById('tab-'+name)?.classList.add('active');
+}
+
+// ──────────── LISTAGENS ────────────
+function renderContracts(){
+  const el = document.getElementById('contracts-table');
+  if(!contracts.length){el.innerHTML='<div class="empty">Nenhum contrato ainda — clique em "+ Gerar contrato"<br><br><button class="btn btn-ghost btn-sm" onclick="createDefaultTemplate()">Criar modelo de exemplo primeiro</button></div>';return}
+  el.innerHTML = `<table>
+    <thead><tr><th>Contrato</th><th>Contato</th><th>Valor</th><th>Criado</th><th>Status</th></tr></thead>
+    <tbody>${contracts.map(c=>{
+      const ct = c.contact_id && contactMap[c.contact_id];
+      return `<tr class="clickable" onclick="openContract('${c.id}')">
+        <td><div class="td-main">${escapeHtml(c.title)}</div></td>
+        <td style="font-size:12.5px">${ct?escapeHtml(ct.name):'—'}</td>
+        <td style="font-size:12.5px">${c.value?fmtMoney(c.value):'—'}</td>
+        <td style="font-size:12px;color:var(--text3)">${fmtDateShort(c.created_at.slice(0,10))}</td>
+        <td>${CT_BADGE[c.status]||''}</td>
+      </tr>`;}).join('')}</tbody></table>`;
+}
+
+function renderTemplates(){
+  const el = document.getElementById('templates-table');
+  if(!templates.length){el.innerHTML='<div class="empty">Nenhum modelo ainda<br><br><button class="btn btn-primary btn-sm" onclick="createDefaultTemplate()">Criar modelo de exemplo</button></div>';return}
+  el.innerHTML = `<table>
+    <thead><tr><th>Modelo</th><th>Variáveis</th><th>Criado</th></tr></thead>
+    <tbody>${templates.map(t=>{
+      const vars = extractVars(t.body);
+      return `<tr class="clickable" onclick="openEditTemplate('${t.id}')">
+        <td><div class="td-main">${escapeHtml(t.name)}</div></td>
+        <td>${vars.slice(0,6).map(v=>'<span class="var-chip">'+escapeHtml(v)+'</span>').join('')}${vars.length>6?' +'+(vars.length-6):''}</td>
+        <td style="font-size:12px;color:var(--text3)">${fmtDateShort(t.created_at.slice(0,10))}</td>
+      </tr>`;}).join('')}</tbody></table>`;
+}
+
+// ──────────── MODELOS ────────────
+function extractVars(body){
+  const m = (body||'').match(/{{\s*[\w]+\s*}}/g)||[];
+  return [...new Set(m.map(v=>v.replace(/[{}\s]/g,'')))];
+}
+function updateTplVars(){
+  const vars = extractVars(document.getElementById('tp-body').value);
+  document.getElementById('tp-vars').innerHTML = vars.length?vars.map(v=>'<span class="var-chip">'+escapeHtml(v)+'</span>').join(''):'—';
+}
+function openNewTemplate(){
+  editingTplId = null;
+  document.getElementById('modal-tpl-title').textContent = 'Novo modelo';
+  document.getElementById('btn-del-tpl').style.display = 'none';
+  document.getElementById('tp-name').value='';
+  document.getElementById('tp-body').value='';
+  updateTplVars();
+  openModal('modal-tpl');
+}
+function openEditTemplate(id){
+  const t = tplMap[id];
+  if(!t) return;
+  editingTplId = id;
+  document.getElementById('modal-tpl-title').textContent = 'Editar modelo';
+  document.getElementById('btn-del-tpl').style.display = 'inline-flex';
+  document.getElementById('tp-name').value = t.name;
+  document.getElementById('tp-body').value = t.body;
+  updateTplVars();
+  openModal('modal-tpl');
+}
+async function saveTemplate(){
+  const name = document.getElementById('tp-name').value.trim();
+  const body = document.getElementById('tp-body').value.trim();
+  if(!name || !body){showToast('Preencha nome e texto',true);return}
+  const {error} = editingTplId
+    ? await sb.from('contract_templates').update({name,body}).eq('id',editingTplId)
+    : await sb.from('contract_templates').insert({name,body});
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-tpl');
+  showToast('Modelo salvo ✓');
+  loadAll();
+}
+async function deleteTemplate(){
+  if(!editingTplId) return;
+  if(!confirm('Excluir este modelo? Os contratos já gerados não são afetados.')) return;
+  const {error} = await sb.from('contract_templates').delete().eq('id',editingTplId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-tpl');
+  showToast('Modelo excluído');
+  loadAll();
+}
+async function createDefaultTemplate(){
+  const {error} = await sb.from('contract_templates').insert(DEFAULT_TEMPLATE);
+  if(error){showToast('Erro: '+error.message,true);return}
+  showToast('Modelo de exemplo criado ✓ — edite como quiser');
+  loadAll();
+  switchTab('modelos');
+}
+
+// ──────────── WIZARD: GERAR CONTRATO ────────────
+function fillWizSelects(){
+  document.getElementById('w-template').innerHTML = templates.length
+    ? templates.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
+    : '<option value="">Crie um modelo primeiro</option>';
+  document.getElementById('w-contact').innerHTML = '<option value="">— Selecione —</option>'+
+    contacts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${c.company?' ('+escapeHtml(c.company)+')':''}</option>`).join('');
+  document.getElementById('w-project').innerHTML = '<option value="">—</option>'+
+    projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+}
+function openWizard(){
+  if(!templates.length){showToast('Crie um modelo primeiro (aba Modelos)',true);switchTab('modelos');return}
+  document.getElementById('wiz-step1').style.display='block';
+  document.getElementById('wiz-step2').style.display='none';
+  document.getElementById('ws-2').classList.remove('on');
+  document.getElementById('w-title').value='';
+  document.getElementById('w-value').value='';
+  openModal('modal-wiz');
+}
+function wizStep2(){
+  const tplId = document.getElementById('w-template').value;
+  if(!tplId){showToast('Selecione um modelo',true);return}
+  if(!document.getElementById('w-title').value.trim()){showToast('Dê um título ao contrato',true);return}
+  const tpl = tplMap[tplId];
+  const vars = extractVars(tpl.body);
+  const contact = contactMap[document.getElementById('w-contact').value];
+  const value = document.getElementById('w-value').value;
+  const auto = {
+    cliente: contact?contact.name:'',
+    empresa: contact?(contact.company||''):'',
+    email: contact?(contact.email||''):'',
+    telefone: contact?(contact.phone||''):'',
+    valor: value?Number(value).toLocaleString('pt-BR',{minimumFractionDigits:2}):'',
+    data: new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'}),
+  };
+  document.getElementById('w-vars').innerHTML = vars.map(v=>`
+    <div class="form-group" style="margin-bottom:4px">
+      <label class="form-label" style="font-family:monospace">{{${escapeHtml(v)}}}</label>
+      <input class="form-input wvar" data-var="${escapeHtml(v)}" value="${escapeHtml(auto[v]||'')}" oninput="updatePreview()">
+    </div>`).join('')||'<div class="empty" style="padding:10px;grid-column:1/-1">Este modelo não tem variáveis</div>';
+  document.getElementById('wiz-step1').style.display='none';
+  document.getElementById('wiz-step2').style.display='block';
+  document.getElementById('ws-2').classList.add('on');
+  updatePreview();
+}
+function wizBack(){
+  document.getElementById('wiz-step1').style.display='block';
+  document.getElementById('wiz-step2').style.display='none';
+  document.getElementById('ws-2').classList.remove('on');
+}
+function collectVars(){
+  const vars = {};
+  document.querySelectorAll('.wvar').forEach(i=>vars[i.dataset.var]=i.value);
+  return vars;
+}
+function renderBody(tplBody, vars){
+  let out = tplBody;
+  Object.entries(vars).forEach(([k,v])=>{
+    out = out.replace(new RegExp('{{\\s*'+k+'\\s*}}','g'), v||'_______');
+  });
+  return out;
+}
+function updatePreview(){
+  const tpl = tplMap[document.getElementById('w-template').value];
+  if(!tpl) return;
+  document.getElementById('w-preview').textContent = renderBody(tpl.body, collectVars());
+}
+async function saveContract(){
+  const tpl = tplMap[document.getElementById('w-template').value];
+  const vars = collectVars();
+  const btn = document.getElementById('btn-wiz-save');
+  btn.disabled = true;
+  const {error} = await sb.from('contracts').insert({
+    template_id: tpl.id,
+    contact_id: document.getElementById('w-contact').value||null,
+    project_id: document.getElementById('w-project').value||null,
+    title: document.getElementById('w-title').value.trim(),
+    body: renderBody(tpl.body, vars),
+    variables: vars,
+    value: Number(document.getElementById('w-value').value)||null,
+    status: 'rascunho',
+  });
+  btn.disabled = false;
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-wiz');
+  showToast('Contrato gerado ✓');
+  loadAll();
+}
+
+// ──────────── CONTRATO: VER/EDITAR ────────────
+function openContract(id){
+  const c = contracts.find(x=>x.id===id);
+  if(!c) return;
+  editingCtId = id;
+  document.getElementById('modal-ct-title').textContent = c.title;
+  document.getElementById('ct-title').value = c.title;
+  document.getElementById('ct-value').value = c.value||'';
+  document.getElementById('ct-status').value = c.status;
+  document.getElementById('ct-signed').value = c.signed_at||'';
+  document.getElementById('ct-body').value = c.body;
+  openModal('modal-ct');
+}
+async function updateContract(){
+  const status = document.getElementById('ct-status').value;
+  let signed = document.getElementById('ct-signed').value||null;
+  if(status==='assinado' && !signed) signed = todayISO();
+  const {error} = await sb.from('contracts').update({
+    title: document.getElementById('ct-title').value.trim(),
+    value: Number(document.getElementById('ct-value').value)||null,
+    status,
+    signed_at: signed,
+    body: document.getElementById('ct-body').value,
+  }).eq('id',editingCtId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-ct');
+  showToast('Contrato atualizado ✓');
+  loadAll();
+}
+async function deleteContract(){
+  if(!editingCtId) return;
+  if(!confirm('Excluir este contrato?')) return;
+  const {error} = await sb.from('contracts').delete().eq('id',editingCtId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-ct');
+  showToast('Contrato excluído');
+  loadAll();
+}
+function printContract(){
+  const title = document.getElementById('ct-title').value;
+  const body = document.getElementById('ct-body').value;
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title>
+    <style>
+      body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:720px;margin:40px auto;padding:0 30px;line-height:1.8;font-size:13.5px}
+      pre{white-space:pre-wrap;font-family:inherit;margin:0}
+      @media print{body{margin:10mm auto}}
+    </style></head><body><pre>${escapeHtml(body)}</pre>
+    <script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+async function launchRevenue(){
+  const c = contracts.find(x=>x.id===editingCtId);
+  if(!c) return;
+  const value = Number(document.getElementById('ct-value').value)||Number(c.value)||0;
+  if(!value){showToast('Informe o valor do contrato primeiro',true);return}
+  if(!confirm(`Criar receita pendente de ${fmtMoney(value)} no financeiro?`)) return;
+  const {error} = await sb.from('fin_transactions').insert({
+    kind:'receita',
+    description:'Contrato: '+document.getElementById('ct-title').value.trim(),
+    amount:value,
+    project_id:c.project_id||null,
+    contact_id:c.contact_id||null,
+    due_date:todayISO(),
+    status:'pendente',
+  });
+  if(error){showToast('Erro: '+error.message,true);return}
+  showToast('Receita lançada no financeiro ✓');
+}
+</script>
+</body>
+</html>
