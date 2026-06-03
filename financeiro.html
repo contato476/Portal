@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financeiro — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.month-nav{display:flex;align-items:center;gap:10px}
+.month-nav .btn{padding:5px 11px}
+.month-label{font-size:14px;font-weight:500;min-width:130px;text-align:center;text-transform:capitalize}
+.chart-wrap{display:flex;align-items:flex-end;gap:18px;height:170px;padding:18px 17px 8px;justify-content:space-around}
+.chart-month{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;max-width:90px}
+.chart-bars{display:flex;gap:4px;align-items:flex-end;height:120px}
+.chart-bar{width:16px;border-radius:4px 4px 0 0;min-height:2px;transition:height .3s}
+.chart-bar.rec{background:var(--green2)}
+.chart-bar.desp{background:var(--red)}
+.chart-mlabel{font-size:10.5px;color:var(--text3);text-transform:capitalize}
+.chart-legend{display:flex;gap:16px;justify-content:center;padding:0 0 14px;font-size:11px;color:var(--text2)}
+.leg-dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.cat-row{display:flex;align-items:center;gap:9px;padding:6px 17px;font-size:12.5px}
+.cat-bar{height:7px;border-radius:4px;min-width:3px;transition:width .3s}
+.cat-name{width:120px;color:var(--text2);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-val{margin-left:auto;font-weight:500;font-size:12px}
+.pay-btn{font-size:10.5px;padding:2px 9px;border-radius:12px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer}
+.pay-btn:hover{border-color:var(--green);color:var(--green2)}
+@media(max-width:768px){.chart-month{max-width:60px}.chart-bar{width:11px}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Financeiro</div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-ghost" onclick="openCategories()">Categorias</button>
+        <button class="btn btn-primary" onclick="openNewTx()">+ Lançamento</button>
+      </div>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Saldo do mês</div><div class="stat-val" id="st-saldo" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-saldo-sub">recebido − pago</div></div>
+        <div class="stat"><div class="stat-label">A receber</div><div class="stat-val money-pos" id="st-receber" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-receber-sub">pendente</div></div>
+        <div class="stat"><div class="stat-label">A pagar</div><div class="stat-val money-neg" id="st-pagar" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-pagar-sub">pendente</div></div>
+        <div class="stat"><div class="stat-label">Resultado do ano</div><div class="stat-val" id="st-ano" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub">acumulado (pagos)</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:16px" class="fin-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Receitas × despesas — últimos 6 meses</div></div>
+          <div class="chart-wrap" id="chart"></div>
+          <div class="chart-legend"><span><span class="leg-dot" style="background:var(--green2)"></span>Receitas</span><span><span class="leg-dot" style="background:var(--red)"></span>Despesas</span></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Despesas por categoria (mês)</div></div>
+          <div id="cat-chart" style="padding:10px 0 14px"></div>
+        </div>
+      </div>
+
+      <div class="page-hd" style="margin-bottom:14px">
+        <div class="month-nav">
+          <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">←</button>
+          <div class="month-label" id="month-label">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">→</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select class="form-input form-select" id="f-kind" style="width:auto;padding:6px 12px;font-size:12.5px" onchange="renderTable()">
+            <option value="">Tudo</option>
+            <option value="receita">Receitas</option>
+            <option value="despesa">Despesas</option>
+          </select>
+          <select class="form-input form-select" id="f-status" style="width:auto;padding:6px 12px;font-size:12.5px" onchange="renderTable()">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendentes</option>
+            <option value="pago">Pagos</option>
+          </select>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="tx-table"><div class="loading">Carregando...</div></div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: LANÇAMENTO -->
+<div class="overlay" id="modal-tx">
+  <div class="modal" style="width:540px">
+    <div class="modal-title" id="modal-tx-title">Novo lançamento</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo *</label>
+        <select class="form-input form-select" id="x-kind" onchange="fillCatSelect()">
+          <option value="receita">Receita (entrada)</option>
+          <option value="despesa">Despesa (saída)</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Valor (R$) *</label><input class="form-input" id="x-amount" type="number" min="0" step="0.01" placeholder="0,00"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Descrição *</label><input class="form-input" id="x-desc" placeholder="Ex.: Entrada projeto site — Maria"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Categoria</label>
+        <select class="form-input form-select" id="x-category"><option value="">— Sem categoria —</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Vencimento</label><input class="form-input" id="x-due" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-input form-select" id="x-status">
+          <option value="pendente">Pendente</option>
+          <option value="pago">Pago / recebido</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Data do pagamento</label><input class="form-input" id="x-paid" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Projeto (opcional)</label>
+        <select class="form-input form-select" id="x-project"><option value="">—</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Repete todo mês?</label>
+        <select class="form-input form-select" id="x-recurring">
+          <option value="nao">Não</option>
+          <option value="mensal">Sim, mensal</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Observações</label><textarea class="form-input" id="x-notes" style="min-height:56px"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-tx" style="margin-right:auto;display:none" onclick="deleteTx()">Excluir</button>
+      <button class="btn btn-ghost" id="btn-dup-tx" style="display:none" onclick="duplicateNextMonth()">Duplicar p/ próx. mês</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-tx')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-tx" onclick="saveTx()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CATEGORIAS -->
+<div class="overlay" id="modal-cats">
+  <div class="modal" style="width:460px">
+    <div class="modal-title">Categorias</div>
+    <div id="cats-list" style="max-height:280px;overflow-y:auto;margin-bottom:14px"></div>
+    <div class="form-section">Nova categoria</div>
+    <div style="display:flex;gap:8px">
+      <input class="form-input" id="nc-name" placeholder="Nome" style="flex:1">
+      <select class="form-input form-select" id="nc-kind" style="width:120px">
+        <option value="receita">Receita</option>
+        <option value="despesa">Despesa</option>
+      </select>
+      <button class="btn btn-primary" onclick="addCategory()">+</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-cats')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+let allTx = [], categories = [], projects = [];
+let catMap = {}, projMap = {};
+let editingTxId = null;
+let viewMonth = todayISO().slice(0,7); // 'YYYY-MM'
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('financeiro'); requireAdmin(loadAll); });
+
+async function loadAll(){
+  const [txRes, catRes, projRes] = await Promise.all([
+    sb.from('fin_transactions').select('*').neq('status','cancelado').order('due_date',{ascending:false,nullsFirst:false}),
+    sb.from('fin_categories').select('*').order('kind').order('name'),
+    sb.from('projects').select('id,name').order('name'),
+  ]);
+  if(txRes.error){
+    document.getElementById('tx-table').innerHTML = isMissingTable(txRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(txRes.error.message)+'</div>';
+    return;
+  }
+  allTx = txRes.data||[];
+  categories = catRes.data||[];
+  projects = projRes.data||[];
+  catMap = {}; categories.forEach(c=>catMap[c.id]=c);
+  projMap = {}; projects.forEach(p=>projMap[p.id]=p);
+  fillCatSelect();
+  document.getElementById('x-project').innerHTML = '<option value="">—</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  updateStats();
+  renderChart();
+  renderCatChart();
+  renderTable();
+}
+
+function txDate(t){ return t.paid_at || t.due_date || t.created_at.slice(0,10); }
+
+function updateStats(){
+  const today = todayISO();
+  const m = today.slice(0,7);
+  const y = today.slice(0,4);
+  const paid = allTx.filter(t=>t.status==='pago' && t.paid_at);
+  const inM = paid.filter(t=>t.paid_at.slice(0,7)===m);
+  const recM = inM.filter(t=>t.kind==='receita').reduce((s,t)=>s+Number(t.amount),0);
+  const despM = inM.filter(t=>t.kind==='despesa').reduce((s,t)=>s+Number(t.amount),0);
+  const saldo = recM-despM;
+  const el = document.getElementById('st-saldo');
+  el.textContent = fmtMoney(saldo);
+  el.className = 'stat-val '+(saldo>=0?'money-pos':'money-neg');
+  document.getElementById('st-saldo-sub').textContent = `+${fmtMoney(recM)} · −${fmtMoney(despM)}`;
+
+  const pend = allTx.filter(t=>t.status==='pendente');
+  const rec = pend.filter(t=>t.kind==='receita');
+  const pag = pend.filter(t=>t.kind==='despesa');
+  const recLate = rec.filter(t=>t.due_date && t.due_date<today).length;
+  const pagLate = pag.filter(t=>t.due_date && t.due_date<today).length;
+  document.getElementById('st-receber').textContent = fmtMoney(rec.reduce((s,t)=>s+Number(t.amount),0));
+  document.getElementById('st-receber-sub').textContent = rec.length+' lançamento'+(rec.length===1?'':'s')+(recLate?` · ${recLate} vencido${recLate===1?'':'s'}`:'');
+  document.getElementById('st-pagar').textContent = fmtMoney(pag.reduce((s,t)=>s+Number(t.amount),0));
+  document.getElementById('st-pagar-sub').textContent = pag.length+' conta'+(pag.length===1?'':'s')+(pagLate?` · ${pagLate} vencida${pagLate===1?'':'s'}`:'');
+
+  const inY = paid.filter(t=>t.paid_at.slice(0,4)===y);
+  const anoVal = inY.filter(t=>t.kind==='receita').reduce((s,t)=>s+Number(t.amount),0) - inY.filter(t=>t.kind==='despesa').reduce((s,t)=>s+Number(t.amount),0);
+  const elA = document.getElementById('st-ano');
+  elA.textContent = fmtMoney(anoVal);
+  elA.className = 'stat-val '+(anoVal>=0?'money-pos':'money-neg');
+}
+
+function renderChart(){
+  const el = document.getElementById('chart');
+  const months = [];
+  const base = new Date();
+  for(let i=5;i>=0;i--){
+    const d = new Date(base.getFullYear(), base.getMonth()-i, 1);
+    months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const data = months.map(m=>{
+    const inM = allTx.filter(t=>t.status==='pago' && t.paid_at && t.paid_at.slice(0,7)===m);
+    return {
+      m,
+      rec: inM.filter(t=>t.kind==='receita').reduce((s,t)=>s+Number(t.amount),0),
+      desp: inM.filter(t=>t.kind==='despesa').reduce((s,t)=>s+Number(t.amount),0),
+    };
+  });
+  const max = Math.max(...data.map(d=>Math.max(d.rec,d.desp)), 1);
+  el.innerHTML = data.map(d=>{
+    const label = new Date(d.m+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'short'});
+    return `<div class="chart-month">
+      <div class="chart-bars">
+        <div class="chart-bar rec" style="height:${Math.round(d.rec/max*118)}px" title="Receitas ${fmtMoney(d.rec)}"></div>
+        <div class="chart-bar desp" style="height:${Math.round(d.desp/max*118)}px" title="Despesas ${fmtMoney(d.desp)}"></div>
+      </div>
+      <div class="chart-mlabel">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCatChart(){
+  const el = document.getElementById('cat-chart');
+  const m = todayISO().slice(0,7);
+  const desp = allTx.filter(t=>t.kind==='despesa' && t.status==='pago' && t.paid_at && t.paid_at.slice(0,7)===m);
+  if(!desp.length){el.innerHTML='<div class="empty" style="padding:20px">Sem despesas pagas neste mês</div>';return}
+  const byCat = {};
+  desp.forEach(t=>{
+    const name = t.category_id && catMap[t.category_id] ? catMap[t.category_id].name : 'Sem categoria';
+    const color = t.category_id && catMap[t.category_id] ? (catMap[t.category_id].color||'#8B949E') : '#6E7681';
+    byCat[name] = byCat[name]||{v:0,color};
+    byCat[name].v += Number(t.amount);
+  });
+  const rows = Object.entries(byCat).sort((a,b)=>b[1].v-a[1].v);
+  const max = rows[0][1].v;
+  el.innerHTML = rows.map(([name,{v,color}])=>`
+    <div class="cat-row">
+      <div class="cat-name">${escapeHtml(name)}</div>
+      <div class="cat-bar" style="width:${Math.round(v/max*110)}px;background:${color}"></div>
+      <div class="cat-val">${fmtMoney(v)}</div>
+    </div>`).join('');
+}
+
+function changeMonth(delta){
+  const [y,m] = viewMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  viewMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderTable();
+}
+
+function renderTable(){
+  const label = new Date(viewMonth+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  document.getElementById('month-label').textContent = label;
+  const fk = document.getElementById('f-kind').value;
+  const fs = document.getElementById('f-status').value;
+  const today = todayISO();
+  const list = allTx.filter(t=>{
+    if(txDate(t).slice(0,7)!==viewMonth) return false;
+    if(fk && t.kind!==fk) return false;
+    if(fs && t.status!==fs) return false;
+    return true;
+  }).sort((a,b)=>txDate(b).localeCompare(txDate(a)));
+  const el = document.getElementById('tx-table');
+  if(!list.length){el.innerHTML='<div class="empty">Nenhum lançamento neste mês</div>';return}
+  el.innerHTML = `<table>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
+    <tbody>${list.map(t=>{
+      const late = t.status==='pendente' && t.due_date && t.due_date<today;
+      const cat = t.category_id && catMap[t.category_id];
+      const proj = t.project_id && projMap[t.project_id];
+      return `<tr class="clickable" onclick="openEditTx('${t.id}')">
+        <td style="font-size:12px;color:${late?'var(--red)':'var(--text3)'}">${fmtDateShort(txDate(t))}${late?' ⚠️':''}</td>
+        <td><div class="td-main">${escapeHtml(t.description)}</div>${proj?'<div class="td-sub">'+escapeHtml(proj.name)+'</div>':''}</td>
+        <td style="font-size:12px">${cat?escapeHtml(cat.name):'—'}${t.recurring==='mensal'?' 🔁':''}</td>
+        <td style="text-align:right;font-weight:600" class="${t.kind==='receita'?'money-pos':'money-neg'}">${t.kind==='receita'?'+':'−'}${fmtMoney(t.amount)}</td>
+        <td>${t.status==='pago'
+          ? '<span class="badge bg-green">Pago</span>'
+          : `<span class="badge ${late?'bg-red':'bg-amber'}">${late?'Vencido':'Pendente'}</span> <button class="pay-btn" onclick="event.stopPropagation();markPaid('${t.id}')">✓ pagar</button>`}</td>
+      </tr>`;}).join('')}</tbody></table>`;
+}
+
+function fillCatSelect(){
+  const kind = document.getElementById('x-kind').value;
+  document.getElementById('x-category').innerHTML = '<option value="">— Sem categoria —</option>'+
+    categories.filter(c=>c.kind===kind).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+}
+
+function openNewTx(){
+  editingTxId = null;
+  document.getElementById('modal-tx-title').textContent = 'Novo lançamento';
+  document.getElementById('btn-del-tx').style.display = 'none';
+  document.getElementById('btn-dup-tx').style.display = 'none';
+  document.getElementById('x-kind').value='receita';
+  ['x-amount','x-desc','x-due','x-paid','x-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('x-status').value='pendente';
+  document.getElementById('x-recurring').value='nao';
+  document.getElementById('x-project').value='';
+  fillCatSelect();
+  openModal('modal-tx');
+}
+
+function openEditTx(id){
+  const t = allTx.find(x=>x.id===id);
+  if(!t) return;
+  editingTxId = id;
+  document.getElementById('modal-tx-title').textContent = 'Editar lançamento';
+  document.getElementById('btn-del-tx').style.display = 'inline-flex';
+  document.getElementById('btn-dup-tx').style.display = 'inline-flex';
+  document.getElementById('x-kind').value = t.kind;
+  fillCatSelect();
+  document.getElementById('x-amount').value = t.amount;
+  document.getElementById('x-desc').value = t.description;
+  document.getElementById('x-category').value = t.category_id||'';
+  document.getElementById('x-due').value = t.due_date||'';
+  document.getElementById('x-status').value = t.status;
+  document.getElementById('x-paid').value = t.paid_at||'';
+  document.getElementById('x-project').value = t.project_id||'';
+  document.getElementById('x-recurring').value = t.recurring||'nao';
+  document.getElementById('x-notes').value = t.notes||'';
+  openModal('modal-tx');
+}
+
+function txPayload(){
+  const status = document.getElementById('x-status').value;
+  let paid = document.getElementById('x-paid').value||null;
+  if(status==='pago' && !paid) paid = todayISO();
+  if(status==='pendente') paid = null;
+  return {
+    kind: document.getElementById('x-kind').value,
+    description: document.getElementById('x-desc').value.trim(),
+    amount: Number(document.getElementById('x-amount').value)||0,
+    category_id: document.getElementById('x-category').value||null,
+    due_date: document.getElementById('x-due').value||null,
+    status,
+    paid_at: paid,
+    project_id: document.getElementById('x-project').value||null,
+    recurring: document.getElementById('x-recurring').value,
+    notes: document.getElementById('x-notes').value.trim()||null,
+  };
+}
+
+async function saveTx(){
+  const p = txPayload();
+  if(!p.description){showToast('Informe a descrição',true);return}
+  if(!p.amount){showToast('Informe o valor',true);return}
+  const btn = document.getElementById('btn-save-tx');
+  btn.disabled = true;
+  const {error} = editingTxId
+    ? await sb.from('fin_transactions').update(p).eq('id',editingTxId)
+    : await sb.from('fin_transactions').insert(p);
+  btn.disabled = false;
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-tx');
+  showToast(editingTxId?'Lançamento atualizado ✓':'Lançamento criado ✓');
+  loadAll();
+}
+
+async function markPaid(id){
+  const {error} = await sb.from('fin_transactions').update({status:'pago',paid_at:todayISO()}).eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return}
+  showToast('Marcado como pago ✓');
+  loadAll();
+}
+
+async function duplicateNextMonth(){
+  const t = allTx.find(x=>x.id===editingTxId);
+  if(!t) return;
+  let due = null;
+  if(t.due_date){
+    const [y,m,d] = t.due_date.split('-').map(Number);
+    const nd = new Date(y, m, 1);
+    const lastDay = new Date(nd.getFullYear(), nd.getMonth()+1, 0).getDate();
+    due = nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(Math.min(d,lastDay)).padStart(2,'0');
+  }
+  const {error} = await sb.from('fin_transactions').insert({
+    kind:t.kind, description:t.description, amount:t.amount, category_id:t.category_id,
+    due_date:due, status:'pendente', paid_at:null, project_id:t.project_id,
+    recurring:t.recurring, notes:t.notes,
+  });
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-tx');
+  showToast('Duplicado para o próximo mês ✓');
+  loadAll();
+}
+
+async function deleteTx(){
+  if(!editingTxId) return;
+  if(!confirm('Excluir este lançamento?')) return;
+  const {error} = await sb.from('fin_transactions').delete().eq('id',editingTxId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-tx');
+  showToast('Lançamento excluído');
+  loadAll();
+}
+
+// ──────────── CATEGORIAS ────────────
+function openCategories(){
+  renderCatsList();
+  openModal('modal-cats');
+}
+function renderCatsList(){
+  const el = document.getElementById('cats-list');
+  if(!categories.length){el.innerHTML='<div class="empty">Nenhuma categoria</div>';return}
+  el.innerHTML = categories.map(c=>`
+    <div class="list-item" style="padding:8px 12px">
+      <div class="li-dot" style="background:${c.color||'#8B949E'}"></div>
+      <div class="li-info"><div class="li-title" style="font-size:12.5px">${escapeHtml(c.name)}</div></div>
+      <span class="badge ${c.kind==='receita'?'bg-green':'bg-red'}">${c.kind}</span>
+      <button class="icon-btn danger" onclick="deleteCategory('${c.id}')" title="Excluir" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px">✕</button>
+    </div>`).join('');
+}
+async function addCategory(){
+  const name = document.getElementById('nc-name').value.trim();
+  if(!name){showToast('Informe o nome',true);return}
+  const kind = document.getElementById('nc-kind').value;
+  const colors = ['#22A060','#2188FF','#8B5CF6','#E3B341','#F85149','#8B949E'];
+  const {error} = await sb.from('fin_categories').insert({name, kind, color:colors[Math.floor(Math.random()*colors.length)]});
+  if(error){showToast(error.message.includes('duplicate')?'Essa categoria já existe':'Erro: '+error.message,true);return}
+  document.getElementById('nc-name').value='';
+  const {data} = await sb.from('fin_categories').select('*').order('kind').order('name');
+  categories = data||[];
+  catMap = {}; categories.forEach(c=>catMap[c.id]=c);
+  renderCatsList();
+  fillCatSelect();
+  showToast('Categoria criada ✓');
+}
+async function deleteCategory(id){
+  if(!confirm('Excluir esta categoria? Os lançamentos dela ficam sem categoria.')) return;
+  const {error} = await sb.from('fin_categories').delete().eq('id',id);
+  if(error){showToast('Erro: '+error.message,true);return}
+  categories = categories.filter(c=>c.id!==id);
+  delete catMap[id];
+  renderCatsList();
+  fillCatSelect();
+  loadAll();
+}
+</script>
+</body>
+</html>
