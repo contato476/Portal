@@ -127,7 +127,7 @@ const STAGE_LABELS = {novo:'Novo', contato:'Contato', proposta:'Proposta', negoc
 const EVENT_ICONS = {compromisso:'📌', reuniao:'🗓️', entrega:'📦', pessoal:'🏠'};
 let projMap = {};
 
-window.addEventListener('DOMContentLoaded', () => requireAdmin(loadPainel));
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('gestao'); requireAdmin(loadPainel); });
 
 async function loadPainel(){
   const today = todayISO();
