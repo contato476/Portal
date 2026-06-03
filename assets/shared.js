@@ -44,7 +44,7 @@ async function doLogout(){
 // ready:false → módulo ainda em construção (badge "em breve")
 const GESTAO_MODULES = [
   {id:'gestao',     href:'gestao.html',     label:'Painel',     ready:true,  icon:'<rect x="3" y="3" width="7" height="7" rx="1.5" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke-width="1.8"/>'},
-  {id:'tarefas',    href:'tarefas.html',    label:'Tarefas',    ready:false, icon:'<path d="M9 11l3 3L22 4" stroke-width="1.8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.8"/>'},
+  {id:'tarefas',    href:'tarefas.html',    label:'Tarefas',    ready:true, icon:'<path d="M9 11l3 3L22 4" stroke-width="1.8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.8"/>'},
   {id:'crm',        href:'crm.html',        label:'CRM',        ready:false, icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke-width="1.8"/><circle cx="9" cy="7" r="4" stroke-width="1.8"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-width="1.8"/>'},
   {id:'financeiro', href:'financeiro.html', label:'Financeiro', ready:false, icon:'<line x1="12" y1="1" x2="12" y2="23" stroke-width="1.8"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke-width="1.8"/>'},
   {id:'contratos',  href:'contratos.html',  label:'Contratos',  ready:false, icon:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke-width="1.8"/><line x1="9" y1="13" x2="15" y2="13" stroke-width="1.8"/><line x1="9" y1="17" x2="13" y2="17" stroke-width="1.8"/>'},

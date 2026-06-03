@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarefas — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.task-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;transition:all .15s}
+.task-check:hover{border-color:var(--green)}
+.task-check.done{background:var(--green);border-color:var(--green)}
+.task-late{border-left:3px solid var(--red)}
+.task-group{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.task-group:first-child{margin-top:0}
+.filters-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.filters-row .form-input{width:auto;min-width:160px;padding:7px 12px;font-size:12.5px}
+.task-title-done{text-decoration:line-through;color:var(--text3)}
+.li-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.list-item:hover .li-actions{opacity:1}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;display:flex}
+.icon-btn:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.icon-btn.danger:hover{color:var(--red)}
+@media(hover:none){.li-actions{opacity:1}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Tarefas</div>
+      <button class="btn btn-primary" onclick="openNewTask()">+ Nova tarefa</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Hoje</div><div class="stat-val" id="st-hoje">—</div><div class="stat-sub">para fazer hoje</div></div>
+        <div class="stat"><div class="stat-label">Atrasadas</div><div class="stat-val" id="st-atrasadas" style="color:var(--red)">—</div><div class="stat-sub">vencidas</div></div>
+        <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val" id="st-semana">—</div><div class="stat-sub">próximos 7 dias</div></div>
+        <div class="stat"><div class="stat-label">Concluídas</div><div class="stat-val" id="st-feitas" style="color:#4ADE80">—</div><div class="stat-sub">neste mês</div></div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="hoje" onclick="switchTab('hoje')">Hoje</div>
+        <div class="dtab" data-tab="semana" onclick="switchTab('semana')">Semana</div>
+        <div class="dtab" data-tab="todas" onclick="switchTab('todas')">Todas</div>
+        <div class="dtab" data-tab="concluidas" onclick="switchTab('concluidas')">Concluídas</div>
+      </div>
+
+      <div class="filters-row">
+        <select class="form-input form-select" id="f-project" onchange="renderList()"><option value="">Todos os projetos</option></select>
+        <select class="form-input form-select" id="f-priority" onchange="renderList()">
+          <option value="">Todas as prioridades</option>
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </select>
+      </div>
+
+      <div class="card" style="padding:16px" id="tasks-container">
+        <div class="loading">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: TAREFA -->
+<div class="overlay" id="modal-task">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="modal-task-title">Nova tarefa</div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="t-title" placeholder="O que precisa ser feito?"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="t-desc" placeholder="Detalhes (opcional)"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Prazo</label><input class="form-input" id="t-due" type="date"></div>
+      <div class="form-group"><label class="form-label">Prioridade</label>
+        <select class="form-input form-select" id="t-priority">
+          <option value="baixa">Baixa</option>
+          <option value="media" selected>Média</option>
+          <option value="alta">Alta</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Projeto</label>
+        <select class="form-input form-select" id="t-project"><option value="">— Sem projeto —</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-input form-select" id="t-status">
+          <option value="pendente">Pendente</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluida">Concluída</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-task" style="margin-right:auto;display:none" onclick="deleteTask()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-task" onclick="saveTask()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+let allTasks = [];
+let projMap = {};
+let currentTab = 'hoje';
+let editingTaskId = null;
+
+const PRIORITY_BADGE = {
+  alta:'<span class="badge bg-red">Alta</span>',
+  media:'<span class="badge bg-amber">Média</span>',
+  baixa:'<span class="badge bg-gray">Baixa</span>',
+};
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('tarefas'); requireAdmin(loadAll); });
+
+async function loadAll(){
+  const [tasksRes, projRes] = await Promise.all([
+    sb.from('tasks').select('*').order('due_date',{ascending:true,nullsFirst:false}).order('priority'),
+    sb.from('projects').select('id,name').order('name'),
+  ]);
+  if(tasksRes.error){
+    document.getElementById('tasks-container').innerHTML = isMissingTable(tasksRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(tasksRes.error.message)+'</div>';
+    return;
+  }
+  allTasks = tasksRes.data||[];
+  projMap = {};
+  (projRes.data||[]).forEach(p=>projMap[p.id]=p);
+  fillProjectSelects();
+  updateStats();
+  renderList();
+}
+
+function fillProjectSelects(){
+  const opts = Object.values(projMap).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  const f = document.getElementById('f-project');
+  const cur = f.value;
+  f.innerHTML = '<option value="">Todos os projetos</option>'+opts;
+  f.value = cur;
+  document.getElementById('t-project').innerHTML = '<option value="">— Sem projeto —</option>'+opts;
+}
+
+function updateStats(){
+  const today = todayISO();
+  const in7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const monthStart = today.slice(0,8)+'01';
+  const open = allTasks.filter(t=>t.status==='pendente'||t.status==='em_andamento');
+  document.getElementById('st-hoje').textContent = open.filter(t=>t.due_date===today).length;
+  document.getElementById('st-atrasadas').textContent = open.filter(t=>t.due_date && t.due_date<today).length;
+  document.getElementById('st-semana').textContent = open.filter(t=>t.due_date && t.due_date>=today && t.due_date<=in7).length;
+  document.getElementById('st-feitas').textContent = allTasks.filter(t=>t.status==='concluida' && t.completed_at && t.completed_at.slice(0,10)>=monthStart).length;
+}
+
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.dtab[data-tab="${name}"]`)?.classList.add('active');
+  renderList();
+}
+
+function filtered(){
+  const fp = document.getElementById('f-project').value;
+  const fr = document.getElementById('f-priority').value;
+  return allTasks.filter(t=>{
+    if(fp && t.project_id!==fp) return false;
+    if(fr && t.priority!==fr) return false;
+    return true;
+  });
+}
+
+function renderList(){
+  const today = todayISO();
+  const in7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const el = document.getElementById('tasks-container');
+  const tasks = filtered();
+  const open = tasks.filter(t=>t.status==='pendente'||t.status==='em_andamento');
+  let groups = [];
+
+  if(currentTab==='hoje'){
+    groups = [
+      ['Atrasadas', open.filter(t=>t.due_date && t.due_date<today)],
+      ['Hoje', open.filter(t=>t.due_date===today)],
+    ];
+  } else if(currentTab==='semana'){
+    groups = [
+      ['Atrasadas', open.filter(t=>t.due_date && t.due_date<today)],
+      ['Hoje', open.filter(t=>t.due_date===today)],
+      ['Próximos 7 dias', open.filter(t=>t.due_date && t.due_date>today && t.due_date<=in7)],
+    ];
+  } else if(currentTab==='todas'){
+    groups = [
+      ['Atrasadas', open.filter(t=>t.due_date && t.due_date<today)],
+      ['Com prazo', open.filter(t=>t.due_date && t.due_date>=today)],
+      ['Sem prazo', open.filter(t=>!t.due_date)],
+    ];
+  } else {
+    const done = tasks.filter(t=>t.status==='concluida')
+      .sort((a,b)=>(b.completed_at||'').localeCompare(a.completed_at||'')).slice(0,60);
+    groups = [['Concluídas recentemente', done]];
+  }
+
+  const total = groups.reduce((s,[,list])=>s+list.length,0);
+  if(!total){
+    el.innerHTML = '<div class="empty">'+(currentTab==='concluidas'?'Nenhuma tarefa concluída ainda':'Nenhuma tarefa aqui 🎉')+'</div>';
+    return;
+  }
+  el.innerHTML = groups.filter(([,list])=>list.length).map(([label,list])=>
+    `<div class="task-group">${label} · ${list.length}</div>` + list.map(t=>taskRow(t,today)).join('')
+  ).join('');
+}
+
+function taskRow(t, today){
+  const done = t.status==='concluida';
+  const late = !done && t.due_date && t.due_date<today;
+  const proj = t.project_id && projMap[t.project_id];
+  const subParts = [];
+  if(t.due_date) subParts.push(late?`<span style="color:var(--red)">Venceu ${fmtDateShort(t.due_date)}</span>`:'Prazo '+fmtDateShort(t.due_date));
+  if(proj) subParts.push(escapeHtml(proj.name));
+  if(t.status==='em_andamento' && !done) subParts.push('<span style="color:#60A5FA">em andamento</span>');
+  if(done && t.completed_at) subParts.push('Concluída '+fmtDateShort(t.completed_at.slice(0,10)));
+  return `<div class="list-item${late?' task-late':''}">
+    <div class="task-check${done?' done':''}" onclick="toggleDone('${t.id}', ${done})" title="${done?'Reabrir':'Concluir'}">${done?'✓':''}</div>
+    <div class="li-info" style="cursor:pointer" onclick="openEditTask('${t.id}')">
+      <div class="li-title${done?' task-title-done':''}">${escapeHtml(t.title)}</div>
+      <div class="li-sub">${subParts.join(' · ')||'Sem prazo'}</div>
+    </div>
+    ${done?'':PRIORITY_BADGE[t.priority]||''}
+    <div class="li-actions">
+      <button class="icon-btn" onclick="openEditTask('${t.id}')" title="Editar"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="1.8"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="1.8"/></svg></button>
+    </div>
+  </div>`;
+}
+
+function openNewTask(){
+  editingTaskId = null;
+  document.getElementById('modal-task-title').textContent = 'Nova tarefa';
+  document.getElementById('btn-del-task').style.display = 'none';
+  document.getElementById('t-title').value = '';
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-due').value = '';
+  document.getElementById('t-priority').value = 'media';
+  document.getElementById('t-project').value = '';
+  document.getElementById('t-status').value = 'pendente';
+  openModal('modal-task');
+}
+
+function openEditTask(id){
+  const t = allTasks.find(x=>x.id===id);
+  if(!t) return;
+  editingTaskId = id;
+  document.getElementById('modal-task-title').textContent = 'Editar tarefa';
+  document.getElementById('btn-del-task').style.display = 'inline-flex';
+  document.getElementById('t-title').value = t.title;
+  document.getElementById('t-desc').value = t.description||'';
+  document.getElementById('t-due').value = t.due_date||'';
+  document.getElementById('t-priority').value = t.priority;
+  document.getElementById('t-project').value = t.project_id||'';
+  document.getElementById('t-status').value = t.status;
+  openModal('modal-task');
+}
+
+async function saveTask(){
+  const title = document.getElementById('t-title').value.trim();
+  if(!title){showToast('Dê um título à tarefa', true);return}
+  const status = document.getElementById('t-status').value;
+  const payload = {
+    title,
+    description: document.getElementById('t-desc').value.trim()||null,
+    due_date: document.getElementById('t-due').value||null,
+    priority: document.getElementById('t-priority').value,
+    project_id: document.getElementById('t-project').value||null,
+    status,
+    completed_at: status==='concluida'?new Date().toISOString():null,
+  };
+  const btn = document.getElementById('btn-save-task');
+  btn.disabled = true;
+  const {error} = editingTaskId
+    ? await sb.from('tasks').update(payload).eq('id',editingTaskId)
+    : await sb.from('tasks').insert(payload);
+  btn.disabled = false;
+  if(error){showToast('Erro: '+error.message, true);return}
+  closeModal('modal-task');
+  showToast(editingTaskId?'Tarefa atualizada ✓':'Tarefa criada ✓');
+  loadAll();
+}
+
+async function toggleDone(id, isDone){
+  const payload = isDone
+    ? {status:'pendente', completed_at:null}
+    : {status:'concluida', completed_at:new Date().toISOString()};
+  const {error} = await sb.from('tasks').update(payload).eq('id',id);
+  if(error){showToast('Erro: '+error.message, true);return}
+  showToast(isDone?'Tarefa reaberta':'Tarefa concluída ✓');
+  loadAll();
+}
+
+async function deleteTask(){
+  if(!editingTaskId) return;
+  if(!confirm('Excluir esta tarefa de vez?')) return;
+  const {error} = await sb.from('tasks').delete().eq('id',editingTaskId);
+  if(error){showToast('Erro: '+error.message, true);return}
+  closeModal('modal-task');
+  showToast('Tarefa excluída');
+  loadAll();
+}
+</script>
+</body>
+</html>
