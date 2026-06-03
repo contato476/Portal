@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}
+.kb-col{min-width:230px;width:230px;flex-shrink:0;background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 280px)}
+.kb-hd{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.kb-dot{width:8px;height:8px;border-radius:50%}
+.kb-title{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+.kb-sum{margin-left:auto;font-size:10.5px;color:var(--text3)}
+.kb-body{padding:9px;overflow-y:auto;flex:1;min-height:60px}
+.kb-body.dragover{background:rgba(26,122,74,.07);border-radius:0 0 var(--radius) var(--radius)}
+.deal-card{background:var(--dark3);border:1px solid var(--border);border-radius:9px;padding:11px 12px;margin-bottom:8px;cursor:grab}
+.deal-card:active{cursor:grabbing}
+.deal-card:hover{border-color:var(--border2)}
+.deal-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.deal-meta{font-size:11px;color:var(--text3)}
+.deal-value{font-size:12.5px;font-weight:600;color:#4ADE80;margin-top:5px}
+.contact-link{cursor:pointer;color:var(--text2)}
+.contact-link:hover{color:var(--green2)}
+.activity-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.activity-item:last-child{border-bottom:none}
+.act-icon{width:28px;height:28px;border-radius:8px;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.act-content{font-size:12.5px;color:var(--text2);line-height:1.5}
+.act-time{font-size:10.5px;color:var(--text3);margin-top:2px}
+.act-add-row{display:flex;gap:8px;margin-top:12px}
+.act-add-row .form-input{margin:0}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">CRM</div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-ghost" onclick="openNewContact()">+ Contato</button>
+        <button class="btn btn-primary" onclick="openNewDeal()">+ Negócio</button>
+      </div>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Contatos</div><div class="stat-val" id="st-contacts">—</div><div class="stat-sub" id="st-contacts-sub">leads e clientes</div></div>
+        <div class="stat"><div class="stat-label">Funil aberto</div><div class="stat-val" id="st-open" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-open-sub">em negociação</div></div>
+        <div class="stat"><div class="stat-label">Fechados no mês</div><div class="stat-val money-pos" id="st-won" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-won-sub">ganhos</div></div>
+        <div class="stat"><div class="stat-label">Conversão</div><div class="stat-val" id="st-conv">—</div><div class="stat-sub">fechados ÷ encerrados</div></div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="funil" onclick="switchTab('funil')">Funil</div>
+        <div class="dtab" data-tab="contatos" onclick="switchTab('contatos')">Contatos</div>
+      </div>
+
+      <div class="dtab-view active" id="tab-funil">
+        <div class="kanban" id="kanban"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <div class="dtab-view" id="tab-contatos">
+        <div class="tbl-wrap" id="contacts-table"><div class="loading">Carregando...</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: CONTATO -->
+<div class="overlay" id="modal-contact">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="modal-contact-title">Novo contato</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Nome *</label><input class="form-input" id="c-name" placeholder="Nome do contato"></div>
+      <div class="form-group"><label class="form-label">Empresa</label><input class="form-input" id="c-company" placeholder="Empresa"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="c-email" type="email" placeholder="email@exemplo.com"></div>
+      <div class="form-group"><label class="form-label">Telefone</label><input class="form-input" id="c-phone" placeholder="(00) 00000-0000"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Origem</label>
+        <select class="form-input form-select" id="c-origin">
+          <option value="">— Selecione —</option>
+          <option value="indicacao">Indicação</option>
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="site">Site</option>
+          <option value="evento">Evento</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-input form-select" id="c-status">
+          <option value="lead">Lead</option>
+          <option value="ativo">Cliente ativo</option>
+          <option value="inativo">Inativo</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Observações</label><textarea class="form-input" id="c-notes" placeholder="Anotações sobre o contato"></textarea></div>
+
+    <div id="contact-activities-block" style="display:none">
+      <div class="form-section">Histórico de contato</div>
+      <div id="activities-list" style="max-height:220px;overflow-y:auto"></div>
+      <div class="act-add-row">
+        <select class="form-input form-select" id="a-type" style="width:130px;flex-shrink:0">
+          <option value="nota">📝 Nota</option>
+          <option value="ligacao">📞 Ligação</option>
+          <option value="email">✉️ E-mail</option>
+          <option value="reuniao">🗓️ Reunião</option>
+          <option value="mensagem">💬 Mensagem</option>
+        </select>
+        <input class="form-input" id="a-content" placeholder="O que aconteceu?" onkeydown="if(event.key==='Enter')addActivity()">
+        <button class="btn btn-primary" onclick="addActivity()">+</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-contact" style="margin-right:auto;display:none" onclick="deleteContact()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-contact')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-contact" onclick="saveContact()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NEGÓCIO -->
+<div class="overlay" id="modal-deal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="modal-deal-title">Novo negócio</div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="d-title" placeholder="Ex.: Site institucional — Empresa X"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Contato</label>
+        <select class="form-input form-select" id="d-contact"><option value="">— Sem contato —</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Valor (R$)</label><input class="form-input" id="d-value" type="number" min="0" step="0.01" placeholder="0,00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Etapa</label>
+        <select class="form-input form-select" id="d-stage">
+          <option value="novo">Novo</option>
+          <option value="contato">Contato feito</option>
+          <option value="proposta">Proposta enviada</option>
+          <option value="negociacao">Em negociação</option>
+          <option value="fechado">Fechado ✓</option>
+          <option value="perdido">Perdido</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Previsão de fechamento</label><input class="form-input" id="d-close" type="date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Observações</label><textarea class="form-input" id="d-notes" placeholder="Detalhes da negociação"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-deal" style="margin-right:auto;display:none" onclick="deleteDeal()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-deal')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-deal" onclick="saveDeal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/shared.js"></script>
+<script>
+const STAGES = [
+  {id:'novo',       label:'Novo',         color:'#8B949E'},
+  {id:'contato',    label:'Contato',      color:'#60A5FA'},
+  {id:'proposta',   label:'Proposta',     color:'#E3B341'},
+  {id:'negociacao', label:'Negociação',   color:'#A78BFA'},
+  {id:'fechado',    label:'Fechado',      color:'#4ADE80'},
+  {id:'perdido',    label:'Perdido',      color:'#F85149'},
+];
+const ACT_ICONS = {nota:'📝',ligacao:'📞',email:'✉️',reuniao:'🗓️',mensagem:'💬'};
+const CONTACT_STATUS_BADGE = {lead:'<span class="badge bg-amber">Lead</span>',ativo:'<span class="badge bg-green">Ativo</span>',inativo:'<span class="badge bg-gray">Inativo</span>'};
+
+let contacts = [], deals = [];
+let contactMap = {};
+let editingContactId = null, editingDealId = null;
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('crm'); requireAdmin(loadAll); });
+
+async function loadAll(){
+  const [cRes, dRes] = await Promise.all([
+    sb.from('crm_contacts').select('*').order('created_at',{ascending:false}),
+    sb.from('crm_deals').select('*').order('created_at',{ascending:false}),
+  ]);
+  if(cRes.error){
+    document.getElementById('kanban').innerHTML = isMissingTable(cRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(cRes.error.message)+'</div>';
+    document.getElementById('contacts-table').innerHTML = '';
+    return;
+  }
+  contacts = cRes.data||[];
+  deals = dRes.data||[];
+  contactMap = {};
+  contacts.forEach(c=>contactMap[c.id]=c);
+  fillContactSelect();
+  updateStats();
+  renderKanban();
+  renderContacts();
+}
+
+function updateStats(){
+  const monthStart = todayISO().slice(0,8)+'01';
+  const leads = contacts.filter(c=>c.status==='lead').length;
+  const ativos = contacts.filter(c=>c.status==='ativo').length;
+  document.getElementById('st-contacts').textContent = contacts.length;
+  document.getElementById('st-contacts-sub').textContent = `${leads} leads · ${ativos} ativos`;
+  const open = deals.filter(d=>!['fechado','perdido'].includes(d.stage));
+  document.getElementById('st-open').textContent = fmtMoney(open.reduce((s,d)=>s+Number(d.value),0));
+  document.getElementById('st-open-sub').textContent = open.length+' negócio'+(open.length===1?'':'s');
+  const wonMonth = deals.filter(d=>d.stage==='fechado' && d.closed_at && d.closed_at.slice(0,10)>=monthStart);
+  document.getElementById('st-won').textContent = fmtMoney(wonMonth.reduce((s,d)=>s+Number(d.value),0));
+  document.getElementById('st-won-sub').textContent = wonMonth.length+' ganho'+(wonMonth.length===1?'':'s');
+  const won = deals.filter(d=>d.stage==='fechado').length;
+  const lost = deals.filter(d=>d.stage==='perdido').length;
+  document.getElementById('st-conv').textContent = (won+lost)?Math.round(won/(won+lost)*100)+'%':'—';
+}
+
+function switchTab(name){
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.dtab-view').forEach(v=>v.classList.remove('active'));
+  document.querySelector(`.dtab[data-tab="${name}"]`)?.classList.add('active');
+  document.getElementById('tab-'+name)?.classList.add('active');
+}
+
+// ──────────── KANBAN ────────────
+function renderKanban(){
+  const el = document.getElementById('kanban');
+  el.innerHTML = STAGES.map(s=>{
+    const list = deals.filter(d=>d.stage===s.id);
+    const sum = list.reduce((a,d)=>a+Number(d.value),0);
+    return `<div class="kb-col">
+      <div class="kb-hd"><div class="kb-dot" style="background:${s.color}"></div><div class="kb-title">${s.label}</div><div class="kb-sum">${list.length} · ${fmtMoney(sum)}</div></div>
+      <div class="kb-body" data-stage="${s.id}" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropDeal(event)">
+        ${list.map(d=>dealCard(d)).join('')||'<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px 4px">Arraste negócios aqui</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function dealCard(d){
+  const c = d.contact_id && contactMap[d.contact_id];
+  return `<div class="deal-card" draggable="true" ondragstart="dragStart(event,'${d.id}')" onclick="openEditDeal('${d.id}')">
+    <div class="deal-title">${escapeHtml(d.title)}</div>
+    <div class="deal-meta">${c?escapeHtml(c.name):'Sem contato'}${d.expected_close?' · prev. '+fmtDateShort(d.expected_close):''}</div>
+    ${Number(d.value)?`<div class="deal-value">${fmtMoney(d.value)}</div>`:''}
+  </div>`;
+}
+
+let draggedDealId = null;
+function dragStart(e,id){draggedDealId = id;e.dataTransfer.effectAllowed='move'}
+function dragOver(e){e.preventDefault();e.currentTarget.classList.add('dragover')}
+function dragLeave(e){e.currentTarget.classList.remove('dragover')}
+async function dropDeal(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const stage = e.currentTarget.dataset.stage;
+  if(!draggedDealId) return;
+  const deal = deals.find(d=>d.id===draggedDealId);
+  draggedDealId = null;
+  if(!deal || deal.stage===stage) return;
+  const payload = {stage, closed_at:(stage==='fechado'||stage==='perdido')?new Date().toISOString():null};
+  const {error} = await sb.from('crm_deals').update(payload).eq('id',deal.id);
+  if(error){showToast('Erro: '+error.message,true);return}
+  showToast(stage==='fechado'?'Negócio fechado! 🎉':'Etapa atualizada ✓');
+  loadAll();
+}
+
+// ──────────── CONTATOS ────────────
+function renderContacts(){
+  const el = document.getElementById('contacts-table');
+  if(!contacts.length){el.innerHTML='<div class="empty">Nenhum contato ainda — clique em "+ Contato"</div>';return}
+  el.innerHTML = `<table>
+    <thead><tr><th>Nome</th><th>Contato</th><th>Origem</th><th>Negócios</th><th>Status</th></tr></thead>
+    <tbody>${contacts.map(c=>{
+      const cDeals = deals.filter(d=>d.contact_id===c.id);
+      const openVal = cDeals.filter(d=>!['fechado','perdido'].includes(d.stage)).reduce((s,d)=>s+Number(d.value),0);
+      return `<tr class="clickable" onclick="openEditContact('${c.id}')">
+        <td><div class="td-main">${escapeHtml(c.name)}</div><div class="td-sub">${escapeHtml(c.company||'')}</div></td>
+        <td style="font-size:12px">${escapeHtml(c.email||'—')}<div class="td-sub">${escapeHtml(c.phone||'')}</div></td>
+        <td style="font-size:12px;text-transform:capitalize">${escapeHtml(c.origin||'—')}</td>
+        <td style="font-size:12px">${cDeals.length}${openVal?' · <span class="money-pos">'+fmtMoney(openVal)+'</span>':''}</td>
+        <td>${CONTACT_STATUS_BADGE[c.status]||''}</td>
+      </tr>`;}).join('')}</tbody></table>`;
+}
+
+function fillContactSelect(){
+  document.getElementById('d-contact').innerHTML = '<option value="">— Sem contato —</option>'+
+    contacts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${c.company?' ('+escapeHtml(c.company)+')':''}</option>`).join('');
+}
+
+function openNewContact(){
+  editingContactId = null;
+  document.getElementById('modal-contact-title').textContent = 'Novo contato';
+  document.getElementById('btn-del-contact').style.display = 'none';
+  document.getElementById('contact-activities-block').style.display = 'none';
+  ['c-name','c-company','c-email','c-phone','c-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('c-origin').value='';
+  document.getElementById('c-status').value='lead';
+  openModal('modal-contact');
+}
+
+async function openEditContact(id){
+  const c = contactMap[id];
+  if(!c) return;
+  editingContactId = id;
+  document.getElementById('modal-contact-title').textContent = c.name;
+  document.getElementById('btn-del-contact').style.display = 'inline-flex';
+  document.getElementById('c-name').value = c.name;
+  document.getElementById('c-company').value = c.company||'';
+  document.getElementById('c-email').value = c.email||'';
+  document.getElementById('c-phone').value = c.phone||'';
+  document.getElementById('c-origin').value = c.origin||'';
+  document.getElementById('c-status').value = c.status;
+  document.getElementById('c-notes').value = c.notes||'';
+  document.getElementById('contact-activities-block').style.display = 'block';
+  openModal('modal-contact');
+  loadActivities(id);
+}
+
+async function loadActivities(contactId){
+  const el = document.getElementById('activities-list');
+  el.innerHTML = '<div class="loading" style="padding:12px">Carregando...</div>';
+  const {data,error} = await sb.from('crm_activities').select('*').eq('contact_id',contactId).order('activity_date',{ascending:false}).limit(30);
+  if(error){el.innerHTML='<div class="empty">Erro ao carregar histórico</div>';return}
+  if(!data.length){el.innerHTML='<div class="empty" style="padding:14px">Sem registros ainda — adicione abaixo</div>';return}
+  el.innerHTML = data.map(a=>`
+    <div class="activity-item">
+      <div class="act-icon">${ACT_ICONS[a.type]||'📝'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="act-content">${escapeHtml(a.content)}</div>
+        <div class="act-time">${fmtDate(a.activity_date)}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function addActivity(){
+  if(!editingContactId) return;
+  const content = document.getElementById('a-content').value.trim();
+  if(!content){showToast('Escreva o que aconteceu',true);return}
+  const {error} = await sb.from('crm_activities').insert({
+    contact_id: editingContactId,
+    type: document.getElementById('a-type').value,
+    content,
+  });
+  if(error){showToast('Erro: '+error.message,true);return}
+  document.getElementById('a-content').value='';
+  loadActivities(editingContactId);
+}
+
+async function saveContact(){
+  const name = document.getElementById('c-name').value.trim();
+  if(!name){showToast('Informe o nome',true);return}
+  const payload = {
+    name,
+    company: document.getElementById('c-company').value.trim()||null,
+    email: document.getElementById('c-email').value.trim()||null,
+    phone: document.getElementById('c-phone').value.trim()||null,
+    origin: document.getElementById('c-origin').value||null,
+    status: document.getElementById('c-status').value,
+    notes: document.getElementById('c-notes').value.trim()||null,
+  };
+  const btn = document.getElementById('btn-save-contact');
+  btn.disabled = true;
+  const {error} = editingContactId
+    ? await sb.from('crm_contacts').update(payload).eq('id',editingContactId)
+    : await sb.from('crm_contacts').insert(payload);
+  btn.disabled = false;
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-contact');
+  showToast(editingContactId?'Contato atualizado ✓':'Contato criado ✓');
+  loadAll();
+}
+
+async function deleteContact(){
+  if(!editingContactId) return;
+  if(!confirm('Excluir este contato? Os negócios e o histórico dele também serão excluídos.')) return;
+  const {error} = await sb.from('crm_contacts').delete().eq('id',editingContactId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-contact');
+  showToast('Contato excluído');
+  loadAll();
+}
+
+// ──────────── NEGÓCIOS ────────────
+function openNewDeal(){
+  editingDealId = null;
+  document.getElementById('modal-deal-title').textContent = 'Novo negócio';
+  document.getElementById('btn-del-deal').style.display = 'none';
+  ['d-title','d-value','d-close','d-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('d-contact').value='';
+  document.getElementById('d-stage').value='novo';
+  openModal('modal-deal');
+}
+
+function openEditDeal(id){
+  const d = deals.find(x=>x.id===id);
+  if(!d) return;
+  editingDealId = id;
+  document.getElementById('modal-deal-title').textContent = 'Editar negócio';
+  document.getElementById('btn-del-deal').style.display = 'inline-flex';
+  document.getElementById('d-title').value = d.title;
+  document.getElementById('d-contact').value = d.contact_id||'';
+  document.getElementById('d-value').value = d.value||'';
+  document.getElementById('d-stage').value = d.stage;
+  document.getElementById('d-close').value = d.expected_close||'';
+  document.getElementById('d-notes').value = d.notes||'';
+  openModal('modal-deal');
+}
+
+async function saveDeal(){
+  const title = document.getElementById('d-title').value.trim();
+  if(!title){showToast('Dê um título ao negócio',true);return}
+  const stage = document.getElementById('d-stage').value;
+  const prev = editingDealId ? deals.find(x=>x.id===editingDealId) : null;
+  const payload = {
+    title,
+    contact_id: document.getElementById('d-contact').value||null,
+    value: Number(document.getElementById('d-value').value)||0,
+    stage,
+    expected_close: document.getElementById('d-close').value||null,
+    notes: document.getElementById('d-notes').value.trim()||null,
+    closed_at: (stage==='fechado'||stage==='perdido') ? (prev&&prev.closed_at?prev.closed_at:new Date().toISOString()) : null,
+  };
+  const btn = document.getElementById('btn-save-deal');
+  btn.disabled = true;
+  const {error} = editingDealId
+    ? await sb.from('crm_deals').update(payload).eq('id',editingDealId)
+    : await sb.from('crm_deals').insert(payload);
+  btn.disabled = false;
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-deal');
+  showToast(editingDealId?'Negócio atualizado ✓':'Negócio criado ✓');
+  loadAll();
+}
+
+async function deleteDeal(){
+  if(!editingDealId) return;
+  if(!confirm('Excluir este negócio?')) return;
+  const {error} = await sb.from('crm_deals').delete().eq('id',editingDealId);
+  if(error){showToast('Erro: '+error.message,true);return}
+  closeModal('modal-deal');
+  showToast('Negócio excluído');
+  loadAll();
+}
+</script>
+</body>
+</html>
