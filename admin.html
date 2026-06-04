@@ -407,7 +407,7 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
       </div>
     </div>
     <div id="cl-invite-info" style="background:var(--green-l);background:rgba(26,122,74,.1);border:1px solid rgba(26,122,74,.3);border-radius:8px;padding:12px;font-size:12.5px;color:var(--text2);margin-top:14px">
-      💡 Ao criar o cliente, o e-mail será autorizado automaticamente. Ele receberá um convite por e-mail para definir a própria senha e acessar o portal.
+      💡 O cliente e o projeto são criados na hora — você já pode montar checklist, cronograma, combinados, tarefas e financeiro. O e-mail é autorizado automaticamente: envie o link do portal para o cliente e, quando ele se cadastrar, tudo será vinculado à conta dele sozinho.
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-client')">Cancelar</button>
@@ -622,15 +622,20 @@ function switchDTab(name){
 
 // ──────────── DASHBOARD ────────────
 async function loadDashboard(){
-  const [projRes,agreeRes,docsRes,checksRes,profsRes]=await Promise.all([
+  const [projRes,agreeRes,docsRes,checksRes,profsRes,contactsRes]=await Promise.all([
     sb.from('projects').select('*').order('created_at',{ascending:false}),
     sb.from('agreements').select('*').order('created_at',{ascending:false}).limit(20),
     sb.from('documents').select('*').gte('created_at',new Date(Date.now()-86400000).toISOString()),
     sb.from('checklist_states').select('*'),
     sb.from('profiles').select('id, name, company'),
+    sb.from('crm_contacts').select('id, name, company'),
   ]);
   const profMap={};(profsRes.data||[]).forEach(p=>{profMap[p.id]=p});
-  const projects=(projRes.data||[]).map(p=>({...p, profiles:profMap[p.client_id]||{name:'—',company:''}}));
+  const contactMap={};(contactsRes.data||[]).forEach(c=>{contactMap[c.id]=c});
+  const projects=(projRes.data||[]).map(p=>{
+    const ct=contactMap[p.contact_id];
+    return {...p, contact:ct||null, profiles:profMap[p.client_id]||(ct?{name:ct.name,company:ct.company||''}:{name:'—',company:''})};
+  });
   const agreements=agreeRes.data||[];
   const allStates=checksRes.data||[];
   const awaitingValidation=allStates.filter(s=>s.sent_by_client&&!s.done&&!s.rejected_at).length;
@@ -681,19 +686,24 @@ function setBadge(id,n){const el=document.getElementById(id);el.textContent=n;el
 // ──────────── CLIENTES ────────────
 async function loadClients(){
   const tbl=document.getElementById('clients-table');
-  const [projRes,profsRes]=await Promise.all([
+  const [projRes,profsRes,contactsRes]=await Promise.all([
     sb.from('projects').select('*').order('created_at',{ascending:false}),
     sb.from('profiles').select('id, name, company'),
+    sb.from('crm_contacts').select('id, name, company, email, phone'),
   ]);
   if(projRes.error){tbl.innerHTML='<div class="empty">Erro: '+escapeHtml(projRes.error.message)+'</div>';return}
   const profMap={};(profsRes.data||[]).forEach(p=>{profMap[p.id]=p});
-  allClients=(projRes.data||[]).map(p=>({...p, profiles:profMap[p.client_id]||{name:'—',company:''}}));
+  const contactMap={};(contactsRes.data||[]).forEach(c=>{contactMap[c.id]=c});
+  allClients=(projRes.data||[]).map(p=>{
+    const ct=contactMap[p.contact_id];
+    return {...p, contact:ct||null, profiles:profMap[p.client_id]||(ct?{name:ct.name,company:ct.company||''}:{name:'—',company:''})};
+  });
   if(!allClients.length){tbl.innerHTML='<div class="empty">Nenhum cliente cadastrado ainda</div>';return}
   tbl.innerHTML=`<table>
     <thead><tr><th>Cliente</th><th>Projeto</th><th>Início</th><th>Entrega</th><th>Status</th><th></th></tr></thead>
     <tbody>${allClients.map(p=>`
       <tr class="clickable" onclick="openClient('${p.client_id}','${p.id}')">
-        <td><div class="td-main">${escapeHtml(p.profiles?.name||'—')}</div><div class="td-sub">${escapeHtml(p.profiles?.company||'')}</div></td>
+        <td><div class="td-main">${escapeHtml(p.profiles?.name||'—')}${!p.client_id?' <span class="badge bg-blue" style="font-size:10px">⏳ aguardando cadastro</span>':''}</div><div class="td-sub">${escapeHtml(p.profiles?.company||'')}</div></td>
         <td style="font-size:12.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name)}</td>
         <td style="font-size:12px;color:var(--text3)">${p.start_date?fmtDateShort(p.start_date):'—'}</td>
         <td style="font-size:12px;color:var(--text3)">${p.end_date?fmtDateShort(p.end_date):'—'}</td>
@@ -703,19 +713,23 @@ async function loadClients(){
 }
 
 async function openClient(clientId,projectId){
+  if(clientId==='null'||clientId==='undefined'||!clientId)clientId=null;
   currentClientId=clientId;
   currentProjectId=projectId;
   let project=allClients.find(p=>p.id===projectId);
   if(!project){
-    const [{data:projData},{data:profData}]=await Promise.all([
-      sb.from('projects').select('*').eq('id',projectId).single(),
-      sb.from('profiles').select('id, name, company').eq('id',clientId).single(),
-    ]);
-    project=projData?{...projData, profiles:profData||{name:'—',company:''}}:null;
+    const {data:projData}=await sb.from('projects').select('*').eq('id',projectId).single();
+    if(projData){
+      const [{data:profData},{data:ctData}]=await Promise.all([
+        clientId?sb.from('profiles').select('id, name, company').eq('id',clientId).single():Promise.resolve({data:null}),
+        projData.contact_id?sb.from('crm_contacts').select('id, name, company, email').eq('id',projData.contact_id).single():Promise.resolve({data:null}),
+      ]);
+      project={...projData, contact:ctData||null, profiles:profData||(ctData?{name:ctData.name,company:ctData.company||''}:{name:'—',company:''})};
+    }
   }
   if(!project){showToast('Erro ao carregar cliente',true);return}
   document.getElementById('cd-name').textContent=project.profiles?.name||'—';
-  document.getElementById('cd-email').textContent='(use a aba Convites para ver e-mails)';
+  document.getElementById('cd-email').textContent=project.contact?.email||(clientId?'(use a aba Convites para ver e-mails)':'⏳ Cliente ainda não se cadastrou no portal');
   document.getElementById('cd-company').textContent=project.profiles?.company||'—';
   document.getElementById('cd-project').textContent=project.name;
   document.getElementById('cd-status').textContent=statusLabel(project.status);
@@ -1356,7 +1370,7 @@ async function adminUploadDoc(ev){
   const path=`${currentProjectId}/admin-${Date.now()}-${safeName}`;
   const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
   if(upErr){showToast('Erro upload: '+upErr.message,true);return}
-  const {error:dbErr}=await sb.from('documents').insert({user_id:currentClientId,project_id:currentProjectId,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type});
+  const {error:dbErr}=await sb.from('documents').insert({user_id:currentClientId||null,project_id:currentProjectId,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type});
   if(dbErr){showToast('Erro: '+dbErr.message,true);return}
   showToast('✓ Documento enviado!');
   ev.target.value='';
@@ -1472,77 +1486,55 @@ async function saveClient(){
     return;
   }
 
-  // NOVO CLIENTE
+  // NOVO CLIENTE — cria contato no CRM + projeto NA HORA.
+  // O cadastro do cliente no portal pode vir depois: quando ele se
+  // cadastrar com este e-mail, o trigger do banco vincula tudo sozinho.
   if(!name||!email||!project){showToast('Preencha nome, e-mail e projeto',true);return}
   btn.disabled=true;btn.textContent='Criando...';
+  const fail=msg=>{showToast(msg,true);btn.disabled=false;btn.textContent='Criar cliente e projeto'};
 
-  // Verifica se já existe um usuário com esse e-mail (cliente já se cadastrou)
-  // Como anon não pode ler auth.users, buscamos em profiles via uma query indireta
-  // Estratégia: buscamos pela tabela de allowed_emails para ver se o cliente já se cadastrou
-  const {data:existingAllowed}=await sb.from('allowed_emails').select('*').eq('email',email).maybeSingle();
-
-  // Se o e-mail está em allowed_emails E used=true, significa que o cliente já se cadastrou
-  // Nesse caso, buscamos o profile pelo nome (limitação: não podemos buscar por email direto em auth.users como anon)
-  // Solução: vamos buscar TODOS os profiles e tentar match pelo nome OU criar projeto diretamente se o cliente já existe
-
-  let clientExists=false;
-  let clientUserId=null;
-
-  if(existingAllowed&&existingAllowed.used){
-    // E-mail já foi usado — cliente provavelmente já se cadastrou
-    // Precisamos do user_id. Como não podemos consultar auth.users diretamente,
-    // vamos pedir pro usuário entrar com o cliente já existente e selecioná-lo na lista
-    clientExists=true;
-  }
-
-  if(clientExists){
-    // Tentativa: buscar profile que tenha o name informado E não tenha projeto associado
-    const {data:profiles}=await sb.from('profiles').select('id, name, company').eq('role','client');
-    // Match exato pelo nome OU usa o profile com nome mais similar
-    const match=profiles?.find(p=>p.name?.toLowerCase().trim()===name.toLowerCase().trim());
-
-    if(match){
-      // Atualiza o profile (caso name/company tenham mudado) e cria o projeto
-      await sb.from('profiles').update({name,company,phone}).eq('id',match.id);
-      const {error:projErr}=await sb.from('projects').insert({
-        client_id:match.id,
-        name:project,description:desc,status,
-        start_date:start||null,end_date:end||null,color
-      });
-      if(projErr){
-        showToast('Erro ao criar projeto: '+projErr.message,true);
-        btn.disabled=false;btn.textContent='Criar cliente e projeto';return;
-      }
-      closeModal('modal-client');
-      showToast(`✓ Projeto criado para ${name}!`);
-      btn.disabled=false;btn.textContent='Criar cliente e projeto';
-      loadClients();
-      loadDashboard();
-      return;
-    } else {
-      // E-mail usado mas não encontramos profile com esse nome
-      showToast('E-mail já cadastrado, mas perfil não encontrado. Verifique o nome.',true);
-      btn.disabled=false;btn.textContent='Criar cliente e projeto';
-      return;
-    }
-  }
-
-  // E-mail ainda NÃO foi usado — autoriza e instrui admin a mandar o link
+  // 1. Autoriza o e-mail no portal (se ainda não estiver)
+  const {data:existingAllowed}=await sb.from('allowed_emails').select('id').eq('email',email).maybeSingle();
   if(!existingAllowed){
     const {error:allowErr}=await sb.from('allowed_emails').insert({email,invited_by:currentUser.id});
-    if(allowErr){
-      showToast('Erro ao autorizar e-mail: '+allowErr.message,true);
-      btn.disabled=false;btn.textContent='Criar cliente e projeto';
-      return;
-    }
+    if(allowErr&&allowErr.code!=='23505'){fail('Erro ao autorizar e-mail: '+allowErr.message);return}
   }
+
+  // 2. Cria (ou reaproveita) o contato no CRM
+  let {data:contact}=await sb.from('crm_contacts').select('id, profile_id').eq('email',email).limit(1).maybeSingle();
+  if(contact){
+    await sb.from('crm_contacts').update({name,company,phone,status:'ativo'}).eq('id',contact.id);
+  }else{
+    const {data:newContact,error:ctErr}=await sb.from('crm_contacts').insert({name,email,company,phone,status:'ativo',origin:'portal'}).select('id, profile_id').single();
+    if(ctErr){fail('Erro ao criar contato: '+ctErr.message);return}
+    contact=newContact;
+  }
+
+  // 3. Se o cliente já tem conta no portal, vincula direto
+  let clientUserId=contact.profile_id||null;
+  if(!clientUserId){
+    const {data:profiles}=await sb.from('profiles').select('id, name').eq('role','client');
+    const match=profiles?.find(p=>p.name?.toLowerCase().trim()===name.toLowerCase().trim());
+    if(match)clientUserId=match.id;
+  }
+
+  // 4. Cria o projeto imediatamente
+  const {data:newProj,error:projErr}=await sb.from('projects').insert({
+    client_id:clientUserId,contact_id:contact.id,
+    name:project,description:desc,status,
+    start_date:start||null,end_date:end||null,color
+  }).select('id').single();
+  if(projErr){fail('Erro ao criar projeto: '+projErr.message);return}
 
   closeModal('modal-client');
   btn.disabled=false;btn.textContent='Criar cliente e projeto';
-
-  alert(`✅ E-mail "${email}" foi autorizado!\n\nPRÓXIMOS PASSOS:\n\n1. Envie este link para o cliente:\n${PORTAL_URL}\n\n2. Peça para o cliente se cadastrar com:\n   • Nome: ${name}\n   • E-mail: ${email}\n   • E uma senha própria\n\n3. Depois que ele se cadastrar, volte aqui em "+ Novo cliente" e preencha OS MESMOS dados (mesmo nome e e-mail) — desta vez o sistema criará o projeto vinculado a ele automaticamente.`);
-
+  showToast(clientUserId
+    ?`✓ Cliente e projeto criados!`
+    :`✓ Criado! Envie o link do portal para ${email} — ao se cadastrar, tudo será vinculado automaticamente.`);
+  await loadClients();
   loadDashboard();
+  // Abre o projeto direto para já criar checklist, cronograma e combinados
+  openClient(clientUserId,newProj.id);
 }
 
 async function deleteProject(){
