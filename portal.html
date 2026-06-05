@@ -50,6 +50,9 @@ textarea.form-input{resize:vertical;min-height:80px}
 .sb-logo-row{display:flex;align-items:center;gap:10px}
 .sb-icon{width:32px;height:32px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .sb-name{font-family:'Cormorant Garamond',serif;font-size:16px;line-height:1.2}
+.proj-switch{padding:10px 14px 0}
+.proj-switch select{width:100%;background:var(--dark2);color:inherit;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;cursor:pointer}
+.proj-switch select:focus{outline:none;border-color:var(--text2)}
 .sb-sub{font-size:10px;color:var(--text3)}
 .sb-nav{padding:12px 10px;flex:1;overflow-y:auto}
 .nav-section{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);padding:8px 8px 4px}
@@ -145,6 +148,8 @@ textarea.form-input{resize:vertical;min-height:80px}
   .stats-row{grid-template-columns:1fr 1fr}
   .sidebar{width:60px}
   .sb-name,.sb-sub,.sb-user>div:not(.sb-av),.nav-item span:not(.nav-count){display:none}
+  .proj-switch{padding:8px 6px 0}
+  .proj-switch select{padding:6px 4px;font-size:11px}
   .nav-item{justify-content:center}
   .main-content{padding:16px}
   .upload-area{padding:24px 14px}
@@ -217,6 +222,7 @@ textarea.form-input{resize:vertical;min-height:80px}
         <div><div class="sb-name">Portal</div><div class="sb-sub">Jenneffer Prazeres</div></div>
       </div>
     </div>
+    <div class="proj-switch" id="proj-switch" style="display:none"></div>
     <nav class="sb-nav">
       <div class="nav-section">Meu projeto</div>
       <div class="nav-item active" data-view="home" onclick="showView('home')">
@@ -375,6 +381,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 let currentProfile = null;
 let currentProject = null;
+let allProjects = [];
 
 // ──────────── HELPERS ────────────
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -495,12 +502,37 @@ async function loadProfile(user){
 }
 
 async function loadProject(){
-  // Busca projetos via project_members (suporta multi-usuário)
+  // Busca TODOS os projetos via project_members (suporta multi-usuário e multi-projeto)
   const {data:memberships}=await sb.from('project_members').select('project_id, role').eq('user_id',currentUser.id);
-  if(!memberships?.length){currentProject=null;return}
+  if(!memberships?.length){currentProject=null;allProjects=[];renderProjectSwitcher();return}
   const projectIds=memberships.map(m=>m.project_id);
-  const {data:projects}=await sb.from('projects').select('*').in('id',projectIds).order('created_at',{ascending:false}).limit(1);
-  currentProject=projects?.[0]||null;
+  const {data:projects}=await sb.from('projects').select('*').in('id',projectIds).order('created_at',{ascending:false});
+  allProjects=projects||[];
+  // Restaura último projeto selecionado (se ainda for membro dele)
+  const savedId=localStorage.getItem('portal_project_id');
+  currentProject=allProjects.find(p=>p.id===savedId)||allProjects[0]||null;
+  renderProjectSwitcher();
+}
+
+function renderProjectSwitcher(){
+  const wrap=document.getElementById('proj-switch');
+  if(!wrap)return;
+  if(allProjects.length<2){wrap.style.display='none';return}
+  wrap.style.display='block';
+  wrap.innerHTML=`<select onchange="switchProject(this.value)" aria-label="Trocar projeto">${
+    allProjects.map(p=>`<option value="${p.id}" ${currentProject&&p.id===currentProject.id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')
+  }</select>`;
+}
+
+function switchProject(id){
+  const proj=allProjects.find(p=>p.id===id);
+  if(!proj)return;
+  currentProject=proj;
+  localStorage.setItem('portal_project_id',id);
+  // Recarrega a view atual com o novo projeto
+  const activeView=document.querySelector('.view.active');
+  showView(activeView?activeView.id.replace('view-',''):'home');
+  showToast(`Projeto: ${proj.name}`);
 }
 
 async function doLogout(){
