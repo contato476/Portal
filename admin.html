@@ -397,6 +397,8 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
         <select class="form-input form-select" id="cl-status">
           <option value="pre_inicio">Pré-início</option>
           <option value="em_andamento">Em andamento</option>
+          <option value="testes_cliente">Testes cliente</option>
+          <option value="ajustes_pos_testes">Ajustes pós testes</option>
           <option value="pausado">Pausado</option>
           <option value="concluido">Concluído</option>
         </select>
@@ -548,8 +550,8 @@ let editingProjectId = null;
 
 // ──────────── HELPERS ────────────
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
-function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
+function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
+function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-blue',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
 function fmtDate(d){return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function fmtDateShort(d){return new Date(d+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
 function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
