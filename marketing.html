@@ -60,10 +60,10 @@
     <div class="main-content">
 
       <div class="stats-row">
-        <div class="stat"><div class="stat-label">Seguidores (total)</div><div class="stat-val" id="st-fol">—</div><div class="stat-sub">soma dos canais</div></div>
-        <div class="stat"><div class="stat-label">Leads no mês</div><div class="stat-val" id="st-leads" style="color:#4ADE80">—</div><div class="stat-sub">gerados pelos canais</div></div>
-        <div class="stat"><div class="stat-label">Alcance no mês</div><div class="stat-val" id="st-reach">—</div><div class="stat-sub">contas alcançadas</div></div>
-        <div class="stat"><div class="stat-label">Posts no mês</div><div class="stat-val" id="st-posts">—</div><div class="stat-sub">conteúdos publicados</div></div>
+        <div class="stat"><div class="stat-label">Seguidores (total)</div><div class="stat-val" id="st-fol">—</div><div class="stat-sub">último registro</div></div>
+        <div class="stat"><div class="stat-label">Contas alcançadas <span id="lbl-reach-m" style="text-transform:capitalize;color:var(--text2)"></span></div><div class="stat-val" id="st-reach">—</div><div class="stat-sub">no mês</div></div>
+        <div class="stat"><div class="stat-label">Visualizações <span id="lbl-views-m" style="text-transform:capitalize;color:var(--text2)"></span></div><div class="stat-val" id="st-views" style="color:#4ADE80">—</div><div class="stat-sub">no mês</div></div>
+        <div class="stat"><div class="stat-label">Leads <span id="lbl-leads-m" style="text-transform:capitalize;color:var(--text2)"></span></div><div class="stat-val" id="st-leads">—</div><div class="stat-sub">gerados no mês</div></div>
       </div>
 
       <div class="channels-grid" id="channels-grid"></div>
@@ -95,7 +95,7 @@
 <div class="overlay" id="modal-mk">
   <div class="modal" style="width:540px">
     <div class="modal-title" id="modal-mk-title">Registrar métricas</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Registre os números do canal na data escolhida (ex.: toda sexta ou todo fim de mês). Preencha só o que tiver — o resto pode ficar em branco.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Métricas dos últimos 30 dias (painel do Instagram). Preencha só o que tiver, o resto pode ficar em branco.</div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Canal *</label>
         <select class="form-input form-select" id="m-channel">
@@ -110,16 +110,24 @@
       <div class="form-group"><label class="form-label">Data *</label><input class="form-input" id="m-date" type="date"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Seguidores</label><input class="form-input" id="m-followers" type="number" min="0"></div>
-      <div class="form-group"><label class="form-label">Alcance</label><input class="form-input" id="m-reach" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Visualizações</label><input class="form-input" id="m-views" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Contas alcançadas</label><input class="form-input" id="m-reach" type="number" min="0"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Impressões</label><input class="form-input" id="m-impressions" type="number" min="0"></div>
-      <div class="form-group"><label class="form-label">Engajamento (curtidas+comentários...)</label><input class="form-input" id="m-engagement" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Seguidores líquidos</label><input class="form-input" id="m-net-followers" type="number"></div>
+      <div class="form-group"><label class="form-label">Interações</label><input class="form-input" id="m-interactions" type="number" min="0"></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label class="form-label">Visitas ao perfil</label><input class="form-input" id="m-profile-visits" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Toques no link da bio</label><input class="form-input" id="m-link-taps" type="number" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Total de seguidores</label><input class="form-input" id="m-followers" type="number" min="0"></div>
       <div class="form-group"><label class="form-label">Leads gerados</label><input class="form-input" id="m-leads" type="number" min="0"></div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label class="form-label">Posts publicados</label><input class="form-input" id="m-posts" type="number" min="0"></div>
+      <div class="form-group"></div>
     </div>
     <div class="form-group"><label class="form-label">Anotações</label><textarea class="form-input" id="m-notes" style="min-height:50px" placeholder="O que funcionou? O que postou?"></textarea></div>
     <div class="modal-footer">
@@ -185,14 +193,18 @@ function previousPerChannel(){
 }
 
 function updateStats(){
-  const m = todayISO().slice(0,7);
+  const m = viewMonth; // mês escolhido nas setas
+  const mShort = new Date(viewMonth+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'short'});
+  document.getElementById('lbl-reach-m').textContent = mShort;
+  document.getElementById('lbl-views-m').textContent = mShort;
+  document.getElementById('lbl-leads-m').textContent = mShort;
   const latest = latestPerChannel();
   const fol = Object.values(latest).reduce((s,x)=>s+(x.followers||0),0);
   const inM = metrics.filter(x=>x.metric_date.slice(0,7)===m);
   document.getElementById('st-fol').textContent = fol.toLocaleString('pt-BR');
-  document.getElementById('st-leads').textContent = inM.reduce((s,x)=>s+(x.leads||0),0);
   document.getElementById('st-reach').textContent = inM.reduce((s,x)=>s+(x.reach||0),0).toLocaleString('pt-BR');
-  document.getElementById('st-posts').textContent = inM.reduce((s,x)=>s+(x.posts||0),0);
+  document.getElementById('st-views').textContent = inM.reduce((s,x)=>s+(x.views||0),0).toLocaleString('pt-BR');
+  document.getElementById('st-leads').textContent = inM.reduce((s,x)=>s+(x.leads||0),0);
 }
 
 function renderChannels(){
@@ -212,8 +224,8 @@ function renderChannels(){
       </div>
       <div class="channel-stats">
         <div class="ch-stat"><div class="v">${(l.followers??0).toLocaleString('pt-BR')}</div><div class="l">Seguidores</div></div>
-        <div class="ch-stat"><div class="v">${(l.reach??0).toLocaleString('pt-BR')}</div><div class="l">Alcance</div></div>
-        <div class="ch-stat"><div class="v">${l.leads??0}</div><div class="l">Leads</div></div>
+        <div class="ch-stat"><div class="v">${(l.reach??0).toLocaleString('pt-BR')}</div><div class="l">Alcançadas</div></div>
+        <div class="ch-stat"><div class="v">${(l.views??0).toLocaleString('pt-BR')}</div><div class="l">Visualizações</div></div>
       </div>
       <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Último registro: ${fmtDateShort(l.metric_date)}</div>
     </div>`;
@@ -224,6 +236,7 @@ function changeMonth(delta){
   const [y,m] = viewMonth.split('-').map(Number);
   const d = new Date(y, m-1+delta, 1);
   viewMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  updateStats();
   renderTable();
   renderLeadsChart();
 }
@@ -234,15 +247,16 @@ function renderTable(){
   const el = document.getElementById('metrics-table');
   if(!list.length){el.innerHTML='<div class="empty">Nenhum registro neste mês</div>';return}
   el.innerHTML = `<table>
-    <thead><tr><th>Data</th><th>Canal</th><th>Seguidores</th><th>Alcance</th><th>Leads</th><th>Posts</th></tr></thead>
+    <thead><tr><th>Data</th><th>Canal</th><th>Seguidores</th><th>Alcançadas</th><th>Visualiz.</th><th>Interações</th><th>Leads</th></tr></thead>
     <tbody>${list.map(x=>`
       <tr class="clickable" onclick="openEditMetric('${x.id}')">
         <td style="font-size:12px;color:var(--text3)">${fmtDateShort(x.metric_date)}</td>
         <td style="text-transform:capitalize;font-size:12.5px">${CH_ICONS[x.channel]||''} ${escapeHtml(x.channel)}</td>
         <td style="font-size:12.5px">${x.followers!=null?x.followers.toLocaleString('pt-BR'):'—'}</td>
         <td style="font-size:12.5px">${x.reach!=null?x.reach.toLocaleString('pt-BR'):'—'}</td>
+        <td style="font-size:12.5px">${x.views!=null?x.views.toLocaleString('pt-BR'):'—'}</td>
+        <td style="font-size:12.5px">${x.interactions!=null?x.interactions.toLocaleString('pt-BR'):'—'}</td>
         <td style="font-size:12.5px">${x.leads??'—'}</td>
-        <td style="font-size:12.5px">${x.posts??'—'}</td>
       </tr>`).join('')}</tbody></table>`;
 }
 
@@ -269,7 +283,7 @@ function openNewMetric(){
   document.getElementById('btn-del-mk').style.display = 'none';
   document.getElementById('m-channel').value='instagram';
   document.getElementById('m-date').value=todayISO();
-  ['m-followers','m-reach','m-impressions','m-engagement','m-leads','m-posts','m-notes'].forEach(id=>document.getElementById(id).value='');
+  ['m-views','m-reach','m-net-followers','m-interactions','m-profile-visits','m-link-taps','m-followers','m-leads','m-posts','m-notes'].forEach(id=>document.getElementById(id).value='');
   openModal('modal-mk');
 }
 function openEditMetric(id){
@@ -280,10 +294,13 @@ function openEditMetric(id){
   document.getElementById('btn-del-mk').style.display = 'inline-flex';
   document.getElementById('m-channel').value=x.channel;
   document.getElementById('m-date').value=x.metric_date;
-  document.getElementById('m-followers').value=x.followers??'';
+  document.getElementById('m-views').value=x.views??'';
   document.getElementById('m-reach').value=x.reach??'';
-  document.getElementById('m-impressions').value=x.impressions??'';
-  document.getElementById('m-engagement').value=x.engagement??'';
+  document.getElementById('m-net-followers').value=x.net_followers??'';
+  document.getElementById('m-interactions').value=x.interactions??'';
+  document.getElementById('m-profile-visits').value=x.profile_visits??'';
+  document.getElementById('m-link-taps').value=x.link_taps??'';
+  document.getElementById('m-followers').value=x.followers??'';
   document.getElementById('m-leads').value=x.leads??'';
   document.getElementById('m-posts').value=x.posts??'';
   document.getElementById('m-notes').value=x.notes||'';
@@ -296,10 +313,13 @@ async function saveMetric(){
   const payload = {
     channel: document.getElementById('m-channel').value,
     metric_date: date,
-    followers: numOrNull('m-followers'),
+    views: numOrNull('m-views'),
     reach: numOrNull('m-reach'),
-    impressions: numOrNull('m-impressions'),
-    engagement: numOrNull('m-engagement'),
+    net_followers: numOrNull('m-net-followers'),
+    interactions: numOrNull('m-interactions'),
+    profile_visits: numOrNull('m-profile-visits'),
+    link_taps: numOrNull('m-link-taps'),
+    followers: numOrNull('m-followers'),
     leads: numOrNull('m-leads'),
     posts: numOrNull('m-posts'),
     notes: document.getElementById('m-notes').value.trim()||null,
