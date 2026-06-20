@@ -31,6 +31,8 @@
 .act-time{font-size:10.5px;color:var(--text3);margin-top:2px}
 .act-add-row{display:flex;gap:8px;margin-top:12px}
 .act-add-row .form-input{margin:0}
+.icon-btn{background:none;border:1px solid var(--border2);cursor:pointer;color:var(--text3);border-radius:6px;font-size:13px;line-height:1}
+.icon-btn:hover{color:var(--text);border-color:var(--green)}
 </style>
 </head>
 <body>
@@ -69,7 +71,7 @@
       <div class="stats-row">
         <div class="stat"><div class="stat-label">Contatos</div><div class="stat-val" id="st-contacts">—</div><div class="stat-sub" id="st-contacts-sub">leads e clientes</div></div>
         <div class="stat"><div class="stat-label">Funil aberto</div><div class="stat-val" id="st-open" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-open-sub">em negociação</div></div>
-        <div class="stat"><div class="stat-label">Fechados no mês</div><div class="stat-val money-pos" id="st-won" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-won-sub">ganhos</div></div>
+        <div class="stat"><div class="stat-label" style="display:flex;align-items:center;gap:6px">Fechados <span id="won-month-lbl" style="text-transform:capitalize;color:var(--text2)"></span><span style="margin-left:auto;display:flex;gap:3px"><button class="icon-btn" style="padding:1px 5px" onclick="changeWonMonth(-1)" title="Mês anterior">‹</button><button class="icon-btn" style="padding:1px 5px" onclick="changeWonMonth(1)" title="Próximo mês">›</button></span></div><div class="stat-val money-pos" id="st-won" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-won-sub">ganhos</div></div>
         <div class="stat"><div class="stat-label">Conversão</div><div class="stat-val" id="st-conv">—</div><div class="stat-sub">fechados ÷ encerrados</div></div>
       </div>
 
@@ -173,6 +175,12 @@
       </div>
       <div class="form-group"><label class="form-label">Previsão de fechamento</label><input class="form-input" id="d-close" type="date"></div>
     </div>
+    <div class="form-section">Próximo follow-up</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Data do follow-up</label><input class="form-input" id="d-followup" type="date"></div>
+      <div class="form-group"><label class="form-label">O que fazer</label><input class="form-input" id="d-followup-note" placeholder="Ex.: Ligar para enviar a proposta"></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text3);margin:-4px 0 10px">Ao salvar com uma data, vira tarefa automática na página Tarefas. Apagar a data cancela a tarefa.</div>
     <div class="form-group"><label class="form-label">Observações</label><textarea class="form-input" id="d-notes" placeholder="Detalhes da negociação"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-deal" style="margin-right:auto;display:none" onclick="deleteDeal()">Excluir</button>
@@ -200,6 +208,7 @@ const CONTACT_STATUS_BADGE = {lead:'<span class="badge bg-amber">Lead</span>',at
 let contacts = [], deals = [];
 let contactMap = {};
 let editingContactId = null, editingDealId = null;
+let wonMonth = todayISO().slice(0,7); // 'YYYY-MM' do card Fechados
 
 window.addEventListener('DOMContentLoaded', () => { renderSidebar('crm'); requireAdmin(loadAll); });
 
@@ -224,7 +233,6 @@ async function loadAll(){
 }
 
 function updateStats(){
-  const monthStart = todayISO().slice(0,8)+'01';
   const leads = contacts.filter(c=>c.status==='lead').length;
   const ativos = contacts.filter(c=>c.status==='ativo').length;
   document.getElementById('st-contacts').textContent = contacts.length;
@@ -232,12 +240,21 @@ function updateStats(){
   const open = deals.filter(d=>!['fechado','perdido'].includes(d.stage));
   document.getElementById('st-open').textContent = fmtMoney(open.reduce((s,d)=>s+Number(d.value),0));
   document.getElementById('st-open-sub').textContent = open.length+' negócio'+(open.length===1?'':'s');
-  const wonMonth = deals.filter(d=>d.stage==='fechado' && d.closed_at && d.closed_at.slice(0,10)>=monthStart);
-  document.getElementById('st-won').textContent = fmtMoney(wonMonth.reduce((s,d)=>s+Number(d.value),0));
-  document.getElementById('st-won-sub').textContent = wonMonth.length+' ganho'+(wonMonth.length===1?'':'s');
+  // Fechados no mês escolhido (wonMonth = 'YYYY-MM')
+  const wonList = deals.filter(d=>d.stage==='fechado' && d.closed_at && d.closed_at.slice(0,7)===wonMonth);
+  document.getElementById('won-month-lbl').textContent = new Date(wonMonth+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'short'});
+  document.getElementById('st-won').textContent = fmtMoney(wonList.reduce((s,d)=>s+Number(d.value),0));
+  document.getElementById('st-won-sub').textContent = wonList.length+' ganho'+(wonList.length===1?'':'s');
   const won = deals.filter(d=>d.stage==='fechado').length;
   const lost = deals.filter(d=>d.stage==='perdido').length;
   document.getElementById('st-conv').textContent = (won+lost)?Math.round(won/(won+lost)*100)+'%':'—';
+}
+
+function changeWonMonth(delta){
+  const [y,m] = wonMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  wonMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  updateStats();
 }
 
 function switchTab(name){
@@ -264,9 +281,15 @@ function renderKanban(){
 
 function dealCard(d){
   const c = d.contact_id && contactMap[d.contact_id];
+  const today = todayISO();
+  const fLate = d.next_followup && d.next_followup<today;
+  const followLine = d.next_followup
+    ? `<div class="deal-meta" style="margin-top:4px;color:${fLate?'var(--red)':'var(--text2)'}">📌 follow ${fmtDateShort(d.next_followup)}${fLate?' (atrasado)':''}</div>`
+    : '';
   return `<div class="deal-card" draggable="true" ondragstart="dragStart(event,'${d.id}')" onclick="openEditDeal('${d.id}')">
     <div class="deal-title">${escapeHtml(d.title)}</div>
     <div class="deal-meta">${c?escapeHtml(c.name):'Sem contato'}${d.expected_close?' · prev. '+fmtDateShort(d.expected_close):''}</div>
+    ${followLine}
     ${Number(d.value)?`<div class="deal-value">${fmtMoney(d.value)}</div>`:''}
   </div>`;
 }
@@ -411,7 +434,7 @@ function openNewDeal(){
   editingDealId = null;
   document.getElementById('modal-deal-title').textContent = 'Novo negócio';
   document.getElementById('btn-del-deal').style.display = 'none';
-  ['d-title','d-value','d-close','d-notes'].forEach(id=>document.getElementById(id).value='');
+  ['d-title','d-value','d-close','d-notes','d-followup','d-followup-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('d-contact').value='';
   document.getElementById('d-stage').value='novo';
   openModal('modal-deal');
@@ -428,6 +451,8 @@ function openEditDeal(id){
   document.getElementById('d-value').value = d.value||'';
   document.getElementById('d-stage').value = d.stage;
   document.getElementById('d-close').value = d.expected_close||'';
+  document.getElementById('d-followup').value = d.next_followup||'';
+  document.getElementById('d-followup-note').value = d.followup_note||'';
   document.getElementById('d-notes').value = d.notes||'';
   openModal('modal-deal');
 }
@@ -437,25 +462,60 @@ async function saveDeal(){
   if(!title){showToast('Dê um título ao negócio',true);return}
   const stage = document.getElementById('d-stage').value;
   const prev = editingDealId ? deals.find(x=>x.id===editingDealId) : null;
+  const followupDate = document.getElementById('d-followup').value||null;
+  const followupNote = document.getElementById('d-followup-note').value.trim()||null;
   const payload = {
     title,
     contact_id: document.getElementById('d-contact').value||null,
     value: Number(document.getElementById('d-value').value)||0,
     stage,
     expected_close: document.getElementById('d-close').value||null,
+    next_followup: followupDate,
+    followup_note: followupNote,
     notes: document.getElementById('d-notes').value.trim()||null,
     closed_at: (stage==='fechado'||stage==='perdido') ? (prev&&prev.closed_at?prev.closed_at:new Date().toISOString()) : null,
   };
   const btn = document.getElementById('btn-save-deal');
   btn.disabled = true;
-  const {error} = editingDealId
-    ? await sb.from('crm_deals').update(payload).eq('id',editingDealId)
-    : await sb.from('crm_deals').insert(payload);
+  let dealId = editingDealId, error;
+  if(editingDealId){
+    ({error} = await sb.from('crm_deals').update(payload).eq('id',editingDealId));
+  } else {
+    const res = await sb.from('crm_deals').insert(payload).select('id').single();
+    error = res.error;
+    if(res.data) dealId = res.data.id;
+  }
+  if(!error && dealId){
+    const tErr = await syncFollowupTask(dealId, title, followupDate, followupNote);
+    if(tErr) error = tErr;
+  }
   btn.disabled = false;
   if(error){showToast('Erro: '+error.message,true);return}
   closeModal('modal-deal');
   showToast(editingDealId?'Negócio atualizado ✓':'Negócio criado ✓');
   loadAll();
+}
+
+// Cria/atualiza/cancela a tarefa de follow-up ligada ao negócio (join manual,
+// sem select aninhado). Cada negócio tem no máximo uma tarefa de follow-up
+// em aberto, então atualizamos a mesma em vez de duplicar.
+async function syncFollowupTask(dealId, dealTitle, date, note){
+  const {data:open} = await sb.from('tasks')
+    .select('id').eq('deal_id',dealId).in('status',['pendente','em_andamento']).limit(1);
+  const openTask = open && open[0];
+  if(date){
+    const title = note || ('Follow-up: '+dealTitle);
+    const {error} = openTask
+      ? await sb.from('tasks').update({title, due_date:date}).eq('id',openTask.id)
+      : await sb.from('tasks').insert({title, due_date:date, priority:'alta', status:'pendente', deal_id:dealId});
+    return error;
+  }
+  // Sem data: cancela a tarefa de follow-up que estiver aberta
+  if(openTask){
+    const {error} = await sb.from('tasks').update({status:'cancelada'}).eq('id',openTask.id);
+    return error;
+  }
+  return null;
 }
 
 async function deleteDeal(){
