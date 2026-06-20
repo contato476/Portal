@@ -77,6 +77,8 @@
           <option value="media">Média</option>
           <option value="baixa">Baixa</option>
         </select>
+        <input class="form-input" id="f-month" type="month" onchange="renderList()" title="Ver um mês específico" style="width:auto">
+        <button class="btn btn-ghost btn-sm" id="f-month-clear" onclick="clearMonth()" style="display:none">Limpar mês</button>
       </div>
 
       <div class="card" style="padding:16px" id="tasks-container">
@@ -171,16 +173,23 @@ function fillProjectSelects(){
 function updateStats(){
   const today = todayISO();
   const in7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-  const monthStart = today.slice(0,8)+'01';
+  const fm = document.getElementById('f-month').value; // 'YYYY-MM' ou ''
+  const statMonth = fm || today.slice(0,7);
   const open = allTasks.filter(t=>t.status==='pendente'||t.status==='em_andamento');
   document.getElementById('st-hoje').textContent = open.filter(t=>t.due_date===today).length;
   document.getElementById('st-atrasadas').textContent = open.filter(t=>t.due_date && t.due_date<today).length;
   document.getElementById('st-semana').textContent = open.filter(t=>t.due_date && t.due_date>=today && t.due_date<=in7).length;
-  document.getElementById('st-feitas').textContent = allTasks.filter(t=>t.status==='concluida' && t.completed_at && t.completed_at.slice(0,10)>=monthStart).length;
+  document.getElementById('st-feitas').textContent = allTasks.filter(t=>t.status==='concluida' && t.completed_at && t.completed_at.slice(0,7)===statMonth).length;
+}
+
+function clearMonth(){
+  document.getElementById('f-month').value = '';
+  renderList();
 }
 
 function switchTab(name){
   currentTab = name;
+  document.getElementById('f-month').value = ''; // abas e mês não se misturam
   document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
   document.querySelector(`.dtab[data-tab="${name}"]`)?.classList.add('active');
   renderList();
@@ -203,6 +212,28 @@ function renderList(){
   const tasks = filtered();
   const open = tasks.filter(t=>t.status==='pendente'||t.status==='em_andamento');
   let groups = [];
+
+  // Modo "mês específico": ignora as abas e mostra prazos + concluídas do mês
+  const fm = document.getElementById('f-month').value;
+  document.getElementById('f-month-clear').style.display = fm ? 'inline-flex' : 'none';
+  updateStats();
+  if(fm){
+    const mLabel = new Date(fm+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    const openInM = open.filter(t=>t.due_date && t.due_date.slice(0,7)===fm)
+      .sort((a,b)=>(a.due_date||'').localeCompare(b.due_date||''));
+    const doneInM = tasks.filter(t=>t.status==='concluida' && t.completed_at && t.completed_at.slice(0,7)===fm)
+      .sort((a,b)=>(b.completed_at||'').localeCompare(a.completed_at||''));
+    groups = [
+      ['Com prazo em '+mLabel, openInM],
+      ['Concluídas em '+mLabel, doneInM],
+    ];
+    const total = groups.reduce((s,[,list])=>s+list.length,0);
+    if(!total){ el.innerHTML='<div class="empty">Nenhuma tarefa em '+escapeHtml(mLabel)+'</div>'; return; }
+    el.innerHTML = groups.filter(([,list])=>list.length).map(([label,list])=>
+      `<div class="task-group">${label} · ${list.length}</div>` + list.map(t=>taskRow(t,today)).join('')
+    ).join('');
+    return;
+  }
 
   if(currentTab==='hoje'){
     groups = [
@@ -243,6 +274,7 @@ function taskRow(t, today){
   const proj = t.project_id && projMap[t.project_id];
   const subParts = [];
   if(t.due_date) subParts.push(late?`<span style="color:var(--red)">Venceu ${fmtDateShort(t.due_date)}</span>`:'Prazo '+fmtDateShort(t.due_date));
+  if(t.deal_id) subParts.push('<span style="color:var(--green2)">CRM · follow-up</span>');
   if(proj) subParts.push(escapeHtml(proj.name));
   if(t.status==='em_andamento' && !done) subParts.push('<span style="color:#60A5FA">em andamento</span>');
   if(done && t.completed_at) subParts.push('Concluída '+fmtDateShort(t.completed_at.slice(0,10)));
