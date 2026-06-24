@@ -477,6 +477,7 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
           <option value="alteracao">✏️ Alteração solicitada</option>
           <option value="decisao">⭐ Decisão importante</option>
           <option value="proximos_passos">➡️ Próximos passos / ações</option>
+          <option value="link">🔗 Links de acesso</option>
         </select>
       </div>
       <div class="form-group">
@@ -497,6 +498,10 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
     <div class="form-row" id="ag-sprint-row" style="display:none">
       <div class="form-group"><label class="form-label">Início do sprint</label><input class="form-input" id="ag-start-date" type="date"></div>
       <div class="form-group"><label class="form-label">Fim do sprint</label><input class="form-input" id="ag-end-date" type="date"></div>
+    </div>
+    <div class="form-group" id="ag-link-row" style="display:none">
+      <label class="form-label">URL do link</label>
+      <input class="form-input" id="ag-link-url" type="url" placeholder="https://...">
     </div>
     <div class="form-group"><label class="form-label">Descrição / detalhes</label><textarea class="form-input" id="ag-desc" placeholder="O que foi discutido, decisões, próximos passos..." style="min-height:110px"></textarea></div>
     <div class="modal-footer">
@@ -679,10 +684,17 @@ async function loadDashboard(){
 }
 
 // ──────────── HELPERS DE AGREEMENTS ────────────
-function agreementTypeLabel(t){return {reuniao:'Reunião',sprint:'Sprint',alteracao:'Alteração',decisao:'Decisão',proximos_passos:'Próximos passos'}[t]||t}
-function agreementTypeIcon(t){return {reuniao:'🗓️',sprint:'⚡',alteracao:'✏️',decisao:'⭐',proximos_passos:'➡️'}[t]||'📝'}
-function agreementTypeBg(t){return {reuniao:'rgba(33,136,255,.15)',sprint:'rgba(139,92,246,.15)',alteracao:'rgba(227,179,65,.15)',decisao:'rgba(26,122,74,.15)',proximos_passos:'rgba(248,81,73,.15)'}[t]||'var(--dark3)'}
-function agreementTypeColor(t){return {reuniao:'#60A5FA',sprint:'#A78BFA',alteracao:'#E3B341',decisao:'#4ADE80',proximos_passos:'#F85149'}[t]||'var(--text2)'}
+function agreementTypeLabel(t){return {reuniao:'Reunião',sprint:'Sprint',alteracao:'Alteração',decisao:'Decisão',proximos_passos:'Próximos passos',link:'Links de acesso'}[t]||t}
+function agreementTypeIcon(t){return {reuniao:'🗓️',sprint:'⚡',alteracao:'✏️',decisao:'⭐',proximos_passos:'➡️',link:'🔗'}[t]||'📝'}
+function agreementTypeBg(t){return {reuniao:'rgba(33,136,255,.15)',sprint:'rgba(139,92,246,.15)',alteracao:'rgba(227,179,65,.15)',decisao:'rgba(26,122,74,.15)',proximos_passos:'rgba(248,81,73,.15)',link:'rgba(34,211,238,.15)'}[t]||'var(--dark3)'}
+function agreementTypeColor(t){return {reuniao:'#60A5FA',sprint:'#A78BFA',alteracao:'#E3B341',decisao:'#4ADE80',proximos_passos:'#F85149',link:'#22D3EE'}[t]||'var(--text2)'}
+
+// Sanitiza URL: só aceita http(s). Bloqueia javascript:, data:, etc. (OWASP/XSS).
+function safeUrl(u){
+  if(!u)return null;
+  try{const p=new URL(u.trim());return(p.protocol==='http:'||p.protocol==='https:')?p.href:null}
+  catch(e){return null}
+}
 function setBadge(id,n){const el=document.getElementById(id);el.textContent=n;el.style.display=n>0?'inline':'none'}
 
 // ──────────── CLIENTES ────────────
@@ -1094,6 +1106,7 @@ function renderAgreementCard(a,profMap){
         </div>
         <div style="font-size:14.5px;font-weight:500;color:var(--text);margin-bottom:4px">${escapeHtml(a.title)}</div>
         ${dateInfo?`<div style="font-size:11.5px;color:var(--text2);margin-bottom:6px">${dateInfo}</div>`:''}
+        ${safeUrl(a.link_url)?`<div style="margin-top:6px"><a href="${escapeHtml(safeUrl(a.link_url))}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:${agreementTypeColor('link')};word-break:break-all">🔗 ${escapeHtml(safeUrl(a.link_url))}</a></div>`:''}
         ${a.description?`<div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:6px;white-space:pre-wrap">${escapeHtml(a.description)}</div>`:''}
         <div style="font-size:11px;color:var(--text3);margin-top:8px">por ${escapeHtml(author)} · ${fmtDate(a.created_at)}</div>
       </div>
@@ -1138,9 +1151,14 @@ async function saveAgreement(){
   };
   if(type==='reuniao')payload.meeting_date=meetingDate||null;
   if(type==='sprint'){payload.start_date=startDate||null;payload.end_date=endDate||null}
+  if(type==='link'){
+    const url=safeUrl(document.getElementById('ag-link-url').value);
+    if(!url){showToast('Informe uma URL válida (http ou https)',true);return}
+    payload.link_url=url;
+  }
   const {error}=await sb.from('agreements').insert(payload);
   if(error){showToast('Erro: '+error.message,true);return}
-  ['ag-title','ag-desc','ag-meeting-date','ag-start-date','ag-end-date'].forEach(id=>document.getElementById(id).value='');
+  ['ag-title','ag-desc','ag-meeting-date','ag-start-date','ag-end-date','ag-link-url'].forEach(id=>document.getElementById(id).value='');
   closeModal('modal-agreement');
   showToast('✓ Combinado adicionado!');
   loadClientAgreements();
@@ -1157,6 +1175,7 @@ function toggleAgreementFields(){
   const type=document.getElementById('ag-type').value;
   document.getElementById('ag-meeting-row').style.display=type==='reuniao'?'block':'none';
   document.getElementById('ag-sprint-row').style.display=type==='sprint'?'grid':'none';
+  document.getElementById('ag-link-row').style.display=type==='link'?'block':'none';
 }
 
 // ──────────── COMBINADOS GERAL ────────────
