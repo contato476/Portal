@@ -321,6 +321,7 @@ textarea.form-input{resize:vertical;min-height:80px}
           <option value="reuniao">🗓️ Resumo de reunião</option>
           <option value="decisao">⭐ Decisão importante</option>
           <option value="proximos_passos">➡️ Próximos passos</option>
+          <option value="link">🔗 Links de acesso</option>
         </select>
       </div>
       <div class="form-group">
@@ -336,6 +337,10 @@ textarea.form-input{resize:vertical;min-height:80px}
     <div class="form-group" id="ag-meeting-row" style="display:none">
       <label class="form-label">Data da reunião</label>
       <input class="form-input" id="ag-meeting-date" type="date">
+    </div>
+    <div class="form-group" id="ag-link-row" style="display:none">
+      <label class="form-label">URL do link</label>
+      <input class="form-input" id="ag-link-url" type="url" placeholder="https://...">
     </div>
     <div class="form-group"><label class="form-label">Detalhes</label><textarea class="form-input" id="ag-desc" placeholder="Descreva os detalhes..." style="min-height:110px;resize:vertical"></textarea></div>
     <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
@@ -860,9 +865,16 @@ async function loadCronograma(){
 }
 
 // ──────────── COMBINADOS ────────────
-function agreementTypeLabel(t){return {reuniao:'Reunião',sprint:'Sprint',alteracao:'Alteração',decisao:'Decisão',proximos_passos:'Próximos passos'}[t]||t}
-function agreementTypeIcon(t){return {reuniao:'🗓️',sprint:'⚡',alteracao:'✏️',decisao:'⭐',proximos_passos:'➡️'}[t]||'📝'}
-function agreementTypeColor(t){return {reuniao:'#60A5FA',sprint:'#A78BFA',alteracao:'#E3B341',decisao:'#4ADE80',proximos_passos:'#F85149'}[t]||'var(--text2)'}
+function agreementTypeLabel(t){return {reuniao:'Reunião',sprint:'Sprint',alteracao:'Alteração',decisao:'Decisão',proximos_passos:'Próximos passos',link:'Links de acesso'}[t]||t}
+function agreementTypeIcon(t){return {reuniao:'🗓️',sprint:'⚡',alteracao:'✏️',decisao:'⭐',proximos_passos:'➡️',link:'🔗'}[t]||'📝'}
+function agreementTypeColor(t){return {reuniao:'#60A5FA',sprint:'#A78BFA',alteracao:'#E3B341',decisao:'#4ADE80',proximos_passos:'#F85149',link:'#22D3EE'}[t]||'var(--text2)'}
+
+// Sanitiza URL: só aceita http(s). Bloqueia javascript:, data:, etc. (OWASP/XSS).
+function safeUrl(u){
+  if(!u)return null;
+  try{const p=new URL(u.trim());return(p.protocol==='http:'||p.protocol==='https:')?p.href:null}
+  catch(e){return null}
+}
 
 async function loadAgreements(){
   const list=document.getElementById('agreements-list');
@@ -889,6 +901,7 @@ async function loadAgreements(){
           </div>
           <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">${escapeHtml(a.title)}</div>
           ${dateInfo?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px">${dateInfo}</div>`:''}
+          ${safeUrl(a.link_url)?`<div style="margin-top:6px"><a href="${escapeHtml(safeUrl(a.link_url))}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:${agreementTypeColor('link')};word-break:break-all">🔗 ${escapeHtml(safeUrl(a.link_url))}</a></div>`:''}
           ${a.description?`<div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:6px;white-space:pre-wrap">${escapeHtml(a.description)}</div>`:''}
           <div style="font-size:11px;color:var(--text3);margin-top:8px">por ${escapeHtml(author)} · ${fmtDate(a.created_at)}</div>
         </div>
@@ -905,6 +918,7 @@ function openAddAgreement(){
   document.getElementById('ag-title').value='';
   document.getElementById('ag-desc').value='';
   document.getElementById('ag-meeting-date').value='';
+  document.getElementById('ag-link-url').value='';
   toggleAgFields();
   document.getElementById('modal-agreement').style.display='flex';
 }
@@ -916,6 +930,7 @@ function closeAgreementModal(){
 function toggleAgFields(){
   const type=document.getElementById('ag-type').value;
   document.getElementById('ag-meeting-row').style.display=type==='reuniao'?'block':'none';
+  document.getElementById('ag-link-row').style.display=type==='link'?'block':'none';
 }
 
 async function saveClientAgreement(){
@@ -932,6 +947,11 @@ async function saveClientAgreement(){
     created_by_role:'client'
   };
   if(type==='reuniao')payload.meeting_date=meetingDate||null;
+  if(type==='link'){
+    const url=safeUrl(document.getElementById('ag-link-url').value);
+    if(!url){showToast('Informe uma URL válida (http ou https)',true);return}
+    payload.link_url=url;
+  }
   const {error}=await sb.from('agreements').insert(payload);
   if(error){showToast('Erro: '+error.message,true);return}
   closeAgreementModal();
