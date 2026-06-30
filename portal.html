@@ -394,6 +394,19 @@ function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andam
 function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-blue',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
 function fmtDate(d){return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function fmtDateShort(d){return new Date(d+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
+// Texto do período de suporte (sem o status).
+function supportText(start,end){
+  if(start&&end)return `${fmtDateShort(start)} até ${fmtDateShort(end)}`;
+  if(end)return `até ${fmtDateShort(end)}`;
+  return `a partir de ${fmtDateShort(start)}`;
+}
+// Selo Ativo/Encerrado conforme a data de fim do suporte.
+function supportBadge(end){
+  if(!end)return '';
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const ativo=new Date(end+'T00:00:00')>=hoje;
+  return `<span class="badge ${ativo?'bg-green':'bg-gray'}">${ativo?'Ativo':'Encerrado'}</span>`;
+}
 function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
 function showToast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isErr?' err':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
 function setBadge(id,n){const el=document.getElementById(id);el.textContent=n;el.style.display=n>0?'inline':'none'}
@@ -675,6 +688,7 @@ async function loadHome(){
           <div class="project-meta">
             ${currentProject.start_date?`<div>Início: <span>${fmtDateShort(currentProject.start_date)}</span></div>`:''}
             ${currentProject.end_date?`<div>Entrega: <span>${fmtDateShort(currentProject.end_date)}</span></div>`:''}
+            ${(currentProject.support_start||currentProject.support_end)?`<div>Suporte: <span>${supportText(currentProject.support_start,currentProject.support_end)}</span> ${supportBadge(currentProject.support_end)}</div>`:''}
           </div>
         </div>
         <div>${statusBadge(currentProject.status)}</div>
@@ -967,11 +981,40 @@ async function deleteClientAgreement(id){
 }
 
 // ──────────── DOCUMENTOS ────────────
+// Bloco dos manuais para o cliente (somente leitura/baixar).
+function renderManuaisCliente(manuais){
+  const tipos=[
+    {kind:'manual_uso',label:'Manual de uso'},
+    {kind:'manual_ferramentas',label:'Manual das ferramentas'}
+  ];
+  // Se nenhum manual foi enviado, não mostra a seção.
+  if(!manuais.length)return '';
+  const cards=tipos.map(t=>{
+    const m=manuais.find(x=>x.kind===t.kind);
+    if(!m)return '';
+    return `<div class="doc-item">
+      <div class="doc-icon" style="background:rgba(248,81,73,.15)">📘</div>
+      <div class="doc-info">
+        <div class="doc-name">${escapeHtml(t.label)}</div>
+        <div class="doc-meta">${escapeHtml(m.name)}${m.size?' · '+fmtSize(m.size):''}</div>
+      </div>
+      <div class="doc-actions">
+        <button class="btn btn-ghost btn-sm" onclick="downloadDoc('${escapeHtml(m.path)}','${escapeHtml(m.name)}')">⬇ Baixar</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 10px">📘 Manuais do projeto</div>${cards}<div style="height:18px"></div>`;
+}
 async function loadDocumentos(){
   const el=document.getElementById('docs-content');
   if(!currentProject){el.innerHTML='<div class="empty">Projeto não configurado</div>';return}
   const {data}=await sb.from('documents').select('*').eq('project_id',currentProject.id).order('created_at',{ascending:false});
-  if(!data?.length){el.innerHTML='<div class="empty">Nenhum documento ainda. Envie seu primeiro arquivo acima!</div>';return}
+  const all=data||[];
+  // Separa os manuais (kind específico) dos documentos comuns.
+  const manuais=all.filter(d=>d.kind==='manual_uso'||d.kind==='manual_ferramentas');
+  const docs=all.filter(d=>!d.kind||d.kind==='documento');
+  const manuaisHtml=renderManuaisCliente(manuais);
+  if(!docs.length){el.innerHTML=manuaisHtml+'<div class="empty">Nenhum documento ainda. Envie seu primeiro arquivo acima!</div>';return}
   const getIcon=n=>{
     if(/\.(png|jpg|jpeg|webp)$/i.test(n))return{icon:'🖼️',bg:'rgba(26,122,74,.15)'};
     if(/\.pdf$/i.test(n))return{icon:'📄',bg:'rgba(248,81,73,.15)'};
@@ -979,7 +1022,7 @@ async function loadDocumentos(){
     if(/\.(xls|xlsx)$/i.test(n))return{icon:'📊',bg:'rgba(26,122,74,.15)'};
     return{icon:'📎',bg:'var(--dark3)'};
   };
-  el.innerHTML=data.map(d=>{
+  el.innerHTML=manuaisHtml+docs.map(d=>{
     const {icon,bg}=getIcon(d.name);
     const own=d.uploaded_by===currentUser.id;
     return `<div class="doc-item">
