@@ -407,6 +407,23 @@ function supportBadge(end){
   const ativo=new Date(end+'T00:00:00')>=hoje;
   return `<span class="badge ${ativo?'bg-green':'bg-gray'}">${ativo?'Ativo':'Encerrado'}</span>`;
 }
+// Aviso na home só quando o suporte está acabando (<=15 dias) ou já encerrou.
+function supportNotice(end){
+  if(!end)return '';
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const d=Math.round((new Date(end+'T00:00:00')-hoje)/86400000);
+  if(d>15)return '';
+  const encerrado=d<0;
+  const cor=encerrado?'var(--red)':'var(--amber)';
+  const titulo=encerrado
+    ?`Seu suporte encerrou em ${fmtDateShort(end)}.`
+    :(d===0?`Seu suporte encerra hoje (${fmtDateShort(end)}).`
+            :`Seu suporte encerra em ${d} ${d===1?'dia':'dias'} (${fmtDateShort(end)}).`);
+  return `<div style="background:rgba(227,179,65,.08);border:1px solid ${cor};border-left:3px solid ${cor};border-radius:10px;padding:14px 16px;margin-bottom:18px">
+    <div style="font-weight:600;color:var(--text);margin-bottom:3px">🛟 ${titulo}</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5">Quer continuar com suporte contínuo? Fale com a Jenneffer para renovar o suporte mensal.</div>
+  </div>`;
+}
 function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
 function showToast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isErr?' err':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
 function setBadge(id,n){const el=document.getElementById(id);el.textContent=n;el.style.display=n>0?'inline':'none'}
@@ -679,6 +696,7 @@ async function loadHome(){
       <h3>Olá, ${escapeHtml(currentProfile.name)} 👋</h3>
       <p>Bem-vindo ao portal do seu projeto. Aqui você acompanha tudo em tempo real — checklist, cronograma, combinados e arquivos.</p>
     </div>
+    ${supportNotice(currentProject.support_end)}
 
     <div class="project-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
