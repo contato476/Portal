@@ -82,6 +82,10 @@
 
       <div class="dtab-view active" id="tab-funil">
         <div class="kanban" id="kanban"><div class="loading">Carregando...</div></div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-hd"><div class="card-title">Motivos de perda</div></div>
+          <div id="lost-reasons-card" style="padding:14px"><div class="loading">Carregando...</div></div>
+        </div>
       </div>
 
       <div class="dtab-view" id="tab-contatos">
@@ -164,7 +168,7 @@
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Etapa</label>
-        <select class="form-input form-select" id="d-stage">
+        <select class="form-input form-select" id="d-stage" onchange="toggleLossBlock()">
           <option value="novo">Novo</option>
           <option value="contato">Contato feito</option>
           <option value="proposta">Proposta enviada</option>
@@ -174,6 +178,11 @@
         </select>
       </div>
       <div class="form-group"><label class="form-label">Previsão de fechamento</label><input class="form-input" id="d-close" type="date"></div>
+    </div>
+    <div class="form-group" id="d-loss-block" style="display:none">
+      <label class="form-label">Motivo da perda *</label>
+      <select class="form-input form-select" id="d-loss-reason"></select>
+      <input class="form-input" id="d-loss-note" placeholder="Detalhe opcional (ex.: nome do concorrente, valor pedido)" style="margin-top:8px">
     </div>
     <div class="form-section">Próximo follow-up</div>
     <div class="form-row">
@@ -203,6 +212,17 @@ const STAGES = [
   {id:'perdido',    label:'Perdido',      color:'#F85149'},
 ];
 const ACT_ICONS = {nota:'📝',ligacao:'📞',email:'✉️',reuniao:'🗓️',mensagem:'💬'};
+// Motivos de perda (lista controlada pela aplicação — pode ajustar aqui).
+const LOST_REASONS = [
+  {id:'preco',       label:'Preço/orçamento'},
+  {id:'prazo',       label:'Prazo'},
+  {id:'concorrente', label:'Escolheu concorrente'},
+  {id:'sem_retorno', label:'Sumiu/sem retorno'},
+  {id:'fora_perfil', label:'Fora do perfil'},
+  {id:'adiou',       label:'Adiou decisão'},
+  {id:'outro',       label:'Outro'},
+];
+const LOST_LABEL = Object.fromEntries(LOST_REASONS.map(r=>[r.id,r.label]));
 const CONTACT_STATUS_BADGE = {lead:'<span class="badge bg-amber">Lead</span>',ativo:'<span class="badge bg-green">Ativo</span>',inativo:'<span class="badge bg-gray">Inativo</span>'};
 
 let contacts = [], deals = [];
@@ -210,7 +230,20 @@ let contactMap = {};
 let editingContactId = null, editingDealId = null;
 let wonMonth = todayISO().slice(0,7); // 'YYYY-MM' do card Fechados
 
-window.addEventListener('DOMContentLoaded', () => { renderSidebar('crm'); requireAdmin(loadAll); });
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('crm');
+  // Preenche as opções de motivo de perda uma vez.
+  document.getElementById('d-loss-reason').innerHTML =
+    '<option value="">— Selecione o motivo —</option>' +
+    LOST_REASONS.map(r=>`<option value="${r.id}">${r.label}</option>`).join('');
+  requireAdmin(loadAll);
+});
+
+// Mostra o bloco "Motivo da perda" apenas quando a etapa é Perdido.
+function toggleLossBlock(){
+  const perdido = document.getElementById('d-stage').value==='perdido';
+  document.getElementById('d-loss-block').style.display = perdido?'block':'none';
+}
 
 async function loadAll(){
   const [cRes, dRes] = await Promise.all([
@@ -230,6 +263,31 @@ async function loadAll(){
   updateStats();
   renderKanban();
   renderContacts();
+  renderLostReasons();
+}
+
+// Indicador: contagem de negócios perdidos por motivo, com barra e percentual.
+function renderLostReasons(){
+  const el = document.getElementById('lost-reasons-card');
+  if(!el) return;
+  const lost = deals.filter(d=>d.stage==='perdido');
+  if(!lost.length){el.innerHTML='<div class="empty">Nenhum negócio perdido registrado</div>';return}
+  const counts = {};
+  lost.forEach(d=>{ const k = d.lost_reason||'sem_motivo'; counts[k]=(counts[k]||0)+1; });
+  const total = lost.length;
+  const rows = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  el.innerHTML = rows.map(([k,n])=>{
+    const pct = Math.round(n/total*100);
+    const label = k==='sem_motivo' ? 'Sem motivo' : (LOST_LABEL[k]||k);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--text2);margin-bottom:4px">
+        <span>${escapeHtml(label)}</span><span>${n} · ${pct}%</span>
+      </div>
+      <div style="height:7px;background:var(--dark3);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:var(--red);border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join('') + `<div style="font-size:11.5px;color:var(--text3);margin-top:6px">Total de ${total} negócio${total===1?'':'s'} perdido${total===1?'':'s'}</div>`;
 }
 
 function updateStats(){
@@ -286,10 +344,14 @@ function dealCard(d){
   const followLine = d.next_followup
     ? `<div class="deal-meta" style="margin-top:4px;color:${fLate?'var(--red)':'var(--text2)'}">📌 follow ${fmtDateShort(d.next_followup)}${fLate?' (atrasado)':''}</div>`
     : '';
+  const lostLine = (d.stage==='perdido' && d.lost_reason)
+    ? `<div class="deal-meta" style="margin-top:4px;color:var(--red)">✕ ${escapeHtml(LOST_LABEL[d.lost_reason]||d.lost_reason)}</div>`
+    : '';
   return `<div class="deal-card" draggable="true" ondragstart="dragStart(event,'${d.id}')" onclick="openEditDeal('${d.id}')">
     <div class="deal-title">${escapeHtml(d.title)}</div>
     <div class="deal-meta">${c?escapeHtml(c.name):'Sem contato'}${d.expected_close?' · prev. '+fmtDateShort(d.expected_close):''}</div>
     ${followLine}
+    ${lostLine}
     ${Number(d.value)?`<div class="deal-value">${fmtMoney(d.value)}</div>`:''}
   </div>`;
 }
@@ -306,6 +368,8 @@ async function dropDeal(e){
   const deal = deals.find(d=>d.id===draggedDealId);
   draggedDealId = null;
   if(!deal || deal.stage===stage) return;
+  // Perdido exige motivo: abre o modal já em "Perdido" em vez de marcar direto.
+  if(stage==='perdido'){ openEditDeal(deal.id,'perdido'); return; }
   const payload = {stage, closed_at:(stage==='fechado'||stage==='perdido')?new Date().toISOString():null};
   const {error} = await sb.from('crm_deals').update(payload).eq('id',deal.id);
   if(error){showToast('Erro: '+error.message,true);return}
@@ -437,10 +501,13 @@ function openNewDeal(){
   ['d-title','d-value','d-close','d-notes','d-followup','d-followup-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('d-contact').value='';
   document.getElementById('d-stage').value='novo';
+  document.getElementById('d-loss-reason').value='';
+  document.getElementById('d-loss-note').value='';
+  toggleLossBlock();
   openModal('modal-deal');
 }
 
-function openEditDeal(id){
+function openEditDeal(id, forceStage){
   const d = deals.find(x=>x.id===id);
   if(!d) return;
   editingDealId = id;
@@ -449,11 +516,15 @@ function openEditDeal(id){
   document.getElementById('d-title').value = d.title;
   document.getElementById('d-contact').value = d.contact_id||'';
   document.getElementById('d-value').value = d.value||'';
-  document.getElementById('d-stage').value = d.stage;
+  // forceStage permite abrir já em "Perdido" quando o card é arrastado para essa coluna.
+  document.getElementById('d-stage').value = forceStage || d.stage;
   document.getElementById('d-close').value = d.expected_close||'';
   document.getElementById('d-followup').value = d.next_followup||'';
   document.getElementById('d-followup-note').value = d.followup_note||'';
   document.getElementById('d-notes').value = d.notes||'';
+  document.getElementById('d-loss-reason').value = d.lost_reason||'';
+  document.getElementById('d-loss-note').value = d.lost_note||'';
+  toggleLossBlock();
   openModal('modal-deal');
 }
 
@@ -464,6 +535,10 @@ async function saveDeal(){
   const prev = editingDealId ? deals.find(x=>x.id===editingDealId) : null;
   const followupDate = document.getElementById('d-followup').value||null;
   const followupNote = document.getElementById('d-followup-note').value.trim()||null;
+  // Motivo da perda só vale quando a etapa é Perdido; nas demais, fica nulo.
+  const lostReason = stage==='perdido' ? (document.getElementById('d-loss-reason').value||null) : null;
+  const lostNote   = stage==='perdido' ? (document.getElementById('d-loss-note').value.trim()||null) : null;
+  if(stage==='perdido' && !lostReason){showToast('Selecione o motivo da perda',true);return}
   const payload = {
     title,
     contact_id: document.getElementById('d-contact').value||null,
@@ -473,6 +548,8 @@ async function saveDeal(){
     next_followup: followupDate,
     followup_note: followupNote,
     notes: document.getElementById('d-notes').value.trim()||null,
+    lost_reason: lostReason,
+    lost_note: lostNote,
     closed_at: (stage==='fechado'||stage==='perdido') ? (prev&&prev.closed_at?prev.closed_at:new Date().toISOString()) : null,
   };
   const btn = document.getElementById('btn-save-deal');
