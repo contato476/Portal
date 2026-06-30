@@ -298,6 +298,7 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
                 <div class="meta-item">Empresa:<span id="cd-company">—</span></div>
                 <div class="meta-item">Projeto:<span id="cd-project">—</span></div>
                 <div class="meta-item">Status:<span id="cd-status">—</span></div>
+                <div class="meta-item">Suporte:<span id="cd-support">—</span></div>
               </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -336,6 +337,10 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
           <div id="agreements-list"><div class="loading">Carregando...</div></div>
         </div>
         <div class="dtab-view" id="dtab-docs">
+          <div style="margin-bottom:18px">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">📘 Manuais do projeto (PDF)</div>
+            <div id="manuais-admin" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="loading">Carregando...</div></div>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap">
             <div style="font-size:13px;color:var(--text2)">Documentos enviados pelo cliente e por você</div>
             <label class="btn btn-primary btn-sm" style="cursor:pointer">
@@ -390,6 +395,10 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
     <div class="form-row">
       <div class="form-group"><label class="form-label">Data de início</label><input class="form-input" id="cl-start" type="date"></div>
       <div class="form-group"><label class="form-label">Data de entrega</label><input class="form-input" id="cl-end" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Suporte início</label><input class="form-input" id="cl-support-start" type="date"></div>
+      <div class="form-group"><label class="form-label">Suporte fim</label><input class="form-input" id="cl-support-end" type="date"></div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -556,6 +565,19 @@ let editingProjectId = null;
 // ──────────── HELPERS ────────────
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
+// Texto do período de suporte, com indicação de ativo/encerrado pela data de fim.
+function supportLabel(start,end){
+  if(!start&&!end)return 'Não definido';
+  let txt;
+  if(start&&end)txt=`${fmtDateShort(start)} até ${fmtDateShort(end)}`;
+  else if(end)txt=`até ${fmtDateShort(end)}`;
+  else txt=`a partir de ${fmtDateShort(start)}`;
+  if(end){
+    const hoje=new Date();hoje.setHours(0,0,0,0);
+    txt+=(new Date(end+'T00:00:00')>=hoje)?' · ativo':' · encerrado';
+  }
+  return txt;
+}
 function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-blue',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
 function fmtDate(d){return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function fmtDateShort(d){return new Date(d+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
@@ -747,6 +769,7 @@ async function openClient(clientId,projectId){
   document.getElementById('cd-company').textContent=project.profiles?.company||'—';
   document.getElementById('cd-project').textContent=project.name;
   document.getElementById('cd-status').textContent=statusLabel(project.status);
+  document.getElementById('cd-support').textContent=supportLabel(project.support_start,project.support_end);
   document.getElementById('page-title').textContent=project.profiles?.name||'Cliente';
   showViewNoLoad('cliente-detail');
   switchDTab('checklist');
@@ -1348,7 +1371,12 @@ async function loadClientDocs(){
   const list=document.getElementById('docs-client-list');
   list.innerHTML='<div class="loading">Carregando...</div>';
   const {data}=await sb.from('documents').select('*').eq('project_id',currentProjectId).order('created_at',{ascending:false});
-  if(!data?.length){list.innerHTML='<div class="empty">Nenhum documento enviado ainda</div>';return}
+  const all=data||[];
+  // Separa os manuais (kind específico) dos documentos comuns.
+  const manuais=all.filter(d=>d.kind==='manual_uso'||d.kind==='manual_ferramentas');
+  const docs=all.filter(d=>!d.kind||d.kind==='documento');
+  renderManuais(manuais);
+  if(!docs.length){list.innerHTML='<div class="empty">Nenhum documento enviado ainda</div>';return}
   const getIcon=n=>{
     if(/\.(png|jpg|jpeg|webp)$/i.test(n))return{icon:'🖼️',bg:'rgba(26,122,74,.15)'};
     if(/\.pdf$/i.test(n))return{icon:'📄',bg:'rgba(248,81,73,.15)'};
@@ -1356,7 +1384,7 @@ async function loadClientDocs(){
     if(/\.(xls|xlsx)$/i.test(n))return{icon:'📊',bg:'rgba(26,122,74,.15)'};
     return{icon:'📎',bg:'var(--dark3)'};
   };
-  list.innerHTML=data.map(d=>{
+  list.innerHTML=docs.map(d=>{
     const {icon,bg}=getIcon(d.name);
     return `<div class="doc-item-admin">
       <div class="doc-icon" style="background:${bg}">${icon}</div>
@@ -1369,6 +1397,68 @@ async function loadClientDocs(){
     </div>`;
   }).join('');
 }
+// Renderiza os dois cards de manual (uso e ferramentas) no admin.
+function renderManuais(manuais){
+  const wrap=document.getElementById('manuais-admin');
+  if(!wrap)return;
+  const tipos=[
+    {kind:'manual_uso',label:'Manual de uso'},
+    {kind:'manual_ferramentas',label:'Manual das ferramentas'}
+  ];
+  wrap.innerHTML=tipos.map(t=>{
+    const m=manuais.find(x=>x.kind===t.kind);
+    if(m){
+      return `<div style="background:var(--dark3);border-radius:8px;padding:12px">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">${t.label}</div>
+        <div style="font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(m.name)}">📄 ${escapeHtml(m.name)}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="downloadDoc('${escapeHtml(m.path)}','${escapeHtml(m.name)}')">⬇ Baixar</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">Substituir<input type="file" accept="application/pdf,.pdf" style="display:none" onchange="adminUploadManual(event,'${t.kind}')"></label>
+          <button class="btn btn-danger btn-sm" onclick="deleteManual('${m.id}','${escapeHtml(m.path)}')">✕</button>
+        </div>
+      </div>`;
+    }
+    return `<div style="background:var(--dark3);border-radius:8px;padding:12px;border:1px dashed rgba(255,255,255,.12)">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:6px">${t.label}</div>
+      <div style="font-size:12.5px;color:var(--text3);margin-bottom:8px">Nenhum enviado</div>
+      <label class="btn btn-primary btn-sm" style="cursor:pointer">+ Enviar PDF<input type="file" accept="application/pdf,.pdf" style="display:none" onchange="adminUploadManual(event,'${t.kind}')"></label>
+    </div>`;
+  }).join('');
+}
+
+// Envia (ou substitui) um manual. Aceita só PDF e mantém 1 por tipo.
+async function adminUploadManual(ev,kind){
+  const file=ev.target.files[0];
+  if(!file)return;
+  const ehPdf=/\.pdf$/i.test(file.name)&&(file.type==='application/pdf'||file.type==='');
+  if(!ehPdf){showToast('Envie um arquivo PDF',true);ev.target.value='';return}
+  const safeName=sanitizeFileName(file.name);
+  const path=`${currentProjectId}/${kind}-${Date.now()}-${safeName}`;
+  // 1. Sobe o novo arquivo (path único, sem colidir com o antigo).
+  const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
+  if(upErr){showToast('Erro upload: '+upErr.message,true);return}
+  // 2. Remove o manual anterior do mesmo tipo (arquivo + linha), pois é 1 por projeto.
+  const {data:old}=await sb.from('documents').select('id,path').eq('project_id',currentProjectId).eq('kind',kind);
+  if(old?.length){
+    await sb.storage.from('client-documents').remove(old.map(o=>o.path));
+    await sb.from('documents').delete().eq('project_id',currentProjectId).eq('kind',kind);
+  }
+  // 3. Registra a nova linha já com o kind do manual.
+  const {error:dbErr}=await sb.from('documents').insert({user_id:currentClientId||null,project_id:currentProjectId,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type,kind});
+  if(dbErr){showToast('Erro: '+dbErr.message,true);return}
+  showToast('✓ Manual enviado!');
+  ev.target.value='';
+  loadClientDocs();
+}
+
+async function deleteManual(id,path){
+  if(!confirm('Excluir este manual?'))return;
+  await sb.storage.from('client-documents').remove([path]);
+  await sb.from('documents').delete().eq('id',id);
+  showToast('Manual excluído');
+  loadClientDocs();
+}
+
 // Sanitiza nome de arquivo pra path do Supabase Storage
 function sanitizeFileName(name){
   const lastDot=name.lastIndexOf('.');
@@ -1445,6 +1535,8 @@ function openNewClient(){
   ['cl-name','cl-email','cl-company','cl-phone','cl-project','cl-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cl-start').value='';
   document.getElementById('cl-end').value='';
+  document.getElementById('cl-support-start').value='';
+  document.getElementById('cl-support-end').value='';
   document.getElementById('cl-status').value='pre_inicio';
   document.getElementById('cl-color').value='#1A7A4A';
   document.getElementById('cl-email').disabled=false;
@@ -1467,6 +1559,8 @@ function openEditClient(){
   document.getElementById('cl-desc').value=p.description||'';
   document.getElementById('cl-start').value=p.start_date||'';
   document.getElementById('cl-end').value=p.end_date||'';
+  document.getElementById('cl-support-start').value=p.support_start||'';
+  document.getElementById('cl-support-end').value=p.support_end||'';
   document.getElementById('cl-status').value=p.status||'pre_inicio';
   document.getElementById('cl-color').value=p.color||'#1A7A4A';
   document.getElementById('cl-invite-info').style.display='none';
@@ -1481,6 +1575,8 @@ async function saveClient(){
   const desc=document.getElementById('cl-desc').value.trim();
   const start=document.getElementById('cl-start').value;
   const end=document.getElementById('cl-end').value;
+  const supStart=document.getElementById('cl-support-start').value;
+  const supEnd=document.getElementById('cl-support-end').value;
   const status=document.getElementById('cl-status').value;
   const color=document.getElementById('cl-color').value;
   const btn=document.getElementById('btn-save-client');
@@ -1493,7 +1589,7 @@ async function saveClient(){
     if(proj?.client_id){
       await sb.from('profiles').update({name,company,phone}).eq('id',proj.client_id);
     }
-    const {error}=await sb.from('projects').update({name,description:desc,status,start_date:start||null,end_date:end||null,color}).eq('id',editingProjectId);
+    const {error}=await sb.from('projects').update({name,description:desc,status,start_date:start||null,end_date:end||null,support_start:supStart||null,support_end:supEnd||null,color}).eq('id',editingProjectId);
     if(error){showToast('Erro: '+error.message,true);btn.disabled=false;btn.textContent='Salvar alterações';return}
     closeModal('modal-client');
     showToast('✓ Projeto atualizado!');
@@ -1543,7 +1639,8 @@ async function saveClient(){
   const {data:newProj,error:projErr}=await sb.from('projects').insert({
     client_id:clientUserId,contact_id:contact.id,
     name:project,description:desc,status,
-    start_date:start||null,end_date:end||null,color
+    start_date:start||null,end_date:end||null,
+    support_start:supStart||null,support_end:supEnd||null,color
   }).select('id').single();
   if(projErr){fail('Erro ao criar projeto: '+projErr.message);return}
 
