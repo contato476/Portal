@@ -90,6 +90,10 @@
             <div class="card-hd"><div class="card-title">Contratos pendentes</div></div>
             <div id="contracts-list" style="padding:12px"><div class="loading">Carregando...</div></div>
           </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Motivos de perda</div></div>
+            <div id="lost-reasons-list" style="padding:14px"><div class="loading">Carregando...</div></div>
+          </div>
         </div>
       </div>
 
@@ -129,6 +133,8 @@
 <script>
 const STAGE_LABELS = {novo:'Novo', contato:'Contato', proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido'};
 const EVENT_ICONS = {compromisso:'📌', reuniao:'🗓️', entrega:'📦', pessoal:'🏠'};
+// Rótulos dos motivos de perda (mesma lista do CRM).
+const LOST_LABEL = {preco:'Preço/orçamento', prazo:'Prazo', concorrente:'Escolheu concorrente', sem_retorno:'Sumiu/sem retorno', fora_perfil:'Fora do perfil', adiou:'Adiou decisão', outro:'Outro', sem_motivo:'Sem motivo'};
 let projMap = {};
 
 window.addEventListener('DOMContentLoaded', () => { renderSidebar('gestao'); requireAdmin(loadPainel); });
@@ -138,7 +144,7 @@ async function loadPainel(){
   const in7 = new Date(Date.now()+7*86400000).toISOString();
   const monthStart = today.slice(0,8)+'01';
 
-  const [tasksRes, finRes, dealsRes, agendaRes, projRes, contractsRes, supportRes] = await Promise.all([
+  const [tasksRes, finRes, dealsRes, agendaRes, projRes, contractsRes, supportRes, lostRes] = await Promise.all([
     sb.from('tasks').select('*').in('status',['pendente','em_andamento']).order('due_date',{ascending:true,nullsFirst:false}),
     sb.from('fin_transactions').select('*').neq('status','cancelado'),
     sb.from('crm_deals').select('*').not('stage','in','("fechado","perdido")'),
@@ -147,6 +153,8 @@ async function loadPainel(){
     sb.from('contracts').select('*').in('status',['rascunho','enviado']).order('created_at',{ascending:false}),
     // Todos os projetos que têm suporte definido (qualquer status), para o card de Suporte.
     sb.from('projects').select('id,name,support_start,support_end').or('support_start.not.is.null,support_end.not.is.null'),
+    // Negócios perdidos, para o indicador de Motivos de perda.
+    sb.from('crm_deals').select('lost_reason').eq('stage','perdido'),
   ]);
 
   // Se as tabelas novas ainda não existem, orienta rodar o SQL
@@ -155,6 +163,7 @@ async function loadPainel(){
     document.getElementById('st-hoje').textContent='—';
     loadProjects(projRes);
     renderSupport(supportRes);
+    renderLostReasons(lostRes);
     return;
   }
 
@@ -166,6 +175,7 @@ async function loadPainel(){
   renderContracts(contractsRes.data||[]);
   loadProjects(projRes);
   renderSupport(supportRes);
+  renderLostReasons(lostRes);
   fillProjectSelect();
 }
 
@@ -304,6 +314,30 @@ function renderSupport(supportRes){
       <td style="font-size:12px;color:${cor}">${p.info}</td>
       <td>${p.badge}</td>
     </tr>`;}).join('')}</tbody></table>`;
+}
+
+// Indicador de motivos de perda no painel (barras + percentual).
+function renderLostReasons(lostRes){
+  const el = document.getElementById('lost-reasons-list');
+  if(!el) return;
+  const lost = lostRes.data||[];
+  if(!lost.length){el.innerHTML='<div class="empty">Nenhum negócio perdido registrado</div>';return}
+  const counts = {};
+  lost.forEach(d=>{ const k = d.lost_reason||'sem_motivo'; counts[k]=(counts[k]||0)+1; });
+  const total = lost.length;
+  const rows = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  el.innerHTML = rows.map(([k,n])=>{
+    const pct = Math.round(n/total*100);
+    const label = LOST_LABEL[k]||k;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--text2);margin-bottom:4px">
+        <span>${escapeHtml(label)}</span><span>${n} · ${pct}%</span>
+      </div>
+      <div style="height:7px;background:var(--dark3);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:var(--red);border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join('') + `<div style="font-size:11.5px;color:var(--text3);margin-top:6px">Total de ${total} perdido${total===1?'':'s'}</div>`;
 }
 
 function fillProjectSelect(){
