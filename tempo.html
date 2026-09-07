@@ -80,6 +80,13 @@
           </div>
           <div id="por-projeto"><div class="loading">Carregando...</div></div>
         </div>
+        <div class="card" style="padding:17px;margin-bottom:16px">
+          <div class="card-hd" style="padding:0 0 12px 0;border:none">
+            <div class="card-title">Cliente × negócio</div>
+            <button class="btn btn-ghost btn-sm" onclick="openAreas()">Editar áreas</button>
+          </div>
+          <div id="por-area"></div>
+        </div>
         <div class="card" style="padding:17px">
           <div class="card-title" style="margin-bottom:12px">Por dia do mês</div>
           <div id="por-dia"></div>
@@ -164,6 +171,11 @@
       <div class="form-group"><label class="form-label">Projeto</label><select class="form-input form-select" id="x-project" onchange="fillRevSelect()"><option value="">— sem projeto —</option></select></div>
       <div class="form-group"><label class="form-label">Pedido de ajuste</label><select class="form-input form-select" id="x-rev"><option value="">— não é ajuste —</option></select></div>
     </div>
+    <div class="form-group" id="x-area-wrap">
+      <label class="form-label">Área do negócio</label>
+      <select class="form-input form-select" id="x-area"><option value="">— sem área —</option></select>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:5px">Aparece quando não há projeto: é o que separa "atendi cliente" de "toquei o negócio".</div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Início *</label><input type="datetime-local" class="form-input" id="x-start"></div>
       <div class="form-group"><label class="form-label">Fim *</label><input type="datetime-local" class="form-input" id="x-end"></div>
@@ -239,6 +251,7 @@ async function loadAll(){
     projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
 
   atualizarStatusNotif();
+  carregarAreas();
   updateStats();
   renderAll();
 }
@@ -280,7 +293,7 @@ function switchTab(name){
 
 function renderAll(){
   updateStats();
-  if(currentTab==='resumo'){ renderPorProjeto(); renderPorDia() }
+  if(currentTab==='resumo'){ renderPorProjeto(); renderPorArea(); renderPorDia() }
   else if(currentTab==='ajustes') renderAjustes();
   else if(currentTab==='rentabilidade') renderRentabilidade();
   else if(currentTab==='registros') renderRegistros();
@@ -292,9 +305,12 @@ function renderPorProjeto(){
   const list = filtradas();
   if(!list.length){ el.innerHTML = '<div class="empty">Nenhum tempo registrado neste período.</div>'; return }
 
+  // Tempo sem projeto é agrupado pela ÁREA do negócio (marketing,
+  // comercial, gestão...). Antes tudo isso caía num "Sem projeto" só,
+  // e não dava para saber no que o tempo tinha ido.
   const agg = {};
   list.forEach(e=>{
-    const k = e.project_id || '_sem';
+    const k = e.project_id || (e.area ? 'area:'+e.area : '_sem');
     agg[k] = agg[k] || {projeto:0, ajuste:0, total:0};
     const bucket = e.kind==='ajuste' ? 'ajuste' : 'projeto';
     agg[k][bucket] += e.duration_seconds||0;
@@ -305,7 +321,9 @@ function renderPorProjeto(){
   const max = linhas[0][1].total || 1;
 
   el.innerHTML = linhas.map(([pid,v])=>{
-    const nome = pid==='_sem' ? 'Sem projeto' : (projMap[pid]?.name || 'Projeto removido');
+    const nome = pid.startsWith('area:') ? '◆ '+pid.slice(5)
+               : pid==='_sem' ? 'Sem projeto e sem área'
+               : (projMap[pid]?.name || 'Projeto removido');
     const larg = v.total/max*100;
     const pProj = v.total ? v.projeto/v.total*100 : 0;
     return `
@@ -318,6 +336,50 @@ function renderPorProjeto(){
         <div class="bar-val">${fmtDuration(v.total)}</div>
       </div>`;
   }).join('');
+}
+
+// A pergunta que este bloco responde: quanto do seu tempo foi atender
+// cliente e quanto foi tocar o negócio. Só faz sentido depois que o
+// cronômetro passa a perguntar a área — antes disso tudo era "geral".
+function renderPorArea(){
+  const el = document.getElementById('por-area');
+  const list = filtradas();
+  const cliente = list.filter(e=>e.project_id).reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const negocio = list.filter(e=>!e.project_id && e.area).reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const solto   = list.filter(e=>!e.project_id && !e.area).reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const total = cliente + negocio + solto;
+
+  if(!total){ el.innerHTML = '<div class="empty">Nenhum tempo registrado neste período.</div>'; return }
+
+  const porArea = {};
+  list.filter(e=>!e.project_id && e.area)
+      .forEach(e=>{ porArea[e.area] = (porArea[e.area]||0) + (e.duration_seconds||0) });
+  const areas = Object.entries(porArea).sort((a,b)=>b[1]-a[1]);
+  const maxArea = areas.length ? areas[0][1] : 1;
+
+  el.innerHTML = `
+    <div style="display:flex;height:26px;border-radius:5px;overflow:hidden;margin-bottom:10px">
+      ${cliente?`<div style="width:${cliente/total*100}%;background:#22A060" title="Cliente"></div>`:''}
+      ${negocio?`<div style="width:${negocio/total*100}%;background:#2188FF" title="Negócio"></div>`:''}
+      ${solto?`<div style="width:${solto/total*100}%;background:var(--border2)" title="Sem classificação"></div>`:''}
+    </div>
+    <div class="legend" style="margin-bottom:14px">
+      <span><i style="background:#22A060"></i>Atendendo cliente · <b style="color:var(--text)">${fmtDuration(cliente)}</b> (${Math.round(cliente/total*100)}%)</span>
+      <span><i style="background:#2188FF"></i>Tocando o negócio · <b style="color:var(--text)">${fmtDuration(negocio)}</b> (${Math.round(negocio/total*100)}%)</span>
+      ${solto?`<span><i style="background:var(--border2)"></i>Sem classificar · ${fmtDuration(solto)}</span>`:''}
+    </div>
+    ${areas.length ? areas.map(([nome,seg])=>`
+      <div class="bar-row">
+        <div class="bar-label" title="${escapeHtml(nome)}">${escapeHtml(nome)}</div>
+        <div class="bar-track" style="max-width:${seg/maxArea*100}%">
+          <div class="bar-seg" style="width:100%;background:#2188FF"></div>
+        </div>
+        <div class="bar-val">${fmtDuration(seg)}</div>
+      </div>`).join('')
+    : '<div class="empty" style="padding:14px">Nenhum tempo em áreas do negócio neste período.<br><span style="color:var(--text2)">Ao clicar em ⏱ Iniciar, escolha a aba <b>Área do negócio</b>.</span></div>'}
+    ${solto ? `<div class="note-box warn" style="margin-top:12px">
+      <b>${fmtDuration(solto)}</b> sem projeto e sem área — provavelmente cronômetros antigos, de antes desta tela perguntar.
+      Dá para corrigir na aba <b>Registros</b>, clicando em cada um.</div>` : ''}`;
 }
 
 function renderPorDia(){
@@ -443,7 +505,7 @@ function renderRegistros(){
   tb.innerHTML = list.slice(0,300).map(e=>{
     const rev = e.revision_id && revMap[e.revision_id];
     const nome = e.description || (e.task_id && taskTitle[e.task_id]) ||
-                 (rev ? 'Ajuste #'+(rev.number||'')+' — '+rev.title : '') ||
+                 (rev ? 'Ajuste #'+(rev.number||'')+' — '+rev.title : '') || e.area ||
                  {projeto:'Trabalho no projeto', ajuste:'Ajuste', geral:'Trabalho geral'}[e.kind];
     return `
       <tr class="clickable" onclick="openEntry('${e.id}')">
@@ -473,6 +535,38 @@ function fillRevSelect(){
     revisions.filter(r=>r.project_id===pid)
       .map(r=>`<option value="${r.id}">#${r.number||''} — ${escapeHtml(r.title)}</option>`).join('');
   sel.value = keep;
+  // Área e projeto são caminhos alternativos, nunca os dois ao mesmo tempo.
+  document.getElementById('x-area-wrap').style.display = pid ? 'none' : 'block';
+}
+
+// ──────────── ÁREAS DO NEGÓCIO ────────────
+let areas = [];
+
+async function carregarAreas(){
+  const txt = await getSetting('areas_trabalho');
+  areas = (txt || '').split('\n').map(a=>a.trim()).filter(Boolean);
+  const sel = document.getElementById('x-area');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">— sem área —</option>' +
+    areas.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+  sel.value = keep;
+}
+
+async function openAreas(){
+  await carregarAreas();
+  const atual = areas.join('\n');
+  const novo = prompt(
+    'Áreas do negócio — uma por linha.\n\n' +
+    'São as opções que aparecem ao iniciar o cronômetro fora de um projeto.\n' +
+    'Mudar aqui não altera o que já foi registrado.',
+    atual
+  );
+  if(novo === null) return;
+  const lista = novo.split('\n').map(a=>a.trim()).filter(Boolean);
+  const {error} = await setSetting('areas_trabalho', lista.join('\n'));
+  if(error){ showToast('Erro: '+error.message, true); return }
+  showToast(lista.length+' área(s) salvas ✓');
+  carregarAreas();
 }
 
 function openManual(){
@@ -481,6 +575,7 @@ function openManual(){
   document.getElementById('btn-del-manual').style.display = 'none';
   document.getElementById('x-desc').value = '';
   document.getElementById('x-project').value = '';
+  document.getElementById('x-area').value = '';
   fillRevSelect();
   const agora = new Date();
   const antes = new Date(agora.getTime()-3600000);
@@ -499,6 +594,7 @@ function openEntry(id){
   document.getElementById('x-project').value = e.project_id || '';
   fillRevSelect();
   document.getElementById('x-rev').value = e.revision_id || '';
+  document.getElementById('x-area').value = e.area || '';
   document.getElementById('x-start').value = paraInputLocal(e.started_at);
   document.getElementById('x-end').value   = e.ended_at ? paraInputLocal(e.ended_at) : paraInputLocal(new Date());
   openModal('modal-manual');
@@ -514,6 +610,8 @@ async function saveEntry(){
   const payload = {
     description: document.getElementById('x-desc').value.trim()||null,
     project_id:  document.getElementById('x-project').value||null,
+    // Área só vale sem projeto: com projeto, quem identifica é o projeto.
+    area:        document.getElementById('x-project').value ? null : (document.getElementById('x-area').value||null),
     revision_id: revId,
     kind:        revId ? 'ajuste' : (document.getElementById('x-project').value ? 'projeto' : 'geral'),
     started_at:  new Date(ini).toISOString(),

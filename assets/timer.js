@@ -46,11 +46,11 @@ function readCache(){
 
 // ──────────── AÇÕES ────────────
 
-// opts: {project_id, task_id, revision_id, kind, description, label}
+// opts: {project_id, task_id, revision_id, area, kind, description, label}
 // `label` é só o texto exibido no widget (não vai pro banco).
 async function startTimer(opts = {}){
   const {project_id=null, task_id=null, revision_id=null,
-         description=null, label=null} = opts;
+         area=null, description=null, label=null} = opts;
   const kind = opts.kind || (revision_id ? 'ajuste' : (project_id||task_id ? 'projeto' : 'geral'));
 
   // Para o anterior antes de abrir o novo. O índice único do banco
@@ -58,7 +58,7 @@ async function startTimer(opts = {}){
   await stopTimer({silent:true});
 
   const {data, error} = await sb.from('time_entries')
-    .insert({project_id, task_id, revision_id, kind, description})
+    .insert({project_id, task_id, revision_id, area, kind, description})
     .select('*').single();
   if(error){ showToast('Erro ao iniciar: '+error.message, true); return null }
 
@@ -98,6 +98,7 @@ async function toggleTimer(opts = {}){
 function descreverTimer(t){
   if(!t) return '';
   if(t.description) return t.description;
+  if(t.area) return t.area;
   return {projeto:'Projeto', ajuste:'Ajuste', geral:'Trabalho geral'}[t.kind] || 'Trabalho';
 }
 
@@ -125,7 +126,7 @@ function renderTimerBar(){
 
   if(!t){
     bar.className = 'timer-bar';
-    bar.innerHTML = `<button class="timer-btn" onclick="startTimer({kind:'geral'})" title="Iniciar cronômetro sem projeto">⏱ Iniciar</button>`;
+    bar.innerHTML = `<button class="timer-btn" onclick="abrirSeletorTimer()" title="Escolher no que você vai trabalhar">⏱ Iniciar</button>`;
     if(_tick){ clearInterval(_tick); _tick = null }
     return;
   }
@@ -144,6 +145,139 @@ function renderTimerBar(){
   desenhar();
   if(_tick) clearInterval(_tick);
   _tick = setInterval(desenhar, 1000);
+}
+
+// ──────────── SELETOR: no que você vai trabalhar? ────────────
+// Antes, "Iniciar" ligava um cronômetro solto e todo tempo fora de
+// projeto virava um balaio só. Agora ele pergunta — e a resposta pode
+// ser um projeto, uma tarefa específica, ou uma ÁREA do negócio
+// (marketing, comercial, gestão...). Sem isso, o relatório não separa
+// atender cliente de tocar o negócio.
+//
+// O modal é criado por este arquivo, e não por cada página, porque a
+// pílula do cronômetro aparece em todas elas.
+
+const AREAS_PADRAO = ['Marketing','Comercial / prospecção','Gestão do negócio',
+                      'Financeiro','Administrativo','Estudo e formação','Suporte a cliente'];
+
+function montarSeletorTimer(){
+  if(document.getElementById('modal-timer')) return;
+  const div = document.createElement('div');
+  div.className = 'overlay';
+  div.id = 'modal-timer';
+  div.innerHTML = `
+    <div class="modal" style="width:520px">
+      <div class="modal-title">No que você vai trabalhar?</div>
+
+      <div class="tabs-row" style="margin-bottom:16px">
+        <div class="dtab active" data-ttab="projeto" onclick="abaTimer('projeto')">Projeto de cliente</div>
+        <div class="dtab" data-ttab="area" onclick="abaTimer('area')">Área do negócio</div>
+      </div>
+
+      <div id="ttab-projeto">
+        <div class="form-group"><label class="form-label">Projeto *</label>
+          <select class="form-input form-select" id="tm-project" onchange="tmCarregarTarefas()"></select></div>
+        <div class="form-group"><label class="form-label">Tarefa (opcional)</label>
+          <select class="form-input form-select" id="tm-task"><option value="">— o projeto todo —</option></select>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:5px">Escolher a tarefa deixa o relatório mais preciso, mas não é obrigatório.</div></div>
+        <div class="form-group"><label class="form-label">Pedido de ajuste (opcional)</label>
+          <select class="form-input form-select" id="tm-rev"><option value="">— não é ajuste —</option></select>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:5px">Se marcar aqui, o tempo conta como ajuste — é o que separa escopo de trabalho extra.</div></div>
+      </div>
+
+      <div id="ttab-area" style="display:none">
+        <div class="form-group"><label class="form-label">Área *</label>
+          <select class="form-input form-select" id="tm-area"></select></div>
+        <div class="form-group"><label class="form-label">O que exatamente (opcional)</label>
+          <input class="form-input" id="tm-desc" placeholder="Ex.: gravar reels da semana"></div>
+        <div class="note-box">Este tempo não entra em nenhum projeto — entra no total da área, para você ver quanto do mês foi para tocar o negócio em vez de atender cliente.</div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-timer')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-start-timer" onclick="confirmarSeletorTimer()">▶ Começar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', e=>{ if(e.target===div) div.classList.remove('open') });
+}
+
+let _tmProjetos = [], _tmTarefas = [], _tmAjustes = [], _tmAba = 'projeto';
+
+function abaTimer(nome){
+  _tmAba = nome;
+  document.querySelectorAll('#modal-timer .dtab').forEach(t=>t.classList.toggle('active', t.dataset.ttab===nome));
+  document.getElementById('ttab-projeto').style.display = nome==='projeto' ? 'block' : 'none';
+  document.getElementById('ttab-area').style.display    = nome==='area'    ? 'block' : 'none';
+}
+
+function tmCarregarTarefas(){
+  const pid = document.getElementById('tm-project').value;
+  const st = document.getElementById('tm-task');
+  st.innerHTML = '<option value="">— o projeto todo —</option>' +
+    _tmTarefas.filter(t=>t.project_id===pid && t.status!=='concluida' && t.status!=='cancelada')
+      .map(t=>`<option value="${t.id}">${escapeHtml(t.parent_task_id?'↳ ':'')}${escapeHtml(t.title)}</option>`).join('');
+  const sr = document.getElementById('tm-rev');
+  sr.innerHTML = '<option value="">— não é ajuste —</option>' +
+    _tmAjustes.filter(r=>r.project_id===pid)
+      .map(r=>`<option value="${r.id}">#${r.number||''} ${escapeHtml(r.title)}</option>`).join('');
+}
+
+async function abrirSeletorTimer(){
+  montarSeletorTimer();
+  openModal('modal-timer');
+
+  const [projRes, taskRes, revRes, areasTxt] = await Promise.all([
+    sb.from('projects').select('id,name,status,archived').eq('archived', false).order('name'),
+    sb.from('tasks').select('id,title,project_id,status,parent_task_id').not('project_id','is',null).limit(500),
+    sb.from('revision_requests').select('id,number,title,project_id').in('status',['aberto','em_andamento']),
+    getSetting('areas_trabalho'),
+  ]);
+  _tmProjetos = projRes.data || [];
+  _tmTarefas  = taskRes.data || [];
+  _tmAjustes  = revRes.data || [];
+
+  const sp = document.getElementById('tm-project');
+  sp.innerHTML = _tmProjetos.length
+    ? _tmProjetos.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')
+    : '<option value="">— nenhum projeto ativo —</option>';
+  tmCarregarTarefas();
+
+  const areas = (areasTxt || AREAS_PADRAO.join('\n')).split('\n').map(a=>a.trim()).filter(Boolean);
+  document.getElementById('tm-area').innerHTML =
+    areas.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+
+  // Sem projeto ativo, começa direto na aba de área — é o caso dela
+  // antes de cadastrar o primeiro projeto.
+  abaTimer(_tmProjetos.length ? 'projeto' : 'area');
+}
+
+async function confirmarSeletorTimer(){
+  const btn = document.getElementById('btn-start-timer');
+  btn.disabled = true;
+  try{
+    if(_tmAba === 'area'){
+      const area = document.getElementById('tm-area').value;
+      if(!area){ showToast('Escolha uma área', true); return }
+      const desc = document.getElementById('tm-desc').value.trim() || null;
+      await startTimer({kind:'geral', area, description:desc, label: desc || area});
+    }else{
+      const pid = document.getElementById('tm-project').value;
+      if(!pid){ showToast('Escolha um projeto', true); return }
+      const tid = document.getElementById('tm-task').value || null;
+      const rid = document.getElementById('tm-rev').value || null;
+      const nome = rid ? (_tmAjustes.find(r=>r.id===rid)?.title)
+                 : tid ? (_tmTarefas.find(t=>t.id===tid)?.title)
+                 : (_tmProjetos.find(p=>p.id===pid)?.name);
+      await startTimer({
+        project_id: pid, task_id: tid, revision_id: rid,
+        kind: rid ? 'ajuste' : 'projeto', label: nome,
+      });
+    }
+    closeModal('modal-timer');
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 // Reconcilia o widget com o banco. Chamado no boot de cada página.
