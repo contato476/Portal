@@ -1,171 +1,142 @@
 # Conectar o Instagram ao sistema
 
-O sistema puxa as métricas do Instagram direto da API da Meta. O trabalho
-de configuração é feito **uma vez**, e depois é só clicar em
-**🔄 Sincronizar Instagram** na tela de Marketing.
+São **4 passos**. A Meta lançou um caminho novo (*Instagram API with
+Instagram Login*) que dispensa a Página do Facebook e as variáveis de
+ambiente — o que tornava isso chato desapareceu.
 
-> **Enquanto isso não estiver pronto, a tela funciona normalmente.**
-> Use **📋 Importar colando** (cola os números de uma planilha) ou
-> **+ Registrar métricas** (digita à mão). Nada fica travado esperando a Meta.
+> **Enquanto não fizer, nada trava.** Use **📋 Importar colando** (cola os
+> números de uma planilha) ou **+ Registrar métricas**. A tela funciona igual.
 
 ---
 
 ## Antes de começar
 
-Você vai precisar de:
+Só uma coisa: a conta do Instagram precisa ser **profissional** —
+Comercial ou Criador, tanto faz.
 
-- Uma conta do Instagram do tipo **Comercial** (não serve pessoal nem criador)
-- Uma **Página do Facebook** vinculada a essa conta
-- Acesso ao painel da Vercel para colar duas variáveis
+No app: **Configurações → Tipo de conta e ferramentas → Mudar para conta
+profissional**.
 
-Leva uns 20 minutos na primeira vez.
+**Você NÃO precisa de Página do Facebook.** Era o passo mais irritante do
+caminho antigo, e ele não existe mais aqui.
 
 ---
 
-## Passo 1 — Deixar a conta do Instagram como Comercial
+## Passo 1 — Criar o app na Meta
 
-No app do Instagram: **Configurações → Tipo de conta e ferramentas →
-Mudar para conta profissional → Empresa**.
+> Se você já tentou por **developers.facebook.com/tools** e travou: aquela
+> página é só a lista de ferramentas, e nenhuma funciona antes de existir
+> um app. Comece por `/apps`, não por `/tools`.
 
-## Passo 2 — Vincular a uma Página do Facebook
-
-Ainda no Instagram: **Configurações → Central de Contas** (ou
-*Contas vinculadas*) → conectar a Página do Facebook.
-
-Se você não tem Página, crie uma em facebook.com/pages/create — pode ser
-simples, ela só serve de ponte. A Meta não libera as métricas sem isso.
-
-## Passo 3 — Criar o app na Meta
-
-> **Se você chegou até developers.facebook.com/tools/ e travou:** aquela
-> página é só a lista de ferramentas, e **nenhuma delas funciona antes de
-> existir um app**. O Explorador da Graph API, por exemplo, pede que você
-> escolha um app no canto direito — se a lista está vazia, é porque falta
-> este passo 3. Não é você: a Meta simplesmente não avisa isso.
-
-1. Vá direto em **developers.facebook.com/apps** (não em `/tools`)
+1. Vá em **developers.facebook.com/apps**
 2. Botão verde **Criar app**
-3. Se pedir "O que você quer que seu app faça?", escolha
-   **Outro** → depois tipo **Empresa** (Business)
+3. Se perguntar o que o app vai fazer, escolha **Outro** → tipo **Empresa**
 4. Dê um nome qualquer (ex.: "Gestão Jenneffer") e confirme
-5. Já dentro do app, no menu esquerdo: **Adicionar produto** →
-   procure **Instagram Graph API** → **Configurar**
 
-Pronto — agora sim as ferramentas de `/tools` funcionam, porque existe um
-app para elas apontarem.
+## Passo 2 — Adicionar o produto certo
 
-> Não precisa passar por Análise do App (App Review) enquanto o app
-> estiver em modo **Desenvolvimento** e você for administradora da própria
-> conta. Que é exatamente o seu caso.
+Dentro do app, menu esquerdo: **Adicionar produto** → procure
+**Instagram** → **Configurar**.
 
-## Passo 4 — Gerar o token
+Escolha a opção **API com login do Instagram** (*Instagram API with
+Instagram Login*). É essa que dispensa a Página do Facebook.
 
-1. Vá em **Ferramentas → Explorador da Graph API**
-2. No canto direito, selecione o seu app
-3. Em **Permissões**, adicione as quatro:
-   - `instagram_basic`
-   - `instagram_manage_insights`
-   - `pages_show_list`
-   - `pages_read_engagement`
-4. Clique em **Gerar token de acesso** e autorize
+Em seguida, conecte a sua conta do Instagram quando ele pedir.
 
-Guarde esse token — ele é curto (vale ~1 hora) e será trocado no passo 6.
+## Passo 3 — Gerar o token
 
-## Passo 5 — Descobrir o IG_USER_ID
+Ainda na tela do produto Instagram, procure **Gerar token de acesso**
+(fica junto da conta que você conectou).
 
-Ainda no Explorador da Graph API, faça duas chamadas:
+Ao gerar, confirme que estão marcadas as permissões:
 
-1. Digite `me/accounts` e envie → copie o `id` da sua Página
-2. Digite `{id-da-pagina}?fields=instagram_business_account` e envie
+- `instagram_business_basic`
+- `instagram_business_manage_insights`
 
-O `id` que aparecer dentro de `instagram_business_account` é o seu
-**IG_USER_ID**. Anote.
+Essas duas bastam para as métricas. As de mensagens e comentários **não
+são necessárias** — não marque o que você não vai usar.
 
-## Passo 6 — Trocar por um token de 60 dias
+Copie o token que aparecer. Ele é longo e começa com `IGQ...`.
 
-O token do passo 4 vale só 1 hora. Para transformar num de 60 dias, cole
-esta URL no navegador, trocando as três partes em maiúsculas:
+## Passo 4 — Colar no sistema
 
-```
-https://graph.facebook.com/v23.0/oauth/access_token?grant_type=fb_exchange_token&client_id=SEU_APP_ID&client_secret=SEU_APP_SECRET&fb_exchange_token=TOKEN_DO_PASSO_4
-```
+Abra a tela **Marketing** → **Conectar agora** → cole o token → **Conectar
+e sincronizar**.
 
-O **App ID** e o **App Secret** estão em: seu app → **Configurações → Básico**.
-
-A resposta traz um `access_token` novo. **Esse é o que você vai usar.**
-
-## Passo 7 — Colar na Vercel
-
-No painel da Vercel: seu projeto → **Settings → Environment Variables**.
-Crie estas cinco:
-
-| Nome | Valor |
-|---|---|
-| `IG_ACCESS_TOKEN` | o token de 60 dias do passo 6 |
-| `IG_USER_ID` | o id do passo 5 |
-| `IG_API_VERSION` | `v23.0` |
-| `SUPABASE_URL` | `https://jvtjhfganuuefswbnbrk.supabase.co` |
-| `SUPABASE_ANON_KEY` | a mesma chave pública que o site já usa (está em `assets/shared.js`) |
-
-Depois clique em **Redeploy** — as variáveis só valem no próximo deploy.
-
-## Passo 8 — Testar
-
-Abra a tela de **Marketing** e clique em **🔄 Sincronizar Instagram**.
+Pronto. Ele já traz os últimos 7 dias.
 
 ---
 
-## Renovar a cada 60 dias
+## Sobre a renovação: você não precisa fazer nada
 
-O token expira em 60 dias e a Meta não renova sozinha. A tela de Marketing
-avisa quando faltarem 20 dias e destaca em vermelho quando faltarem 10.
+O token vale 60 dias — mas **o sistema renova sozinho**. Toda vez que você
+sincroniza, ele confere quanto falta e, se estiver perto de vencer, pede
+um token novo à Meta e guarda no lugar do antigo.
 
-Para renovar: repita os passos 4 e 6, e atualize o `IG_ACCESS_TOKEN` na
-Vercel. É uma ação a cada dois meses.
+Na prática: enquanto você abrir o Marketing pelo menos uma vez a cada dois
+meses, isso funciona para sempre sem você tocar.
 
-> **Por que não automatizar?** Daria — mas para isso o token teria que
-> ficar guardado no banco e trafegar até o navegador. Hoje ele existe
-> **só no servidor** e nunca sai de lá. Preferi manter assim: dois
-> minutos a cada dois meses valem mais que um segredo a mais circulando.
+A tela avisa se a renovação começar a falhar, com dias de folga. Só nesse
+caso você gera outro token (passo 3) e cola de novo.
+
+> **Por que o token fica no banco e não numa variável da Vercel?**
+> Porque a Vercel não deixa uma função reescrever a própria variável — e
+> sem reescrever, não dá para renovar. Guardado no Supabase, numa tabela
+> que só você lê, a renovação acontece sozinha. O token nunca é devolvido
+> ao navegador: quem lê e usa é a função no servidor.
+
+---
+
+## O que vem da Meta e o que continua seu
+
+| No sistema | De onde vem |
+|---|---|
+| Contas alcançadas | `reach` — série diária de verdade |
+| Visualizações | `views` |
+| Interações | `total_interactions` |
+| Toques no link da bio | `profile_links_taps` |
+| Seguidores líquidos | `follows_and_unfollows` (seguiu − deixou de seguir) |
+| Total de seguidores | foto do dia de hoje, não histórico |
+| **Visitas ao perfil** | **não vem mais** — a Meta tirou da API nova |
+| **Posts publicados** | **seu** |
+| **Leads gerados** | **seu** |
+
+**Leads continua manual de propósito.** A Meta sabe quem clicou; ela não
+sabe quem virou conversa. Esse número só existe na sua cabeça e no CRM — e
+é justamente ele que diz se o Instagram está dando retorno.
+
+**Visitas ao perfil** você ainda vê no app do Instagram; se quiser no
+sistema, anote pelo **+ Registrar métricas**.
 
 ---
 
 ## Se der erro
 
-**"Integração não configurada"**
-As variáveis não chegaram na função. Confira se você fez o **Redeploy**
-depois de criá-las.
+**"Instagram ainda não conectado"**
+O token não foi salvo, ou foi desconectado. Clique em Conectar e cole de novo.
 
-**"Não autorizado"**
-Sua sessão no sistema expirou. Saia e entre de novo.
+**"O acesso ao Instagram não está valendo"**
+O token expirou ou foi revogado. Gere outro no passo 3.
 
-**Sincronizou, mas apareceram "ressalvas"**
+**Sincronizou, mas veio com "ressalvas"**
 Normal. A Meta aposenta e renomeia métricas com frequência (`impressions`
-virou `views`, `follower_count` está mudando). O sistema busca cada grupo
-de métricas separado justamente para que uma que sumiu não derrube as
-outras. O que veio foi importado; o que faltou você completa à mão.
+virou `views`, `profile_views` sumiu). O sistema busca cada coisa
+separada justamente para que uma que mudou não derrube o resto. O que veio
+foi importado; o que faltou você completa à mão.
 
-**"Object with ID does not exist" ou erro de permissão**
-Quase sempre é o passo 2: a conta do Instagram não está vinculada a uma
-Página do Facebook, ou está vinculada a uma Página em que você não é
-administradora.
+**Erro de permissão nos insights**
+Faltou marcar `instagram_business_manage_insights` no passo 3. Gere o
+token de novo com ela marcada.
 
 ---
 
-## O que a sincronização traz — e o que não traz
+## O que este sistema NÃO faz (e onde fazer)
 
-| No sistema | Vem da Meta |
-|---|---|
-| Contas alcançadas | `reach` |
-| Visualizações | `views` |
-| Interações | `total_interactions` |
-| Visitas ao perfil | `profile_views` |
-| Toques no link da bio | `website_clicks` |
-| Seguidores líquidos | `follower_count` |
-| Total de seguidores | `followers_count` (foto de hoje, não histórico) |
-| **Leads gerados** | **nada — sempre seu** |
+Responder DM automático, "comenta a palavra X que eu te mando o link",
+mensagem de ausência — nada disso passa por aqui.
 
-**Leads continua manual, de propósito.** A Meta sabe quantas pessoas
-clicaram no link; ela não tem como saber quais viraram conversa de
-verdade. Esse número só existe na sua cabeça e no CRM — e é justamente
-ele que diz se o Instagram está dando retorno.
+Duas razões: exige uma análise do app pela Meta (com vídeo, verificação de
+negócio e caminho de descadastro), e o Instagram já entrega isso de graça
+no **Meta Business Suite** (desktop): respostas automáticas, palavras-chave
+e comentário→DM. Se precisar de mais, ferramentas como ManyChat resolvem
+por uns US$ 10–15/mês.

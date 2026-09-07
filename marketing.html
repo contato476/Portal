@@ -156,6 +156,32 @@
   </div>
 </div>
 
+<!-- MODAL: CONECTAR INSTAGRAM -->
+<div class="overlay" id="modal-ig">
+  <div class="modal" style="width:620px">
+    <div class="modal-title">Conectar Instagram</div>
+    <div class="note-box" style="margin-bottom:14px">
+      Cole aqui o <b>token de longa duração</b> gerado no painel da Meta.
+      O passo a passo está no arquivo <code>INSTAGRAM.md</code> — são 4 passos,
+      e <b>não precisa mais de Página do Facebook</b>.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Token de acesso *</label>
+      <textarea class="form-input" id="ig-token" rows="4" style="font-family:monospace;font-size:11.5px"
+        placeholder="IGQVJ..."></textarea>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:6px">
+        Ele fica guardado no seu Supabase, numa tabela que só você lê, e é
+        <b>renovado sozinho</b> antes de vencer — você não precisa refazer isso a cada 60 dias.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-ig-off" style="margin-right:auto;display:none" onclick="desconectarInstagram()">Desconectar</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-ig')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-ig-save" onclick="salvarTokenInstagram()">Conectar e sincronizar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: IMPORTAR COLANDO -->
 <div class="overlay" id="modal-colar">
   <div class="modal" style="width:700px">
@@ -225,27 +251,69 @@ window.addEventListener('DOMContentLoaded', () => {
 async function mostrarStatusInstagram(){
   const el = document.getElementById('ig-status');
   if(!el) return;
-  const [usuario, ultima, expira] = await Promise.all([
-    getSetting('ig_username'), getSetting('ig_last_sync'), getSetting('ig_token_expires_at'),
+  const [token, usuario, ultima, expira] = await Promise.all([
+    getSetting('ig_access_token'), getSetting('ig_username'),
+    getSetting('ig_last_sync'), getSetting('ig_token_expires_at'),
   ]);
-  if(!ultima){
+  if(!token){
     el.innerHTML = `<div class="note-box">
-      <b>Instagram ainda não conectado.</b> Enquanto isso, use <b>📋 Importar colando</b> ou
-      <b>+ Registrar métricas</b> — a tela funciona igual.<br>
-      Para conectar de verdade, siga o passo a passo do arquivo
-      <code>INSTAGRAM.md</code> e depois clique em <b>🔄 Sincronizar Instagram</b>.</div>`;
+      <b>Instagram ainda não conectado.</b>
+      <button class="btn btn-primary btn-sm" style="margin-left:8px" onclick="openConectarInstagram()">Conectar agora</button><br>
+      São 4 passos no painel da Meta (não precisa mais de Página do Facebook) — está tudo em <code>INSTAGRAM.md</code>.<br>
+      Enquanto isso, <b>📋 Importar colando</b> e <b>+ Registrar métricas</b> funcionam normalmente.</div>`;
     return;
   }
-  // Token da Meta vale 60 dias e não se renova sozinho — avisa antes.
+  // O token se renova sozinho, mas se a renovação falhar por vários dias
+  // seguidos é melhor você saber antes de parar de funcionar.
   let alerta = '';
   if(expira){
     const faltam = daysBetween(todayISO(), expira.slice(0,10));
-    if(faltam <= 10) alerta = `<br><b style="color:var(--red)">O acesso à Meta expira em ${faltam} dia(s).</b> Gere um token novo e atualize na Vercel.`;
-    else if(faltam <= 20) alerta = `<br><b style="color:var(--amber)">O acesso à Meta expira em ${faltam} dias.</b>`;
+    if(faltam <= 5) alerta = `<br><b style="color:var(--red)">O acesso expira em ${faltam} dia(s) e a renovação automática não está pegando.</b> Gere um token novo e cole de novo em Conectar.`;
+    else if(faltam <= 15) alerta = `<br><span style="color:var(--amber)">Acesso válido por mais ${faltam} dias — a renovação acontece na próxima sincronização.</span>`;
   }
   el.innerHTML = `<div class="note-box">
-    Instagram conectado${usuario?' como <b>@'+escapeHtml(usuario)+'</b>':''} ·
-    última sincronização em <b>${escapeHtml(fmtDate(ultima))}</b>${alerta}</div>`;
+    Instagram conectado${usuario?' como <b>@'+escapeHtml(usuario)+'</b>':''}${ultima?' · última sincronização em <b>'+escapeHtml(fmtDate(ultima))+'</b>':' · ainda não sincronizado'}
+    <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="openConectarInstagram()">Gerenciar</button>${alerta}</div>`;
+}
+
+function openConectarInstagram(){
+  document.getElementById('ig-token').value = '';
+  getSetting('ig_access_token').then(t=>{
+    document.getElementById('btn-ig-off').style.display = t ? 'inline-flex' : 'none';
+  });
+  openModal('modal-ig');
+}
+
+async function salvarTokenInstagram(){
+  const token = document.getElementById('ig-token').value.trim();
+  if(!token){ showToast('Cole o token gerado no painel da Meta', true); return }
+  const btn = document.getElementById('btn-ig-save');
+  btn.disabled = true;
+  // Guarda com validade de 60 dias a partir de agora — a função corrige
+  // esse valor na primeira renovação, com o número exato da Meta.
+  const em60 = new Date(Date.now()+60*86400000).toISOString();
+  const [e1, e2] = await Promise.all([
+    setSetting('ig_access_token', token),
+    setSetting('ig_token_expires_at', em60),
+  ]);
+  btn.disabled = false;
+  if(e1?.error || e2?.error){ showToast('Erro ao salvar: '+((e1?.error||e2?.error).message), true); return }
+  closeModal('modal-ig');
+  showToast('Token salvo — sincronizando...');
+  await sincronizarInstagram();
+}
+
+async function desconectarInstagram(){
+  if(!confirm('Desconectar o Instagram? As métricas já importadas continuam aqui.')) return;
+  await Promise.all([
+    setSetting('ig_access_token', null),
+    setSetting('ig_token_expires_at', null),
+    setSetting('ig_username', null),
+    setSetting('ig_user_id', null),
+  ]);
+  closeModal('modal-ig');
+  showToast('Instagram desconectado');
+  mostrarStatusInstagram();
 }
 
 async function sincronizarInstagram(){
@@ -256,10 +324,11 @@ async function sincronizarInstagram(){
     const {data:{session}} = await sb.auth.getSession();
     if(!session) throw new Error('Sessão expirada — entre de novo');
 
-    const r = await fetch('/api/instagram?days=30', {
+    const r = await fetch('/api/instagram?days=7', {
       headers: {Authorization: 'Bearer '+session.access_token},
     });
     const j = await r.json().catch(()=>({}));
+    if(j.precisaConectar){ showToast(j.error, true); openConectarInstagram(); return }
     if(!r.ok) throw new Error(j.error || ('A função respondeu '+r.status));
     if(!j.metrics || !j.metrics.length) throw new Error('A Meta não devolveu nenhuma métrica no período');
 
@@ -282,20 +351,21 @@ async function sincronizarInstagram(){
     }
 
     if(paraGravar.length){
-      const linhas = paraGravar.map(m=>{
-        const {posts_total, ...resto} = m;   // posts_total é acumulado, não do dia
-        return {...resto, channel:'instagram', source:'instagram_api', synced_at:new Date().toISOString()};
-      });
+      const linhas = paraGravar.map(m=>
+        ({...m, channel:'instagram', source:'instagram_api', synced_at:new Date().toISOString()}));
       const {error} = await sb.from('mkt_metrics')
         .upsert(linhas, {onConflict:'channel,metric_date'});
       if(error) throw error;
     }
 
+    // username, id e validade do token quem grava é a própria função —
+    // ela já fez isso antes de responder. Aqui só o carimbo da sincronia.
     await setSetting('ig_last_sync', new Date().toISOString());
-    if(j.username) await setSetting('ig_username', j.username);
-    if(j.token_expires_at) await setSetting('ig_token_expires_at', j.token_expires_at);
+    if(j.token_renovado) showToast('Acesso ao Instagram renovado por mais 60 dias ✓');
 
-    // Métrica que a Meta não sabe calcular fica sempre por sua conta.
+    // Métricas que a Meta não entrega ficam sempre por sua conta:
+    // leads, posts publicados e visitas ao perfil (esta última saiu da
+    // API nova — só existe no app do Instagram).
     let msg = paraGravar.length+' dia(s) atualizados ✓';
     if(j.avisos && j.avisos.length) msg += ' — com ressalvas';
     showToast(msg);
