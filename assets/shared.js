@@ -52,7 +52,7 @@ const GESTAO_MODULES = [
   {id:'contratos',   href:'contratos.html',   label:'Contratos',   ready:true, icon:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke-width="1.8"/><line x1="9" y1="13" x2="15" y2="13" stroke-width="1.8"/><line x1="9" y1="17" x2="13" y2="17" stroke-width="1.8"/>'},
   {id:'agendamento', href:'agendamento.html', label:'Agendamento', ready:true, icon:'<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.8"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.8"/><polyline points="8.5 15 11 17.5 15.5 13" stroke-width="1.8"/>'},
   {id:'marketing',   href:'marketing.html',   label:'Marketing',   ready:true, icon:'<path d="M3 11l18-5v12L3 13v-2z" stroke-width="1.8"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6" stroke-width="1.8"/>'},
-  {id:'automacoes',  href:'automacoes.html',  label:'Automações',  ready:false, icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke-width="1.8"/>'},
+  {id:'automacoes',  href:'automacoes.html',  label:'Automações',  ready:true , icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke-width="1.8"/>'},
 ];
 
 function renderSidebar(activeId){

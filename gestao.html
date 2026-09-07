@@ -148,6 +148,7 @@
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
 <script src="assets/gcal.js"></script>
 <script>
 const STAGE_LABELS = {novo:'Novo', contato:'Contato', proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido'};
@@ -214,6 +215,12 @@ async function loadPainel(){
   // externo, mais lento e que pode falhar. Se entrasse junto, uma queda
   // do Google deixaria o painel inteiro carregando para sempre.
   loadGcalOccurrences(0, 7).then(renderCompromissos);
+
+  // Checagens diárias das automações (prazo chegando, suporte acabando,
+  // tarefa atrasada, conta vencida). Rodam no máximo 1x por dia, e só se
+  // houver regra ligada. Também fica fora do Promise.all: o painel já
+  // está na tela quando isso acontece.
+  if(typeof runDailyChecks === 'function') runDailyChecks().catch(()=>{});
 }
 
 function renderTasks(tasks, today){

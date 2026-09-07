@@ -170,6 +170,7 @@ textarea.tpl-body{min-height:240px;font-family:monospace;font-size:12.5px;line-h
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
 <script>
 const CT_BADGE = {
   rascunho:'<span class="badge bg-gray">Rascunho</span>',
@@ -477,6 +478,15 @@ async function updateContract(){
   if(error){showToast('Erro: '+error.message,true);return}
   closeModal('modal-ct');
   showToast('Contrato atualizado ✓');
+  // Automação só quando o contrato ACABOU de ser assinado — reeditar um
+  // contrato já assinado não dispara de novo (a trava do banco também barra).
+  const antes = contracts.find(c=>c.id===editingCtId);
+  if(status==='assinado' && antes && antes.status!=='assinado' && typeof fireAutomation==='function'){
+    await fireAutomation('contract.signed', {
+      table:'contracts', id:editingCtId,
+      row:{...antes, status, signed_at:signed, title:document.getElementById('ct-title').value.trim()},
+    });
+  }
   loadAll();
 }
 async function deleteContract(){

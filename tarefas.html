@@ -120,6 +120,7 @@
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
 <script>
 let allTasks = [];       // só as tarefas PRINCIPAIS (parent_task_id nulo)
 let subMap = {};         // {idDaTarefaPai: [subtarefas]}
@@ -418,6 +419,8 @@ async function toggleDone(id, isDone){
   const {error} = await sb.from('tasks').update(payload).eq('id',id);
   if(error){showToast('Erro: '+error.message, true);return}
   showToast(isDone?'Tarefa reaberta':'Tarefa concluída ✓');
+  if(!isDone && typeof fireAutomation === 'function')
+    await fireAutomation('task.completed', {table:'tasks', id, row:{...(taskById[id]||{}), status:'concluida'}});
   loadAll();
 }
 

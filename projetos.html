@@ -300,6 +300,7 @@
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROJETOS — visão geral (lista / kanban / timeline), subtarefas,
@@ -582,6 +583,8 @@ async function dropProject(e){
   const {error} = await sb.from('projects').update({status}).eq('id', id);
   if(error){ showToast('Erro: '+error.message, true); return }
   showToast(status==='concluido' ? 'Projeto concluído! 🎉' : 'Status atualizado ✓');
+  if(typeof fireAutomation === 'function')
+    await fireAutomation('project.status_changed', {table:'projects', id, row:{...p, status}});
   loadAll();
 }
 
@@ -1008,6 +1011,8 @@ async function toggleTaskDone(id){
   const {error} = await sb.from('tasks').update(payload).eq('id', id);
   if(error){ showToast('Erro: '+error.message, true); return }
   showToast(feito?'Tarefa reaberta':'Tarefa concluída ✓');
+  if(!feito && typeof fireAutomation === 'function')
+    await fireAutomation('task.completed', {table:'tasks', id, row:{...t, status:'concluida'}});
   await loadAll();
   if(detailProjectId) switchPTab('tarefas');
 }
@@ -1145,13 +1150,23 @@ async function saveRevision(){
   };
   const btn = document.getElementById('btn-save-rev');
   btn.disabled = true;
-  const {error} = editingRevId
-    ? await sb.from('revision_requests').update(payload).eq('id', editingRevId)
-    : await sb.from('revision_requests').insert(payload);
+  let novoId = null, error;
+  if(editingRevId){
+    ({error} = await sb.from('revision_requests').update(payload).eq('id', editingRevId));
+  }else{
+    // Pega o id de volta: a automação precisa dele para a trava que
+    // impede a mesma regra de rodar duas vezes no mesmo ajuste.
+    const res = await sb.from('revision_requests').insert(payload).select('id').single();
+    error = res.error;
+    novoId = res.data?.id || null;
+  }
   btn.disabled = false;
   if(error){ showToast('Erro: '+error.message, true); return }
   closeModal('modal-rev');
   showToast(editingRevId?'Ajuste atualizado ✓':'Ajuste registrado ✓');
+  // Só no primeiro registro do ajuste, nunca ao editar.
+  if(!editingRevId && novoId && typeof fireAutomation === 'function')
+    await fireAutomation('revision.created', {table:'revision_requests', id:novoId, row:{...payload, id:novoId}});
   await loadAll(); switchPTab('ajustes');
 }
 

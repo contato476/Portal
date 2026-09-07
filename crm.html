@@ -193,6 +193,7 @@
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
 <script>
 const STAGES = [
   {id:'novo',       label:'Novo',         color:'#8B949E'},
@@ -365,7 +366,18 @@ async function dropDeal(e){
   const {error} = await sb.from('crm_deals').update(payload).eq('id',deal.id);
   if(error){showToast('Erro: '+error.message,true);return}
   showToast(stage==='fechado'?'Negócio fechado! 🎉':'Etapa atualizada ✓');
+  await dispararAutomacaoNegocio({...deal, ...payload}, stage);
   loadAll();
+}
+
+// Dispara as automações do CRM. Sem o motor carregado (ou sem regras),
+// não faz nada e não atrapalha o salvamento.
+async function dispararAutomacaoNegocio(deal, stage){
+  if(typeof fireAutomation !== 'function') return;
+  const ctx = {table:'crm_deals', id: deal.id, row: deal};
+  if(stage==='fechado')      await fireAutomation('deal.won', ctx);
+  else if(stage==='perdido') await fireAutomation('deal.lost', ctx);
+  else                       await fireAutomation('deal.stage_changed', ctx);
 }
 
 // ──────────── CONTATOS ────────────
@@ -561,6 +573,14 @@ async function saveDeal(){
   if(error){showToast('Erro: '+error.message,true);return}
   closeModal('modal-deal');
   showToast(editingDealId?'Negócio atualizado ✓':'Negócio criado ✓');
+  // Só dispara quando a etapa MUDOU (ou o negócio acabou de nascer) —
+  // senão editar uma observação já reabriria a automação.
+  const etapaMudou = !editingDealId || (prev && prev.stage !== stage);
+  if(etapaMudou && dealId){
+    if(!editingDealId && typeof fireAutomation === 'function')
+      await fireAutomation('deal.created', {table:'crm_deals', id:dealId, row:{...payload, id:dealId}});
+    await dispararAutomacaoNegocio({...payload, id:dealId}, stage);
+  }
   loadAll();
 }
 

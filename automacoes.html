@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Automações — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.rule-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px}
+.rule-card.off{opacity:.55}
+.rule-hd{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}
+.rule-name{font-size:14.5px;font-weight:500;color:var(--text)}
+.rule-desc{font-size:12px;color:var(--text3);margin-top:2px}
+.rule-flow{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--text2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--dark3);border:1px solid var(--border);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--text2)}
+.chip.evt{border-color:rgba(33,136,255,.4);color:#60A5FA}
+.chip.act{border-color:rgba(26,122,74,.4);color:#4ADE80}
+.arrow{color:var(--text3);align-self:center}
+.switch{position:relative;width:38px;height:21px;flex-shrink:0;cursor:pointer}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--dark3);border:1px solid var(--border2);border-radius:21px;transition:.2s}
+.slider:before{content:"";position:absolute;height:15px;width:15px;left:2px;top:2px;background:var(--text3);border-radius:50%;transition:.2s}
+.switch input:checked + .slider{background:rgba(26,122,74,.35);border-color:var(--green)}
+.switch input:checked + .slider:before{transform:translateX(17px);background:var(--green2)}
+.cond-row,.act-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center}
+.act-row{grid-template-columns:1fr auto}
+.act-box{background:var(--dark3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px}
+.act-box-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.mini{font-size:11.5px;color:var(--text3);margin-top:4px}
+@media(max-width:768px){.cond-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Automações</div>
+      <button class="btn btn-primary" onclick="openNewRule()">+ Nova automação</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Ligadas</div><div class="stat-val" id="st-on" style="color:#4ADE80">—</div><div class="stat-sub">funcionando agora</div></div>
+        <div class="stat"><div class="stat-label">Desligadas</div><div class="stat-val" id="st-off">—</div><div class="stat-sub">criadas mas paradas</div></div>
+        <div class="stat"><div class="stat-label">Execuções</div><div class="stat-val" id="st-runs">—</div><div class="stat-sub">nos últimos 30 dias</div></div>
+        <div class="stat"><div class="stat-label">Com erro</div><div class="stat-val" id="st-err" style="color:var(--red)">—</div><div class="stat-sub">precisam de olhada</div></div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="regras" onclick="switchTab('regras')">Regras</div>
+        <div class="dtab" data-tab="historico" onclick="switchTab('historico')">Histórico</div>
+        <div class="dtab" data-tab="comofunciona" onclick="switchTab('comofunciona')">Como funciona</div>
+      </div>
+
+      <!-- REGRAS -->
+      <div class="dtab-view active" id="tab-regras">
+        <div id="regras-container"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div class="dtab-view" id="tab-historico">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn-ghost btn-sm" onclick="rodarDiariasAgora()">Rodar checagens diárias agora</button>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Quando</th><th>Regra</th><th>Evento</th><th>Resultado</th><th>Situação</th></tr></thead>
+          <tbody id="hist-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- COMO FUNCIONA -->
+      <div class="dtab-view" id="tab-comofunciona">
+        <div style="max-width:720px">
+
+          <div class="note-box" style="margin-bottom:16px">
+            <b>As automações rodam a partir das suas ações na tela.</b><br>
+            Quando você move um card no CRM, conclui uma tarefa ou registra um ajuste,
+            o sistema confere as regras naquele momento. Não existe um servidor rodando
+            isso por trás — o que traz duas consequências, e as duas estão resolvidas
+            ou avisadas aqui embaixo.
+          </div>
+
+          <div class="card" style="padding:18px;margin-bottom:14px">
+            <div class="card-title" style="margin-bottom:10px">Não roda duas vezes</div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7">
+              Se você abrir o sistema em duas abas, ou recarregar e refizer a mesma ação,
+              a regra <b>não</b> executa de novo. Antes de fazer qualquer coisa, o sistema
+              registra a execução no banco, e o próprio banco recusa uma segunda igual.
+              Você não vai acabar com dois projetos criados pelo mesmo negócio.
+            </p>
+          </div>
+
+          <div class="card" style="padding:18px;margin-bottom:14px">
+            <div class="card-title" style="margin-bottom:10px">As regras diárias dependem de você abrir o Painel</div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7">
+              As regras que começam com <b>"Prazo…", "Suporte…", "Tarefa passou do prazo"</b>
+              e <b>"Conta venceu"</b> são checadas <b>uma vez por dia, quando você abre o Painel</b>.
+              Se você ficar três dias sem abrir o sistema, elas rodam atrasadas na volta —
+              todas de uma vez.<br><br>
+              Não estou escondendo isso de você: é o preço de o sistema não ter um servidor
+              próprio. Na prática funciona porque você abre o Painel todo dia. Se um dia isso
+              deixar de ser verdade, dá para trocar por uma rotina no servidor.
+            </p>
+            <div class="mini" id="ultima-diaria" style="margin-top:10px"></div>
+          </div>
+
+          <div class="card" style="padding:18px;margin-bottom:14px">
+            <div class="card-title" style="margin-bottom:10px">Automação nunca fala com o cliente</div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7">
+              Nenhuma automação escreve em checklist, cronograma, combinados, documentos ou
+              membros do projeto — tudo que o cliente enxerga no portal. Isso está travado no
+              código, não é só uma promessa: se uma regra tentar, ela falha e aparece no
+              histórico como erro.<br><br>
+              Automação cria e organiza o seu lado. <b>Publicar para o cliente continua sendo
+              você, no Admin do portal.</b>
+            </p>
+          </div>
+
+          <div class="card" style="padding:18px">
+            <div class="card-title" style="margin-bottom:10px">Comece com "perguntar antes" ligado</div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7">
+              Toda regra nova nasce perguntando antes de agir: ela mostra exatamente o que vai
+              criar e espera você confirmar. Depois de algumas semanas vendo que ela acerta,
+              desmarque a opção e deixe rodar sozinha.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════ MODAL: REGRA ════════ -->
+<div class="overlay" id="modal-rule">
+  <div class="modal" style="width:720px">
+    <div class="modal-title" id="modal-rule-title">Nova automação</div>
+
+    <div class="form-group"><label class="form-label">Nome *</label>
+      <input class="form-input" id="a-name" placeholder="Ganhou o cliente → abre o projeto"></div>
+    <div class="form-group"><label class="form-label">Para que serve</label>
+      <textarea class="form-input" id="a-desc" rows="2" placeholder="Escreva para o seu eu de daqui a seis meses."></textarea></div>
+
+    <div class="form-section">1. Quando isto acontecer</div>
+    <div class="form-group">
+      <select class="form-input form-select" id="a-event" onchange="onEventoMudou()"></select>
+      <div class="mini" id="a-event-hint"></div>
+    </div>
+
+    <div class="form-section">2. Só se (opcional)</div>
+    <div id="cond-list"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addCondicao()">+ Adicionar condição</button>
+    <div class="mini">Sem condições, a regra roda sempre que o evento acontecer. Com mais de uma, todas precisam ser verdadeiras.</div>
+
+    <div class="form-section">3. Faça isto</div>
+    <div id="act-list"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addAcao()">+ Adicionar ação</button>
+
+    <div class="form-section">Segurança</div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="a-confirm" checked>
+        <span>Perguntar antes de executar <b style="color:var(--text)">(recomendado no começo)</b></span>
+      </label>
+      <div class="mini">Com isto marcado, a regra mostra o que vai criar e espera você confirmar.</div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="a-enabled">
+        <span>Ligar esta automação agora</span>
+      </label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-rule" style="margin-right:auto;display:none" onclick="deleteRule()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-rule')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-rule" onclick="saveRule()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   AUTOMAÇÕES — tela de regras. O motor mora em assets/automations.js.
+   ════════════════════════════════════════════════════════════════════ */
+
+let regras = [], execucoes = [];
+let editingRuleId = null;
+let condicoes = [], acoes = [];
+let currentTab = 'regras';
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('automacoes');
+  montarSelectEventos();
+  requireAdmin(loadAll);
+});
+
+function montarSelectEventos(){
+  const grupos = [...new Set(EVENTOS.map(e=>e.grupo))];
+  document.getElementById('a-event').innerHTML = grupos.map(g=>
+    `<optgroup label="${escapeHtml(g)}">` +
+    EVENTOS.filter(e=>e.grupo===g).map(e=>`<option value="${e.id}">${escapeHtml(e.label)}</option>`).join('') +
+    `</optgroup>`).join('');
+}
+
+async function loadAll(){
+  const trintaDias = new Date(Date.now()-30*86400000).toISOString();
+  const [rulesRes, runsRes] = await Promise.all([
+    sb.from('automation_rules').select('*').order('created_at',{ascending:false}),
+    sb.from('automation_runs').select('*').gte('created_at', trintaDias).order('created_at',{ascending:false}).limit(300),
+  ]);
+
+  if(rulesRes.error){
+    document.getElementById('regras-container').innerHTML = isMissingTable(rulesRes.error)
+      ? '<div class="empty">Tabelas de automação ainda não criadas.<br>Rode o arquivo <b>sql/10_automacoes.sql</b> no SQL Editor do Supabase.</div>'
+      : '<div class="empty">Erro: '+escapeHtml(rulesRes.error.message)+'</div>';
+    return;
+  }
+
+  regras = rulesRes.data || [];
+  execucoes = runsRes.data || [];
+  updateStats();
+  renderAll();
+  mostrarUltimaDiaria();
+}
+
+function updateStats(){
+  document.getElementById('st-on').textContent   = regras.filter(r=>r.enabled).length;
+  document.getElementById('st-off').textContent  = regras.filter(r=>!r.enabled).length;
+  document.getElementById('st-runs').textContent = execucoes.filter(e=>e.status==='sucesso').length;
+  document.getElementById('st-err').textContent  = execucoes.filter(e=>e.status==='erro').length;
+}
+
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.dtab[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.dtab-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('tab-'+name)?.classList.add('active');
+  renderAll();
+}
+
+function renderAll(){
+  if(currentTab==='regras') renderRegras();
+  else if(currentTab==='historico') renderHistorico();
+}
+
+async function mostrarUltimaDiaria(){
+  const d = await getSetting('automation_last_daily');
+  document.getElementById('ultima-diaria').innerHTML = d
+    ? 'Última rodada das regras diárias: <b>'+escapeHtml(fmtDateShort(d))+'</b>'
+    : 'As regras diárias ainda não rodaram nenhuma vez.';
+}
+
+// ──────────── LISTA DE REGRAS ────────────
+function renderRegras(){
+  const el = document.getElementById('regras-container');
+  if(!regras.length){
+    el.innerHTML = '<div class="empty">Nenhuma automação ainda.<br>Clique em <b>+ Nova automação</b> — ou rode o <b>sql/10_automacoes.sql</b>, que já traz três exemplos prontos e desligados.</div>';
+    return;
+  }
+  el.innerHTML = regras.map(r=>{
+    const runs = execucoes.filter(e=>e.rule_id===r.id);
+    const erros = runs.filter(e=>e.status==='erro').length;
+    return `
+      <div class="rule-card${r.enabled?'':' off'}">
+        <div class="rule-hd">
+          <label class="switch" title="${r.enabled?'Desligar':'Ligar'}">
+            <input type="checkbox" ${r.enabled?'checked':''} onchange="toggleRule('${r.id}')">
+            <span class="slider"></span>
+          </label>
+          <div style="flex:1;min-width:0;cursor:pointer" onclick="openEditRule('${r.id}')">
+            <div class="rule-name">${escapeHtml(r.name)}</div>
+            <div class="rule-desc">${escapeHtml(r.description||'')}</div>
+          </div>
+          ${r.confirm_before_run?'<span class="badge bg-amber">pergunta antes</span>':'<span class="badge bg-green">automático</span>'}
+          ${erros?`<span class="badge bg-red">${erros} erro${erros>1?'s':''}</span>`:''}
+          <button class="icon-btn" onclick="openEditRule('${r.id}')" title="Editar">✎</button>
+        </div>
+        <div class="rule-flow">
+          <span class="chip evt">quando · ${escapeHtml(EVENTO_LABEL[r.trigger_event]||r.trigger_event)}</span>
+          ${(r.conditions||[]).length?`<span class="chip">só se · ${(r.conditions||[]).length} condição(ões)</span>`:''}
+          <span class="arrow">→</span>
+          ${(r.actions||[]).map(a=>`<span class="chip act">${escapeHtml(ACAO_LABEL[a.type]||a.type)}</span>`).join('')}
+        </div>
+        <div class="mini">Rodou ${r.run_count||0} vez(es)${r.last_run_at?' · última em '+escapeHtml(fmtDate(r.last_run_at)):''}</div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleRule(id){
+  const r = regras.find(x=>x.id===id);
+  if(!r) return;
+  const {error} = await sb.from('automation_rules').update({enabled:!r.enabled}).eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  showToast(!r.enabled ? 'Automação ligada ✓' : 'Automação desligada');
+  loadAll();
+}
+
+// ──────────── HISTÓRICO ────────────
+function renderHistorico(){
+  const tb = document.getElementById('hist-body');
+  if(!execucoes.length){
+    tb.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma execução nos últimos 30 dias.</td></tr>';
+    return;
+  }
+  const nomeDaRegra = id => regras.find(r=>r.id===id)?.name || 'Regra removida';
+  const badge = {
+    sucesso:'<span class="badge bg-green">Sucesso</span>',
+    erro:'<span class="badge bg-red">Erro</span>',
+    ignorado:'<span class="badge bg-gray">Cancelada</span>',
+  };
+  tb.innerHTML = execucoes.map(e=>{
+    const criados = (e.result && e.result.criados) || [];
+    return `
+      <tr>
+        <td>${fmtDate(e.created_at)}</td>
+        <td><div class="td-main">${escapeHtml(nomeDaRegra(e.rule_id))}</div></td>
+        <td style="font-size:12px">${escapeHtml(EVENTO_LABEL[e.trigger_event]||e.trigger_event)}</td>
+        <td style="font-size:12px">${e.error ? '<span style="color:var(--red)">'+escapeHtml(e.error)+'</span>' : escapeHtml(criados.join(', ')||'—')}</td>
+        <td>${badge[e.status]||e.status}</td>
+      </tr>`;
+  }).join('');
+}
+
+async function rodarDiariasAgora(){
+  if(!confirm('Rodar agora as checagens diárias (prazos, suporte, tarefas atrasadas, contas vencidas)?')) return;
+  showToast('Rodando checagens...');
+  const r = await runDailyChecks({forcar:true});
+  if(r.semRegras) showToast('Nenhuma regra diária ligada.', true);
+  else showToast('Checagens diárias concluídas ✓');
+  loadAll();
+}
+
+// ──────────── EDITOR DE REGRA ────────────
+function onEventoMudou(){
+  const ev = EVENTOS.find(e=>e.id===document.getElementById('a-event').value);
+  document.getElementById('a-event-hint').textContent = ev && ev.id.startsWith('daily.')
+    ? 'Regra diária: é checada uma vez por dia, quando você abre o Painel.'
+    : 'Roda na hora, assim que você fizer essa ação no sistema.';
+  renderCondicoes();
+}
+
+function camposDoEvento(){
+  const ev = EVENTOS.find(e=>e.id===document.getElementById('a-event').value);
+  return ev ? ev.campos : [];
+}
+
+function renderCondicoes(){
+  const campos = camposDoEvento();
+  document.getElementById('cond-list').innerHTML = condicoes.map((c,i)=>`
+    <div class="cond-row">
+      <select class="form-input form-select" onchange="condicoes[${i}].field=this.value">
+        ${campos.map(f=>`<option value="${f}" ${c.field===f?'selected':''}>${escapeHtml(f)}</option>`).join('')}
+      </select>
+      <select class="form-input form-select" onchange="condicoes[${i}].op=this.value;renderCondicoes()">
+        ${OPERADORES.map(o=>`<option value="${o.id}" ${c.op===o.id?'selected':''}>${escapeHtml(o.label)}</option>`).join('')}
+      </select>
+      ${OPERADORES.find(o=>o.id===c.op)?.precisaValor
+        ? `<input class="form-input" value="${escapeHtml(c.value??'')}" placeholder="valor" oninput="condicoes[${i}].value=this.value">`
+        : '<div class="mini" style="align-self:center">—</div>'}
+      <button class="icon-btn danger" onclick="condicoes.splice(${i},1);renderCondicoes()" title="Remover">✕</button>
+    </div>`).join('');
+}
+
+function addCondicao(){
+  const campos = camposDoEvento();
+  condicoes.push({field: campos[0]||'', op:'eq', value:''});
+  renderCondicoes();
+}
+
+function renderAcoes(){
+  document.getElementById('act-list').innerHTML = acoes.map((a,i)=>`
+    <div class="act-box">
+      <div class="act-box-hd">
+        <select class="form-input form-select" style="flex:1" onchange="acoes[${i}].type=this.value;acoes[${i}].params={};renderAcoes()">
+          ${ACOES.map(o=>`<option value="${o.id}" ${a.type===o.id?'selected':''}>${escapeHtml(o.label)}</option>`).join('')}
+        </select>
+        <button class="icon-btn danger" onclick="acoes.splice(${i},1);renderAcoes()" title="Remover">✕</button>
+      </div>
+      ${camposDaAcao(a, i)}
+    </div>`).join('');
+}
+
+// Campos específicos de cada ação. Mantidos simples de propósito:
+// o que não couber aqui, você ajusta depois na própria tela do módulo.
+function camposDaAcao(a, i){
+  const p = a.params || {};
+  const set = (k) => `oninput="acoes[${i}].params.${k}=this.value"`;
+  switch(a.type){
+    case 'create_project':
+      return `<div class="form-row">
+          <div class="form-group"><label class="form-label">Status inicial</label>
+            <select class="form-input form-select" onchange="acoes[${i}].params.status=this.value">
+              ${['pre_inicio','em_andamento','aguardando'].map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${s}</option>`).join('')}
+            </select></div>
+          <div class="form-group"><label class="form-label">Prazo (dias a partir de hoje)</label>
+            <input type="number" min="0" class="form-input" value="${escapeHtml(p.prazo_dias??30)}" oninput="acoes[${i}].params.prazo_dias=Number(this.value)"></div>
+        </div>
+        <div class="mini">O nome do projeto vem do título do negócio, e o contato é copiado junto.</div>`;
+    case 'create_tasks':
+      return `<div class="form-group"><label class="form-label">Uma tarefa por linha (opcional: <code>titulo | dias</code>)</label>
+          <textarea class="form-input" rows="4" placeholder="Reunião de kickoff | 2&#10;Coletar materiais | 5"
+            oninput="acoes[${i}].params.titles=parseTarefas(this.value)">${escapeHtml((p.titles||[]).map(t=>typeof t==='string'?t:(t.title+(t.offset_days!=null?' | '+t.offset_days:''))).join('\n'))}</textarea></div>`;
+    case 'create_milestone':
+      return `<div class="form-row">
+          <div class="form-group"><label class="form-label">Título do marco</label><input class="form-input" value="${escapeHtml(p.title||'')}" ${set('title')}></div>
+          <div class="form-group"><label class="form-label">Daqui a quantos dias</label><input type="number" class="form-input" value="${escapeHtml(p.offset_days??7)}" oninput="acoes[${i}].params.offset_days=Number(this.value)"></div>
+        </div>`;
+    case 'create_revision':
+      return `<div class="form-group"><label class="form-label">Título do ajuste</label><input class="form-input" value="${escapeHtml(p.title||'')}" ${set('title')}></div>`;
+    case 'create_finance_entry':
+      return `<div class="form-row">
+          <div class="form-group"><label class="form-label">Tipo</label>
+            <select class="form-input form-select" onchange="acoes[${i}].params.kind=this.value">
+              <option value="receita" ${p.kind!=='despesa'?'selected':''}>Receita</option>
+              <option value="despesa" ${p.kind==='despesa'?'selected':''}>Despesa</option>
+            </select></div>
+          <div class="form-group"><label class="form-label">Vencimento (dias)</label>
+            <input type="number" class="form-input" value="${escapeHtml(p.due_offset_days??7)}" oninput="acoes[${i}].params.due_offset_days=Number(this.value)"></div>
+        </div>
+        <div class="form-group"><label class="form-label">De onde vem o valor</label>
+          <input class="form-input" value="${escapeHtml(p.amount_from||'value')}" ${set('amount_from')} placeholder="value">
+          <div class="mini">Use <b>value</b> para o valor do negócio, ou <b>charged_amount</b> para o valor do ajuste.</div></div>`;
+    case 'create_contract_draft':
+      return `<div class="form-group"><label class="form-label">Título do contrato</label><input class="form-input" value="${escapeHtml(p.title||'Contrato')}" ${set('title')}></div>`;
+    case 'create_reminder_task':
+      return `<div class="form-row">
+          <div class="form-group"><label class="form-label">O que lembrar</label><input class="form-input" value="${escapeHtml(p.title||'')}" ${set('title')} placeholder="Falar sobre renovação"></div>
+          <div class="form-group"><label class="form-label">Prazo (dias)</label><input type="number" class="form-input" value="${escapeHtml(p.offset_days??0)}" oninput="acoes[${i}].params.offset_days=Number(this.value)"></div>
+        </div>`;
+    case 'update_deal':
+    case 'update_project':
+      return `<div class="form-group"><label class="form-label">Campo</label><input class="form-input" value="${escapeHtml(Object.keys(p.set||{})[0]||'')}" oninput="acoes[${i}].params.set={[this.value]:(acoes[${i}]._v||'')}" placeholder="status"></div>
+        <div class="form-group"><label class="form-label">Novo valor</label><input class="form-input" value="${escapeHtml(Object.values(p.set||{})[0]||'')}" oninput="acoes[${i}]._v=this.value;const k=Object.keys(acoes[${i}].params.set||{})[0]||'status';acoes[${i}].params.set={[k]:this.value}"></div>`;
+    case 'notify':
+      return `<div class="form-group"><label class="form-label">Mensagem</label><input class="form-input" value="${escapeHtml(p.message||'')}" ${set('message')} placeholder="Projeto criado a partir do negócio ganho."></div>`;
+    default: return '';
+  }
+}
+
+// "Reunião de kickoff | 2" → {title:'Reunião de kickoff', offset_days:2}
+function parseTarefas(texto){
+  return String(texto).split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const [titulo, dias] = l.split('|').map(x=>x.trim());
+    const o = {title: titulo};
+    if(dias!==undefined && dias!=='' && !isNaN(Number(dias))) o.offset_days = Number(dias);
+    return o;
+  });
+}
+
+function addAcao(){ acoes.push({type:'notify', params:{}}); renderAcoes() }
+
+function openNewRule(){
+  editingRuleId = null;
+  condicoes = []; acoes = [{type:'notify', params:{message:''}}];
+  document.getElementById('modal-rule-title').textContent = 'Nova automação';
+  document.getElementById('btn-del-rule').style.display = 'none';
+  document.getElementById('a-name').value = '';
+  document.getElementById('a-desc').value = '';
+  document.getElementById('a-event').value = 'deal.won';
+  document.getElementById('a-confirm').checked = true;
+  document.getElementById('a-enabled').checked = false;
+  onEventoMudou(); renderAcoes();
+  openModal('modal-rule');
+}
+
+function openEditRule(id){
+  const r = regras.find(x=>x.id===id);
+  if(!r) return;
+  editingRuleId = id;
+  condicoes = JSON.parse(JSON.stringify(r.conditions||[]));
+  acoes     = JSON.parse(JSON.stringify(r.actions||[]));
+  if(!acoes.length) acoes = [{type:'notify', params:{}}];
+  document.getElementById('modal-rule-title').textContent = 'Editar automação';
+  document.getElementById('btn-del-rule').style.display = 'inline-flex';
+  document.getElementById('a-name').value = r.name||'';
+  document.getElementById('a-desc').value = r.description||'';
+  document.getElementById('a-event').value = r.trigger_event;
+  document.getElementById('a-confirm').checked = !!r.confirm_before_run;
+  document.getElementById('a-enabled').checked = !!r.enabled;
+  onEventoMudou(); renderAcoes();
+  openModal('modal-rule');
+}
+
+async function saveRule(){
+  const name = document.getElementById('a-name').value.trim();
+  if(!name){ showToast('Dê um nome à automação', true); return }
+  const acoesLimpas = acoes.filter(a=>a.type);
+  if(!acoesLimpas.length){ showToast('Adicione pelo menos uma ação', true); return }
+
+  const payload = {
+    name,
+    description: document.getElementById('a-desc').value.trim()||null,
+    trigger_event: document.getElementById('a-event').value,
+    conditions: condicoes.filter(c=>c.field && c.op),
+    actions: acoesLimpas,
+    confirm_before_run: document.getElementById('a-confirm').checked,
+    enabled: document.getElementById('a-enabled').checked,
+  };
+  const btn = document.getElementById('btn-save-rule');
+  btn.disabled = true;
+  const {error} = editingRuleId
+    ? await sb.from('automation_rules').update(payload).eq('id', editingRuleId)
+    : await sb.from('automation_rules').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-rule');
+  showToast(editingRuleId?'Automação atualizada ✓':'Automação criada ✓');
+  loadAll();
+}
+
+async function deleteRule(){
+  if(!editingRuleId) return;
+  if(!confirm('Excluir esta automação? O histórico de execuções dela também some.')) return;
+  const {error} = await sb.from('automation_rules').delete().eq('id', editingRuleId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-rule');
+  showToast('Automação excluída');
+  loadAll();
+}
+</script>
+</body>
+</html>
