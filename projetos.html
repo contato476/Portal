@@ -53,7 +53,10 @@
   <div class="main-area">
     <div class="topbar">
       <div class="topbar-title">Projetos</div>
-      <button class="btn btn-primary" onclick="openNewProject()">+ Novo projeto</button>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="openAjustesReuniao()">💬 Ajustes da reunião</button>
+        <button class="btn btn-primary" onclick="openNewProject()">+ Novo projeto</button>
+      </div>
     </div>
     <div class="main-content">
 
@@ -186,7 +189,10 @@
       <div id="pd-milestones"></div>
     </div>
     <div class="dtab-view" id="ptab-ajustes">
-      <button class="btn btn-ghost btn-sm" style="margin-bottom:12px" onclick="openNewRevision()">+ Registrar pedido de ajuste</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="openAjustesReuniao(detailProjectId)">💬 Ajustes da reunião</button>
+        <button class="btn btn-ghost btn-sm" onclick="openNewRevision()">+ Um ajuste, com detalhes</button>
+      </div>
       <div id="pd-revisions"></div>
     </div>
     <div class="dtab-view" id="ptab-tempo">
@@ -243,6 +249,54 @@
       <button class="btn btn-danger" id="btn-del-mile" style="margin-right:auto;display:none" onclick="deleteMilestone()">Excluir</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-mile')">Cancelar</button>
       <button class="btn btn-primary" id="btn-save-mile" onclick="saveMilestone()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: AJUSTES DA REUNIÃO (vários de uma vez) ════════ -->
+<div class="overlay" id="modal-reuniao">
+  <div class="modal" style="width:620px">
+    <div class="modal-title">Ajustes da reunião</div>
+    <div class="note-box" style="margin-bottom:14px">
+      Anote aqui, na hora, tudo o que o cliente pediu.
+      <b>Uma linha por ajuste.</b> Depois você abre cada um para detalhar,
+      marcar o que é cobrável e cronometrar.
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Projeto *</label>
+        <select class="form-input form-select" id="rr-project"></select></div>
+      <div class="form-group"><label class="form-label">Data da conversa</label>
+        <input type="date" class="form-input" id="rr-date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Quem pediu</label>
+        <input class="form-input" id="rr-by" placeholder="Nome do cliente"></div>
+      <div class="form-group"><label class="form-label">Por onde chegou</label>
+        <select class="form-input form-select" id="rr-channel">
+          <option value="reuniao" selected>Reunião</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="email">E-mail</option>
+          <option value="portal">Portal</option>
+          <option value="outro">Outro</option>
+        </select></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">O que ele pediu — uma linha por ajuste *</label>
+      <textarea class="form-input" id="rr-lista" rows="7" style="font-size:13.5px;line-height:1.7"
+        placeholder="Trocar as fotos da home&#10;Mudar a cor dos botões para o verde da marca&#10;Adicionar a seção de depoimentos&#10;Corrigir o telefone no rodapé"
+        oninput="contarAjustes()"></textarea>
+      <div id="rr-contagem" style="font-size:11.5px;color:var(--text3);margin-top:5px"></div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="rr-billable">
+        Marcar <b style="color:var(--text)">todos</b> como fora do escopo (cobráveis)
+      </label>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:4px">Na dúvida, deixe desmarcado — dá para mudar um por um depois.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reuniao')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-reuniao" onclick="salvarAjustesReuniao()">Registrar</button>
     </div>
   </div>
 </div>
@@ -403,6 +457,7 @@ async function loadAll(){
   fillProjectSelects();
   updateStats();
   renderAll();
+  carregarConfigPortal();
 
   // ?id=<uuid> abre o projeto direto (vem do card do painel)
   const wanted = new URLSearchParams(location.search).get('id');
@@ -851,13 +906,110 @@ function renderProjRevisions(){
     }).join('');
 }
 
+// ──────────── AJUSTES DA REUNIÃO (registro em lote) ────────────
+// É assim que os ajustes chegam de verdade: o cliente fala numa reunião
+// e a Jenneffer anota. Registrar um por um, dentro do projeto, dava
+// atrito demais para o momento em que isso acontece — daí o registro em
+// lote, com os campos comuns preenchidos uma vez só.
+function openAjustesReuniao(projectId){
+  const sel = document.getElementById('rr-project');
+  sel.innerHTML = allProjects.filter(p=>!p.archived)
+    .map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  sel.value = projectId || detailProjectId || sel.value;
+  document.getElementById('rr-date').value = todayISO();
+  document.getElementById('rr-by').value = '';
+  document.getElementById('rr-channel').value = 'reuniao';
+  document.getElementById('rr-lista').value = '';
+  document.getElementById('rr-billable').checked = false;
+  contarAjustes();
+  openModal('modal-reuniao');
+}
+
+function linhasDeAjuste(){
+  return document.getElementById('rr-lista').value
+    .split('\n').map(l=>l.replace(/^\s*[-•*\d.)]+\s*/,'').trim()).filter(Boolean);
+}
+
+function contarAjustes(){
+  const n = linhasDeAjuste().length;
+  document.getElementById('rr-contagem').textContent =
+    n ? `${n} ajuste${n>1?'s':''} para registrar` : '';
+}
+
+async function salvarAjustesReuniao(){
+  const projectId = document.getElementById('rr-project').value;
+  const linhas = linhasDeAjuste();
+  if(!projectId){ showToast('Escolha o projeto', true); return }
+  if(!linhas.length){ showToast('Escreva pelo menos um ajuste', true); return }
+
+  const comuns = {
+    project_id: projectId,
+    requested_by: document.getElementById('rr-by').value.trim()||null,
+    channel: document.getElementById('rr-channel').value,
+    requested_at: document.getElementById('rr-date').value || todayISO(),
+    is_billable: document.getElementById('rr-billable').checked,
+    status: 'aberto',
+  };
+  const btn = document.getElementById('btn-save-reuniao');
+  btn.disabled = true;
+  // Um insert só. A numeração (#1, #2...) é feita pelo trigger no banco.
+  const {data, error} = await sb.from('revision_requests')
+    .insert(linhas.map(t=>({...comuns, title:t}))).select('id');
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+
+  closeModal('modal-reuniao');
+  showToast(linhas.length+' ajuste(s) registrados ✓');
+
+  if(typeof fireAutomation === 'function'){
+    for(const r of (data||[]))
+      await fireAutomation('revision.created', {table:'revision_requests', id:r.id, row:{...comuns, id:r.id}});
+  }
+  await loadAll();
+  detailProjectId = projectId;
+  openProject(projectId);
+  switchPTab('ajustes');
+}
+
+// ──────────── CANAL DE PEDIDOS NO PORTAL (opcional, desligado) ────────────
+// Hoje o cliente pede na reunião e você anota — então esta aba nasce
+// DESLIGADA no portal. Deixar visível sem você acompanhar seria pior que
+// não ter: o cliente escreveria num lugar que ninguém lê.
+let portalPedidosAtivo = false;
+
+async function carregarConfigPortal(){
+  portalPedidosAtivo = (await getSetting('portal_pedidos_ativo')) === 'on';
+}
+
+function rodapePortal(){
+  return `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text3);margin-bottom:12px">
+      <span>Aba "Pedir ajuste" no portal do cliente:</span>
+      <b style="color:${portalPedidosAtivo?'var(--green2)':'var(--text2)'}">${portalPedidosAtivo?'ligada':'desligada'}</b>
+      <button class="btn btn-ghost btn-sm" onclick="alternarPedidosPortal()">${portalPedidosAtivo?'Desligar':'Ligar'}</button>
+    </div>`;
+}
+
+async function alternarPedidosPortal(){
+  const novo = !portalPedidosAtivo;
+  if(novo && !confirm(
+    'Ligar a aba "Pedir ajuste" no portal?\n\n' +
+    'O cliente passa a poder escrever pedidos por lá, e eles caem na caixa de entrada aqui dentro do projeto.\n\n' +
+    'Só ligue se você for acompanhar — um pedido sem resposta é pior que não ter o canal.'
+  )) return;
+  const {error} = await setSetting('portal_pedidos_ativo', novo ? 'on' : 'off');
+  if(error){ showToast('Erro: '+error.message, true); return }
+  portalPedidosAtivo = novo;
+  showToast(novo ? 'Canal ligado no portal ✓' : 'Canal desligado no portal');
+  switchPTab('ajustes');
+}
+
 // ──────────── CAIXA DE ENTRADA (pedidos vindos do portal) ────────────
 // O cliente escreve no portal; aqui você decide o que fazer. Nada vira
 // trabalho sozinho — converter em ajuste é uma ação sua.
 function caixaDeEntrada(){
   const pend = clientRequests.filter(p=>p.project_id===detailProjectId && ['novo','lido'].includes(p.status));
-  if(!pend.length) return '';
-  return `
+  if(!pend.length) return rodapePortal();
+  return rodapePortal() + `
     <div class="note-box" style="margin-bottom:14px">
       <b>${pend.length} pedido(s) do cliente esperando você.</b>
       ${pend.map(p=>`

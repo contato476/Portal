@@ -246,7 +246,8 @@ textarea.form-input{resize:vertical;min-height:80px}
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke-width="1.8"/></svg>
         <span>Documentos</span>
       </div>
-      <div class="nav-item" data-view="pedidos" onclick="showView('pedidos')">
+      <!-- Só aparece se a Jenneffer ligar o canal (ver liberarPedidos). -->
+      <div class="nav-item" data-view="pedidos" id="nav-pedidos" style="display:none" onclick="showView('pedidos')">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke-width="1.8"/></svg>
         <span>Pedir ajuste</span>
       </div>
@@ -563,6 +564,7 @@ async function loadProfile(user){
 
   // Carrega o projeto do cliente
   await loadProject();
+  liberarPedidos();
   showView('home');
 }
 
@@ -673,6 +675,17 @@ const viewTitles={home:'Início',checklist:'Checklist',cronograma:'Cronograma',c
 
 let pedidos = [];
 let editandoPedidoId = null;
+
+// A aba nasce escondida. A Jenneffer liga o canal em Projetos → Ajustes.
+// Motivo: hoje ela recolhe os ajustes na reunião. Deixar a aba aberta
+// sem ela acompanhar faria o cliente escrever num lugar sem resposta.
+async function liberarPedidos(){
+  const {data} = await sb.from('app_settings').select('value').eq('key','portal_pedidos_ativo').maybeSingle();
+  if(data?.value === 'on'){
+    const nav = document.getElementById('nav-pedidos');
+    if(nav) nav.style.display = '';
+  }
+}
 
 // Carimba a visita UMA VEZ por sessão, depois de a home já ter sido
 // montada. Se carimbasse a cada visita à home, as novidades sumiriam

@@ -37,10 +37,22 @@ simples, ela só serve de ponte. A Meta não libera as métricas sem isso.
 
 ## Passo 3 — Criar o app na Meta
 
-1. Entre em **developers.facebook.com** com a sua conta do Facebook
-2. **Meus apps → Criar app**
-3. Tipo do app: **Empresa** (Business)
-4. Dentro do app: **Adicionar produto → Instagram Graph API**
+> **Se você chegou até developers.facebook.com/tools/ e travou:** aquela
+> página é só a lista de ferramentas, e **nenhuma delas funciona antes de
+> existir um app**. O Explorador da Graph API, por exemplo, pede que você
+> escolha um app no canto direito — se a lista está vazia, é porque falta
+> este passo 3. Não é você: a Meta simplesmente não avisa isso.
+
+1. Vá direto em **developers.facebook.com/apps** (não em `/tools`)
+2. Botão verde **Criar app**
+3. Se pedir "O que você quer que seu app faça?", escolha
+   **Outro** → depois tipo **Empresa** (Business)
+4. Dê um nome qualquer (ex.: "Gestão Jenneffer") e confirme
+5. Já dentro do app, no menu esquerdo: **Adicionar produto** →
+   procure **Instagram Graph API** → **Configurar**
+
+Pronto — agora sim as ferramentas de `/tools` funcionam, porque existe um
+app para elas apontarem.
 
 > Não precisa passar por Análise do App (App Review) enquanto o app
 > estiver em modo **Desenvolvimento** e você for administradora da própria
