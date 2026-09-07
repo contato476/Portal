@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tempo — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.bar-row{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:12.5px}
+.bar-label{width:190px;flex-shrink:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:20px;background:var(--dark3);border-radius:4px;overflow:hidden;display:flex}
+.bar-seg{height:100%}
+.bar-val{width:78px;text-align:right;flex-shrink:0;color:var(--text);font-weight:500;font-size:12px}
+.legend{display:flex;gap:16px;font-size:11.5px;color:var(--text2);margin-bottom:10px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.rent-pos{color:#4ADE80;font-weight:600}
+.rent-neg{color:var(--red);font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Tempo</div>
+      <button class="btn btn-ghost" onclick="openManual()">+ Lançar tempo</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">No mês</div><div class="stat-val" id="st-mes">—</div><div class="stat-sub" id="st-mes-sub">tempo cronometrado</div></div>
+        <div class="stat"><div class="stat-label">Em projetos</div><div class="stat-val" id="st-proj" style="color:#4ADE80">—</div><div class="stat-sub">trabalho de escopo</div></div>
+        <div class="stat"><div class="stat-label">Em ajustes</div><div class="stat-val" id="st-ajuste" style="color:var(--amber)">—</div><div class="stat-sub">pedidos de revisão</div></div>
+        <div class="stat"><div class="stat-label">Fora do escopo</div><div class="stat-val" id="st-fora" style="color:var(--red)">—</div><div class="stat-sub">ajustes cobráveis</div></div>
+      </div>
+
+      <div class="filters-row">
+        <input type="month" class="form-input" id="f-mes" onchange="renderAll()">
+        <button class="btn btn-ghost btn-sm" onclick="mesAtual()">Mês atual</button>
+        <select class="form-input form-select" id="f-project" onchange="renderAll()"><option value="">Todos os projetos</option></select>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="resumo" onclick="switchTab('resumo')">Resumo</div>
+        <div class="dtab" data-tab="ajustes" onclick="switchTab('ajustes')">Ajustes</div>
+        <div class="dtab" data-tab="rentabilidade" onclick="switchTab('rentabilidade')">Rentabilidade</div>
+        <div class="dtab" data-tab="registros" onclick="switchTab('registros')">Registros</div>
+        <div class="dtab" data-tab="lembretes" onclick="switchTab('lembretes')">Lembretes</div>
+      </div>
+
+      <!-- RESUMO -->
+      <div class="dtab-view active" id="tab-resumo">
+        <div class="card" style="padding:17px;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:12px">Horas por projeto</div>
+          <div class="legend">
+            <span><i style="background:#22A060"></i>Trabalho do projeto</span>
+            <span><i style="background:#E3B341"></i>Ajustes</span>
+          </div>
+          <div id="por-projeto"><div class="loading">Carregando...</div></div>
+        </div>
+        <div class="card" style="padding:17px">
+          <div class="card-title" style="margin-bottom:12px">Por dia do mês</div>
+          <div id="por-dia"></div>
+        </div>
+      </div>
+
+      <!-- AJUSTES -->
+      <div class="dtab-view" id="tab-ajustes">
+        <div id="ajustes-container"></div>
+      </div>
+
+      <!-- RENTABILIDADE -->
+      <div class="dtab-view" id="tab-rentabilidade">
+        <div class="note-box" style="margin-bottom:16px">
+          Cruza <b>o que entrou</b> (receitas do financeiro ligadas ao projeto) com <b>o tempo gasto</b>.
+          O valor/hora real só aparece se o projeto tiver tempo cronometrado.
+          Para comparar com o que você cobra, preencha <b>Valor/hora</b> no cadastro do projeto.
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Projeto</th><th>Recebido</th><th>Tempo</th><th>R$/hora real</th><th>Meta</th><th>Ajustes fora do escopo</th></tr></thead>
+          <tbody id="rent-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- REGISTROS -->
+      <div class="dtab-view" id="tab-registros">
+        <div id="revisar-box"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Quando</th><th>O quê</th><th>Projeto</th><th>Tipo</th><th style="text-align:right">Duração</th><th></th></tr></thead>
+          <tbody id="reg-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- LEMBRETES -->
+      <div class="dtab-view" id="tab-lembretes">
+        <div class="card" style="padding:20px;max-width:640px">
+          <div class="card-title" style="margin-bottom:14px">Lembrete a cada 15 minutos</div>
+          <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px">
+            Enquanto o sistema estiver aberto, você recebe um aviso a cada 15 minutos:
+            se não houver cronômetro rodando, ele pergunta se você está trabalhando em algo;
+            se houver um rodando há mais de 1h30, ele pergunta se você esqueceu de parar.
+          </p>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+            <button class="btn btn-primary" onclick="ativarLembretes()">🔔 Ativar lembretes</button>
+            <span id="notif-status" style="font-size:12.5px;color:var(--text2)"></span>
+          </div>
+
+          <div class="note-box warn">
+            <b>O que este lembrete NÃO faz</b> — para você não confiar no que ele não entrega:
+            <ul style="margin:8px 0 0 18px;line-height:1.8">
+              <li>Com <b>nenhuma aba do sistema aberta</b>, nenhum lembrete chega. Não existe servidor rodando isso por trás.</li>
+              <li>Com o <b>navegador fechado</b>, também não chega — nem no computador, nem no celular.</li>
+              <li>Ele avisa no navegador, não manda WhatsApp nem e-mail.</li>
+            </ul>
+            <div style="margin-top:10px">
+              <b>Como fazer valer:</b> deixe o sistema aberto numa aba fixada durante o expediente.
+              Se quiser um lembrete que independa do navegador, crie um evento recorrente de 15 min
+              na sua Google Agenda ou um alarme repetido no celular — isso sim toca com tudo fechado.
+            </div>
+          </div>
+
+          <div class="note-box" style="margin-top:14px">
+            <b>Onde iniciar o cronômetro:</b> no botão ▶ ao lado de cada projeto, tarefa,
+            subtarefa e pedido de ajuste em <a href="projetos.html" style="color:var(--green2)">Projetos</a>,
+            em cada tarefa em <a href="tarefas.html" style="color:var(--green2)">Tarefas</a>,
+            ou na pílula ⏱ no topo de qualquer tela.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════ MODAL: LANÇAMENTO MANUAL ════════ -->
+<div class="overlay" id="modal-manual">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="modal-manual-title">Lançar tempo</div>
+    <div class="form-group"><label class="form-label">O que você fez *</label><input class="form-input" id="x-desc" placeholder="Ajustes no layout da home"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Projeto</label><select class="form-input form-select" id="x-project" onchange="fillRevSelect()"><option value="">— sem projeto —</option></select></div>
+      <div class="form-group"><label class="form-label">Pedido de ajuste</label><select class="form-input form-select" id="x-rev"><option value="">— não é ajuste —</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Início *</label><input type="datetime-local" class="form-input" id="x-start"></div>
+      <div class="form-group"><label class="form-label">Fim *</label><input type="datetime-local" class="form-input" id="x-end"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-manual" style="margin-right:auto;display:none" onclick="deleteEntry()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-manual')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-manual" onclick="saveEntry()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   TEMPO — relatório de horas por projeto, por ajuste e rentabilidade.
+   Responde a pergunta que o sistema não respondia: quanto do meu tempo
+   foi para ajustes fora do escopo, e quanto o projeto realmente rendeu.
+   ════════════════════════════════════════════════════════════════════ */
+
+let entries = [], projects = [], revisions = [], tasks = [], finance = [];
+let projMap = {}, revMap = {}, taskTitle = {};
+let currentTab = 'resumo';
+let editingEntryId = null;
+
+const COR_PROJ = '#22A060', COR_AJU = '#E3B341';
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('tempo');
+  document.getElementById('f-mes').value = todayISO().slice(0,7);
+  requireAdmin(loadAll);
+});
+
+// ──────────── CARGA ────────────
+async function loadAll(){
+  const [timeRes, projRes, revRes, taskRes, finRes] = await Promise.all([
+    sb.from('time_entries').select('*').order('started_at',{ascending:false}).limit(2000),
+    sb.from('projects').select('id,name,status,hourly_rate,estimate_hours,archived').order('name'),
+    sb.from('revision_requests').select('*').order('number'),
+    sb.from('tasks').select('id,title'),
+    sb.from('fin_transactions').select('project_id,kind,amount,status,due_date,paid_at'),
+  ]);
+
+  if(timeRes.error){
+    document.getElementById('por-projeto').innerHTML = isMissingTable(timeRes.error)
+      ? '<div class="empty">Tabela de tempo ainda não criada.<br>Rode o arquivo <b>sql/09_projetos_tempo.sql</b> no SQL Editor do Supabase.</div>'
+      : '<div class="empty">Erro: '+escapeHtml(timeRes.error.message)+'</div>';
+    return;
+  }
+
+  entries   = timeRes.data || [];
+  projects  = projRes.data || [];
+  revisions = revRes.data || [];
+  tasks     = taskRes.data || [];
+  finance   = finRes.data || [];
+
+  projMap = {}; projects.forEach(p=>projMap[p.id]=p);
+  revMap  = {}; revisions.forEach(r=>revMap[r.id]=r);
+  taskTitle = {}; tasks.forEach(t=>taskTitle[t.id]=t.title);
+
+  const sel = document.getElementById('f-project');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">Todos os projetos</option>' +
+    projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  sel.value = keep;
+
+  const xsel = document.getElementById('x-project');
+  xsel.innerHTML = '<option value="">— sem projeto —</option>' +
+    projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+
+  atualizarStatusNotif();
+  updateStats();
+  renderAll();
+}
+
+// ──────────── FILTROS ────────────
+// Mês vazio = tudo. Projeto vazio = todos.
+function noFiltro(e){
+  const mes = document.getElementById('f-mes').value;
+  const pid = document.getElementById('f-project').value;
+  if(mes && !(e.started_at||'').startsWith(mes)) return false;
+  if(pid && e.project_id !== pid) return false;
+  return true;
+}
+function filtradas(){ return entries.filter(noFiltro) }
+function mesAtual(){ document.getElementById('f-mes').value = todayISO().slice(0,7); updateStats(); renderAll() }
+
+function updateStats(){
+  const list = filtradas();
+  const total  = list.reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const proj   = list.filter(e=>e.kind==='projeto').reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const ajuste = list.filter(e=>e.kind==='ajuste').reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const fora   = list.filter(e=>e.kind==='ajuste' && revMap[e.revision_id]?.is_billable)
+                     .reduce((s,e)=>s+(e.duration_seconds||0),0);
+  document.getElementById('st-mes').textContent    = fmtDuration(total);
+  document.getElementById('st-proj').textContent   = fmtDuration(proj);
+  document.getElementById('st-ajuste').textContent = fmtDuration(ajuste);
+  document.getElementById('st-fora').textContent   = fmtDuration(fora);
+  const mes = document.getElementById('f-mes').value;
+  document.getElementById('st-mes-sub').textContent = mes ? 'em '+mes.split('-').reverse().join('/') : 'todo o período';
+}
+
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.dtab[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.dtab-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('tab-'+name)?.classList.add('active');
+  renderAll();
+}
+
+function renderAll(){
+  updateStats();
+  if(currentTab==='resumo'){ renderPorProjeto(); renderPorDia() }
+  else if(currentTab==='ajustes') renderAjustes();
+  else if(currentTab==='rentabilidade') renderRentabilidade();
+  else if(currentTab==='registros') renderRegistros();
+}
+
+// ──────────── RESUMO ────────────
+function renderPorProjeto(){
+  const el = document.getElementById('por-projeto');
+  const list = filtradas();
+  if(!list.length){ el.innerHTML = '<div class="empty">Nenhum tempo registrado neste período.</div>'; return }
+
+  const agg = {};
+  list.forEach(e=>{
+    const k = e.project_id || '_sem';
+    agg[k] = agg[k] || {projeto:0, ajuste:0, total:0};
+    const bucket = e.kind==='ajuste' ? 'ajuste' : 'projeto';
+    agg[k][bucket] += e.duration_seconds||0;
+    agg[k].total   += e.duration_seconds||0;
+  });
+
+  const linhas = Object.entries(agg).sort((a,b)=>b[1].total-a[1].total);
+  const max = linhas[0][1].total || 1;
+
+  el.innerHTML = linhas.map(([pid,v])=>{
+    const nome = pid==='_sem' ? 'Sem projeto' : (projMap[pid]?.name || 'Projeto removido');
+    const larg = v.total/max*100;
+    const pProj = v.total ? v.projeto/v.total*100 : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label" title="${escapeHtml(nome)}">${escapeHtml(nome)}</div>
+        <div class="bar-track" style="max-width:${larg}%">
+          <div class="bar-seg" style="width:${pProj}%;background:${COR_PROJ}"></div>
+          <div class="bar-seg" style="width:${100-pProj}%;background:${COR_AJU}"></div>
+        </div>
+        <div class="bar-val">${fmtDuration(v.total)}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderPorDia(){
+  const el = document.getElementById('por-dia');
+  const list = filtradas();
+  if(!list.length){ el.innerHTML = '<div class="empty">—</div>'; return }
+  const agg = {};
+  list.forEach(e=>{
+    const d = (e.started_at||'').slice(0,10);
+    if(d) agg[d] = (agg[d]||0) + (e.duration_seconds||0);
+  });
+  const dias = Object.entries(agg).sort((a,b)=>a[0].localeCompare(b[0]));
+  const max = Math.max(...dias.map(d=>d[1])) || 1;
+  el.innerHTML = dias.map(([d,seg])=>`
+    <div class="bar-row">
+      <div class="bar-label">${fmtDateShort(d)}</div>
+      <div class="bar-track" style="max-width:${seg/max*100}%">
+        <div class="bar-seg" style="width:100%;background:${COR_PROJ}"></div>
+      </div>
+      <div class="bar-val">${fmtDuration(seg)}</div>
+    </div>`).join('');
+}
+
+// ──────────── AJUSTES ────────────
+function renderAjustes(){
+  const el = document.getElementById('ajustes-container');
+  const pid = document.getElementById('f-project').value;
+  const rs = revisions.filter(r=>!pid || r.project_id===pid);
+  if(!rs.length){
+    el.innerHTML = '<div class="empty">Nenhum pedido de ajuste registrado.<br>Registre os ajustes dentro do projeto, em <a href="projetos.html" style="color:var(--green2)">Projetos</a>.</div>';
+    return;
+  }
+  const segDe = rid => entries.filter(e=>e.revision_id===rid).reduce((s,e)=>s+(e.duration_seconds||0),0);
+  const dentro = rs.filter(r=>!r.is_billable).reduce((s,r)=>s+segDe(r.id),0);
+  const fora   = rs.filter(r=>r.is_billable).reduce((s,r)=>s+segDe(r.id),0);
+  const cobrado = rs.filter(r=>r.is_billable).reduce((s,r)=>s+Number(r.charged_amount||0),0);
+
+  el.innerHTML = `
+    <div class="stats-row" style="margin-bottom:16px">
+      <div class="stat"><div class="stat-label">Ajustes</div><div class="stat-val">${rs.length}</div><div class="stat-sub">registrados</div></div>
+      <div class="stat"><div class="stat-label">Dentro do escopo</div><div class="stat-val">${fmtDuration(dentro)}</div><div class="stat-sub">tempo não cobrado</div></div>
+      <div class="stat"><div class="stat-label">Fora do escopo</div><div class="stat-val" style="color:var(--red)">${fmtDuration(fora)}</div><div class="stat-sub">tempo cobrável</div></div>
+      <div class="stat"><div class="stat-label">Cobrado</div><div class="stat-val" style="color:#4ADE80">${fmtMoney(cobrado)}</div><div class="stat-sub">em ajustes extras</div></div>
+    </div>
+    ${dentro>fora && dentro>3600 ? `<div class="note-box warn" style="margin-bottom:14px">
+      <b>${fmtDuration(dentro)}</b> foram para ajustes que você tratou como dentro do escopo.
+      Se esse número cresce todo mês, ou o escopo está mal definido na proposta, ou vale começar a cobrar parte disso.</div>` : ''}
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Ajuste</th><th>Projeto</th><th>Pedido em</th><th>Escopo</th><th style="text-align:right">Tempo</th><th style="text-align:right">Cobrado</th></tr></thead>
+      <tbody>${rs.map(r=>`
+        <tr class="clickable" onclick="location.href='projetos.html?id='+${JSON.stringify(r.project_id)}">
+          <td>${r.number||'—'}</td>
+          <td><div class="td-main">${escapeHtml(r.title)}</div><div class="td-sub">${escapeHtml(r.requested_by||'')} ${escapeHtml(r.channel||'')}</div></td>
+          <td>${escapeHtml(projMap[r.project_id]?.name||'—')}</td>
+          <td>${fmtDateShort(r.requested_at)}</td>
+          <td>${r.is_billable?'<span class="badge bg-red">Fora</span>':'<span class="badge bg-gray">Dentro</span>'}</td>
+          <td style="text-align:right;color:var(--text)">${fmtDuration(segDe(r.id))}</td>
+          <td style="text-align:right">${r.charged_amount?fmtMoney(r.charged_amount):'—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+// ──────────── RENTABILIDADE ────────────
+function renderRentabilidade(){
+  const tb = document.getElementById('rent-body');
+  const mes = document.getElementById('f-mes').value;
+  // Tempo é filtrado pelo mês; receita é sempre o total do projeto
+  // (a entrada costuma cair num mês e o trabalho se espalhar por vários).
+  const comTempo = {};
+  entries.forEach(e=>{
+    if(!e.project_id) return;
+    if(mes && !(e.started_at||'').startsWith(mes)) return;
+    comTempo[e.project_id] = comTempo[e.project_id] || {total:0, ajusteFora:0};
+    comTempo[e.project_id].total += e.duration_seconds||0;
+    if(e.kind==='ajuste' && revMap[e.revision_id]?.is_billable)
+      comTempo[e.project_id].ajusteFora += e.duration_seconds||0;
+  });
+
+  const ids = Object.keys(comTempo).sort((a,b)=>comTempo[b].total-comTempo[a].total);
+  if(!ids.length){
+    tb.innerHTML = '<tr><td colspan="6" class="empty">Nenhum projeto com tempo cronometrado neste período.</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = ids.map(pid=>{
+    const p = projMap[pid];
+    const t = comTempo[pid];
+    const recebido = finance
+      .filter(f=>f.project_id===pid && f.kind==='receita' && f.status==='pago')
+      .reduce((s,f)=>s+Number(f.amount||0),0);
+    const horas = t.total/3600;
+    const real = horas>0 ? recebido/horas : 0;
+    const meta = Number(p?.hourly_rate||0);
+    const cls = !meta ? '' : (real>=meta ? 'rent-pos' : 'rent-neg');
+    return `
+      <tr class="clickable" onclick="location.href='projetos.html?id='+${JSON.stringify(pid)}">
+        <td><div class="td-main">${escapeHtml(p?.name||'Projeto removido')}</div></td>
+        <td>${recebido?fmtMoney(recebido):'<span style="color:var(--text3)">nada registrado</span>'}</td>
+        <td>${fmtDuration(t.total)}</td>
+        <td class="${cls}">${recebido?fmtMoney(real)+'/h':'—'}</td>
+        <td>${meta?fmtMoney(meta)+'/h':'—'}</td>
+        <td>${t.ajusteFora?'<span style="color:var(--red)">'+fmtDuration(t.ajusteFora)+'</span>':'—'}</td>
+      </tr>`;
+  }).join('');
+}
+
+// ──────────── REGISTROS ────────────
+function renderRegistros(){
+  const list = filtradas();
+  const revisar = entries.filter(e=>e.needs_review);
+  document.getElementById('revisar-box').innerHTML = revisar.length ? `
+    <div class="note-box warn" style="margin-bottom:14px">
+      <b>${revisar.length} registro${revisar.length>1?'s':''}</b> com mais de 12 horas seguidas —
+      provavelmente o cronômetro ficou ligado. Clique na linha para corrigir o horário final.
+    </div>` : '';
+
+  const tb = document.getElementById('reg-body');
+  if(!list.length){
+    tb.innerHTML = '<tr><td colspan="6" class="empty">Nenhum registro neste período.</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.slice(0,300).map(e=>{
+    const rev = e.revision_id && revMap[e.revision_id];
+    const nome = e.description || (e.task_id && taskTitle[e.task_id]) ||
+                 (rev ? 'Ajuste #'+(rev.number||'')+' — '+rev.title : '') ||
+                 {projeto:'Trabalho no projeto', ajuste:'Ajuste', geral:'Trabalho geral'}[e.kind];
+    return `
+      <tr class="clickable" onclick="openEntry('${e.id}')">
+        <td>${fmtDate(e.started_at)}</td>
+        <td><div class="td-main">${escapeHtml(nome)}</div>${e.needs_review?'<div class="td-sub" style="color:var(--amber)">revisar — mais de 12h</div>':''}</td>
+        <td>${escapeHtml(projMap[e.project_id]?.name || '—')}</td>
+        <td>${e.kind==='ajuste'?'<span class="badge bg-amber">Ajuste</span>':(e.kind==='geral'?'<span class="badge bg-gray">Geral</span>':'<span class="badge bg-green">Projeto</span>')}</td>
+        <td style="text-align:right;color:var(--text);font-weight:500">${e.ended_at?fmtDuration(e.duration_seconds):'rodando'}</td>
+        <td style="text-align:right">${e.source==='manual'?'<span class="td-sub">manual</span>':''}</td>
+      </tr>`;
+  }).join('');
+}
+
+// ──────────── LANÇAMENTO MANUAL / EDIÇÃO ────────────
+function paraInputLocal(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function fillRevSelect(){
+  const pid = document.getElementById('x-project').value;
+  const sel = document.getElementById('x-rev');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">— não é ajuste —</option>' +
+    revisions.filter(r=>r.project_id===pid)
+      .map(r=>`<option value="${r.id}">#${r.number||''} — ${escapeHtml(r.title)}</option>`).join('');
+  sel.value = keep;
+}
+
+function openManual(){
+  editingEntryId = null;
+  document.getElementById('modal-manual-title').textContent = 'Lançar tempo';
+  document.getElementById('btn-del-manual').style.display = 'none';
+  document.getElementById('x-desc').value = '';
+  document.getElementById('x-project').value = '';
+  fillRevSelect();
+  const agora = new Date();
+  const antes = new Date(agora.getTime()-3600000);
+  document.getElementById('x-start').value = paraInputLocal(antes);
+  document.getElementById('x-end').value   = paraInputLocal(agora);
+  openModal('modal-manual');
+}
+
+function openEntry(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  editingEntryId = id;
+  document.getElementById('modal-manual-title').textContent = 'Editar registro';
+  document.getElementById('btn-del-manual').style.display = 'inline-flex';
+  document.getElementById('x-desc').value = e.description || '';
+  document.getElementById('x-project').value = e.project_id || '';
+  fillRevSelect();
+  document.getElementById('x-rev').value = e.revision_id || '';
+  document.getElementById('x-start').value = paraInputLocal(e.started_at);
+  document.getElementById('x-end').value   = e.ended_at ? paraInputLocal(e.ended_at) : paraInputLocal(new Date());
+  openModal('modal-manual');
+}
+
+async function saveEntry(){
+  const ini = document.getElementById('x-start').value;
+  const fim = document.getElementById('x-end').value;
+  if(!ini || !fim){ showToast('Preencha início e fim', true); return }
+  if(new Date(fim) <= new Date(ini)){ showToast('O fim precisa ser depois do início', true); return }
+
+  const revId = document.getElementById('x-rev').value || null;
+  const payload = {
+    description: document.getElementById('x-desc').value.trim()||null,
+    project_id:  document.getElementById('x-project').value||null,
+    revision_id: revId,
+    kind:        revId ? 'ajuste' : (document.getElementById('x-project').value ? 'projeto' : 'geral'),
+    started_at:  new Date(ini).toISOString(),
+    ended_at:    new Date(fim).toISOString(),
+    source:      'manual',
+    needs_review: false,   // corrigido à mão: deixa de precisar de revisão
+  };
+  const btn = document.getElementById('btn-save-manual');
+  btn.disabled = true;
+  const {error} = editingEntryId
+    ? await sb.from('time_entries').update(payload).eq('id', editingEntryId)
+    : await sb.from('time_entries').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-manual');
+  showToast(editingEntryId?'Registro atualizado ✓':'Tempo lançado ✓');
+  loadAll();
+}
+
+async function deleteEntry(){
+  if(!editingEntryId) return;
+  if(!confirm('Excluir este registro de tempo?')) return;
+  const {error} = await sb.from('time_entries').delete().eq('id', editingEntryId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-manual');
+  showToast('Registro excluído');
+  loadAll();
+}
+
+// ──────────── LEMBRETES ────────────
+async function ativarLembretes(){
+  await pedirPermissaoNotificacao();
+  atualizarStatusNotif();
+}
+function atualizarStatusNotif(){
+  const el = document.getElementById('notif-status');
+  if(!el) return;
+  const s = statusNotificacao();
+  el.textContent = {
+    granted:'Notificações ativas ✓  (só com o sistema aberto)',
+    denied:'Bloqueadas neste navegador — libere no cadeado da barra de endereço',
+    default:'Ainda não ativadas',
+    indisponivel:'Este navegador não suporta notificações',
+  }[s] || '';
+  el.style.color = s==='granted' ? '#4ADE80' : (s==='denied' ? 'var(--red)' : 'var(--text2)');
+}
+</script>
+</body>
+</html>

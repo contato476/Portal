@@ -126,6 +126,91 @@ textarea.form-input{resize:vertical;min-height:80px}
 .money-pos{color:#4ADE80}
 .money-neg{color:var(--red)}
 
+/* ─────────── TAREFAS (compartilhado: tarefas, projetos, painel) ─────────── */
+.task-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;transition:all .15s}
+.task-check:hover{border-color:var(--green)}
+.task-check.done{background:var(--green);border-color:var(--green)}
+.task-late{border-left:3px solid var(--red)}
+.task-group{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.task-group:first-child{margin-top:0}
+.task-title-done{text-decoration:line-through;color:var(--text3)}
+.filters-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.filters-row .form-input{width:auto;min-width:160px;padding:7px 12px;font-size:12.5px}
+.li-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.list-item:hover .li-actions{opacity:1}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;display:flex}
+.icon-btn:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.icon-btn.danger:hover{color:var(--red)}
+@media(hover:none){.li-actions{opacity:1}}
+
+/* Subtarefas: linha recuada dentro da tarefa pai */
+.subtask-toggle{background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:2px 4px;transition:transform .15s;flex-shrink:0}
+.subtask-toggle:hover{color:var(--text)}
+.subtask-toggle.open{transform:rotate(90deg)}
+.subtask-wrap{margin:0 0 6px 30px;border-left:2px solid var(--border);padding-left:10px}
+.subtask-row{display:flex;align-items:center;gap:9px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:7px;margin-bottom:4px}
+.subtask-row .li-title{font-size:12.5px}
+.sub-count{font-size:10.5px;color:var(--text3);background:var(--dark3);border-radius:10px;padding:1px 7px;flex-shrink:0}
+
+/* Barra de progresso (projetos, marcos) */
+.prog-track{height:6px;background:var(--dark3);border-radius:3px;overflow:hidden;flex:1;min-width:60px}
+.prog-fill{height:100%;background:var(--green);border-radius:3px;transition:width .3s}
+.prog-row{display:flex;align-items:center;gap:9px}
+.prog-pct{font-size:11px;color:var(--text3);width:34px;text-align:right;flex-shrink:0}
+
+/* ─────────── KANBAN (compartilhado: crm, projetos) ─────────── */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}
+.kb-col{min-width:230px;width:230px;flex-shrink:0;background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 280px)}
+.kb-hd{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.kb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.kb-title{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+.kb-sum{margin-left:auto;font-size:10.5px;color:var(--text3)}
+.kb-body{padding:9px;overflow-y:auto;flex:1;min-height:60px}
+.kb-body.dragover{background:rgba(26,122,74,.07);border-radius:0 0 var(--radius) var(--radius)}
+/* .deal-card é o nome histórico usado pelo crm.html; .kb-card é o genérico */
+.kb-card,.deal-card{background:var(--dark3);border:1px solid var(--border);border-radius:9px;padding:11px 12px;margin-bottom:8px;cursor:grab}
+.kb-card:active,.deal-card:active{cursor:grabbing}
+.kb-card:hover,.deal-card:hover{border-color:var(--border2)}
+.kb-card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
+.kb-card-meta{font-size:11px;color:var(--text3)}
+
+/* ─────────── TIMELINE (projetos) ─────────── */
+.timeline{overflow-x:auto;padding-bottom:8px}
+.tl-inner{min-width:760px}
+.tl-head{display:flex;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:2}
+.tl-label{width:200px;flex-shrink:0;padding:8px 12px;font-size:11.5px;color:var(--text2);border-right:1px solid var(--border)}
+.tl-months{flex:1;display:flex}
+.tl-month{flex:1;padding:8px 6px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:center;border-right:1px solid rgba(255,255,255,.04)}
+.tl-row{display:flex;align-items:center;border-bottom:1px solid rgba(255,255,255,.04);min-height:38px}
+.tl-row:hover{background:rgba(255,255,255,.02)}
+.tl-row.sub .tl-label{padding-left:28px;font-size:12px;color:var(--text3)}
+.tl-track{flex:1;position:relative;height:38px}
+.tl-bar{position:absolute;top:11px;height:16px;border-radius:8px;background:var(--green);display:flex;align-items:center;padding:0 8px;font-size:10.5px;color:white;white-space:nowrap;overflow:hidden;cursor:pointer;min-width:8px}
+.tl-bar.late{background:var(--red)}
+.tl-bar.done{background:var(--border2)}
+.tl-bar.sub{background:var(--blue);height:11px;top:13px}
+.tl-today{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);opacity:.7;z-index:1;pointer-events:none}
+.tl-nodate{font-size:11px;color:var(--text3);padding-left:10px;line-height:38px}
+
+/* ─────────── CRONÔMETRO (pílula na topbar) ─────────── */
+.timer-bar{display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:14px;padding:5px 8px 5px 11px;border-radius:20px;border:1px solid var(--border);background:var(--dark3);flex-shrink:0}
+.timer-bar.on{border-color:var(--green);background:rgba(26,122,74,.12)}
+.timer-dot{width:7px;height:7px;border-radius:50%;background:var(--green2);animation:pulse 1.6s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.timer-clock{font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;color:var(--text);letter-spacing:.02em}
+.timer-label{font-size:11.5px;color:var(--text2);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timer-btn{background:none;border:none;cursor:pointer;color:var(--text2);font-size:12px;padding:3px 8px;border-radius:14px;font-family:'DM Sans',sans-serif}
+.timer-btn:hover{background:rgba(255,255,255,.07);color:var(--text)}
+.timer-btn.stop{color:var(--red);font-size:10px}
+.play-btn{background:none;border:1px solid var(--border2);cursor:pointer;color:var(--text3);border-radius:6px;font-size:10px;padding:3px 7px;line-height:1.4;flex-shrink:0}
+.play-btn:hover{color:var(--green2);border-color:var(--green)}
+.play-btn.on{color:white;background:var(--green);border-color:var(--green)}
+
+/* Aviso honesto (limites dos lembretes, gatilhos diários...) */
+.note-box{background:var(--blue-l);border:1px solid rgba(33,136,255,.3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12.5px;color:var(--text2);line-height:1.6}
+.note-box b{color:var(--text)}
+.note-box.warn{background:rgba(227,179,65,.08);border-color:rgba(227,179,65,.3)}
+
 /* ─────────── RESPONSIVO ─────────── */
 @media(max-width:768px){
   .stats-row{grid-template-columns:repeat(2,1fr)}
@@ -134,4 +219,5 @@ textarea.form-input{resize:vertical;min-height:80px}
   .sb-name,.sb-sub,.sb-user>div:not(.sb-av),.nav-item span:not(.nav-count):not(.nav-soon){display:none}
   .nav-item{justify-content:center}
   .nav-soon{display:none}
+  .timer-label{display:none}
 }

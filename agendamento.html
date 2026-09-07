@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agendamento — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.step{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.step:last-child{border-bottom:none}
+.step-n{width:24px;height:24px;border-radius:50%;background:var(--dark3);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.step-txt{font-size:13px;color:var(--text2);line-height:1.65}
+.step-txt b{color:var(--text)}
+.conn{display:flex;align-items:center;gap:9px;font-size:12.5px;margin-bottom:14px}
+.conn-dot{width:9px;height:9px;border-radius:50%;background:var(--text3)}
+.conn.on .conn-dot{background:var(--green2)}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Agendamento</div>
+      <button class="btn btn-ghost" onclick="openGcalConfig()">Conectar Google Agenda</button>
+    </div>
+    <div class="main-content">
+
+      <div class="note-box" style="margin-bottom:18px">
+        A sua agenda continua sendo a <b>Google Agenda</b> — o sistema não guarda compromissos.
+        Aqui você só faz duas coisas: <b>ler</b> a agenda (para os compromissos aparecerem no Painel)
+        e disponibilizar uma <b>página de agendamento</b> para as pessoas marcarem reunião com você.
+      </div>
+
+      <div class="painel-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+        <!-- LEITURA -->
+        <div class="card" style="padding:18px">
+          <div class="card-title" style="margin-bottom:14px">1. Ler a sua Google Agenda</div>
+          <div class="conn" id="conn-gcal"><span class="conn-dot"></span><span id="conn-gcal-txt">Verificando...</span></div>
+          <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px">
+            Com o endereço secreto iCal conectado, os seus compromissos dos próximos 7 dias
+            aparecem no card <b>Compromissos</b> do Painel. É somente leitura — criar e editar
+            continua sendo no próprio Google.
+          </p>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="openGcalConfig()">Configurar</button>
+            <button class="btn btn-ghost btn-sm" onclick="testarGcal()">Testar conexão</button>
+          </div>
+          <div id="gcal-preview" style="margin-top:16px"></div>
+        </div>
+
+        <!-- AGENDAMENTO -->
+        <div class="card" style="padding:18px">
+          <div class="card-title" style="margin-bottom:14px">2. Página para marcarem reunião</div>
+          <div class="conn" id="conn-cal"><span class="conn-dot"></span><span id="conn-cal-txt">Verificando...</span></div>
+          <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px">
+            O agendamento em si roda no <b>Cal.com</b> (plano gratuito). Ele conversa direto com a sua
+            Google Agenda: mostra só os horários livres, cria o evento e manda a confirmação por e-mail
+            automaticamente. Depois de conectado, a reunião marcada cai na sua agenda e aparece no Painel.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Link da sua página no Cal.com</label>
+            <input class="form-input" id="cal-url" placeholder="https://cal.com/seu-usuario/reuniao-30min">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="salvarCal()">Salvar</button>
+            <button class="btn btn-ghost btn-sm" id="btn-abrir-cal" onclick="abrirCal()" style="display:none">Abrir página</button>
+            <button class="btn btn-ghost btn-sm" id="btn-copiar-cal" onclick="copiarCal()" style="display:none">Copiar link</button>
+          </div>
+
+          <div class="form-section">Como configurar no Cal.com</div>
+          <div class="step"><div class="step-n">1</div><div class="step-txt">Crie a conta em <b>cal.com</b> (gratuito para uso individual).</div></div>
+          <div class="step"><div class="step-n">2</div><div class="step-txt">Em <b>Settings → Calendars</b>, conecte a sua conta Google. É isso que evita marcarem em cima de outro compromisso.</div></div>
+          <div class="step"><div class="step-n">3</div><div class="step-txt">Em <b>Availability</b>, defina os dias e horários em que você aceita reunião.</div></div>
+          <div class="step"><div class="step-n">4</div><div class="step-txt">Em <b>Event Types</b>, crie o tipo de reunião (ex.: "Conversa inicial — 30 min") e copie o link.</div></div>
+          <div class="step"><div class="step-n">5</div><div class="step-txt">Cole o link no campo acima e salve.</div></div>
+        </div>
+      </div>
+
+      <!-- PRÉVIA DA PÁGINA DE AGENDAMENTO -->
+      <div class="card" id="embed-card" style="margin-top:16px;display:none">
+        <div class="card-hd">
+          <div class="card-title">Prévia — é isso que as pessoas veem</div>
+          <a class="btn btn-ghost btn-sm" id="embed-open" href="#" target="_blank" rel="noopener">Abrir em nova aba</a>
+        </div>
+        <iframe id="cal-frame" src="" style="width:100%;height:640px;border:none;background:white"
+                title="Página de agendamento" loading="lazy"></iframe>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════ MODAL: GOOGLE AGENDA ════════ -->
+<div class="overlay" id="modal-gcal">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">Conectar Google Agenda</div>
+    <div style="font-size:12.5px;color:var(--text2);line-height:1.7;margin-bottom:14px">
+      Para ver seus compromissos do Google aqui no sistema:<br>
+      1. Abra o <b>Google Agenda</b> no computador<br>
+      2. Em "Minhas agendas", passe o mouse na sua agenda → <b>⋮ → Configurações e compartilhamento</b><br>
+      3. Role até <b>"Endereço secreto no formato iCal"</b> e copie o link<br>
+      4. Cole abaixo e salve
+    </div>
+    <div class="form-group">
+      <label class="form-label">Endereço secreto iCal</label>
+      <input class="form-input" id="g-url" placeholder="https://calendar.google.com/calendar/ical/...basic.ics">
+    </div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.6">⚠️ Esse link é secreto: quem tiver ele consegue ver sua agenda. Ele fica guardado no seu banco Supabase, visível só pra você. Os eventos do Google aparecem como leitura (alterações são feitas no próprio Google).</div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-gcal" style="margin-right:auto;display:none" onclick="removeGcal()">Desconectar</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-gcal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGcal()">Salvar e conectar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script src="assets/gcal.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   AGENDAMENTO — duas coisas independentes:
+   · gcal_ics_url  → LER a Google Agenda (compromissos no Painel)
+   · cal_embed_url → página do Cal.com para OUTRAS pessoas marcarem
+   Nenhuma das duas guarda compromisso no banco: a agenda é do Google.
+   ════════════════════════════════════════════════════════════════════ */
+
+let gcalUrl = null, calUrl = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('agendamento');
+  requireAdmin(loadAll);
+});
+
+async function loadAll(){
+  gcalUrl = await getSetting('gcal_ics_url');
+  calUrl  = await getSetting('cal_embed_url');
+  pintarStatus();
+  if(gcalUrl) testarGcal();
+}
+
+function pintarStatus(){
+  const g = document.getElementById('conn-gcal');
+  g.classList.toggle('on', !!gcalUrl);
+  document.getElementById('conn-gcal-txt').textContent = gcalUrl
+    ? 'Google Agenda conectada' : 'Não conectada — os compromissos não aparecem no Painel';
+
+  const c = document.getElementById('conn-cal');
+  c.classList.toggle('on', !!calUrl);
+  document.getElementById('conn-cal-txt').textContent = calUrl
+    ? 'Página de agendamento ativa' : 'Nenhuma página configurada';
+
+  document.getElementById('cal-url').value = calUrl || '';
+  document.getElementById('btn-abrir-cal').style.display  = calUrl ? 'inline-flex' : 'none';
+  document.getElementById('btn-copiar-cal').style.display = calUrl ? 'inline-flex' : 'none';
+
+  const card = document.getElementById('embed-card');
+  if(calUrl){
+    card.style.display = 'block';
+    document.getElementById('cal-frame').src = calUrl;
+    document.getElementById('embed-open').href = calUrl;
+  }else{
+    card.style.display = 'none';
+    document.getElementById('cal-frame').src = '';
+  }
+}
+
+// ──────────── GOOGLE AGENDA (leitura) ────────────
+function openGcalConfig(){
+  document.getElementById('g-url').value = gcalUrl || '';
+  document.getElementById('btn-del-gcal').style.display = gcalUrl ? 'inline-flex' : 'none';
+  openModal('modal-gcal');
+}
+
+async function saveGcal(){
+  const url = document.getElementById('g-url').value.trim();
+  if(!url || !url.includes('calendar.google.com')){ showToast('Cole o endereço secreto iCal do Google', true); return }
+  const {error} = await setSetting('gcal_ics_url', url);
+  if(error){ showToast(isMissingTable(error)?'Rode o sql/02_app_settings.sql no Supabase primeiro':'Erro: '+error.message, true); return }
+  gcalUrl = url;
+  closeModal('modal-gcal');
+  showToast('Google Agenda conectada ✓');
+  pintarStatus();
+  testarGcal();
+}
+
+async function removeGcal(){
+  if(!confirm('Desconectar a Google Agenda? Os compromissos deixam de aparecer no Painel.')) return;
+  await sb.from('app_settings').delete().eq('key','gcal_ics_url');
+  gcalUrl = null;
+  closeModal('modal-gcal');
+  document.getElementById('gcal-preview').innerHTML = '';
+  showToast('Google Agenda desconectada');
+  pintarStatus();
+}
+
+async function testarGcal(){
+  const el = document.getElementById('gcal-preview');
+  if(!gcalUrl){ el.innerHTML = '<div class="empty" style="padding:16px">Conecte a agenda para testar.</div>'; return }
+  el.innerHTML = '<div class="loading" style="padding:16px">Buscando no Google...</div>';
+  const occ = await loadGcalOccurrences(0, 14);
+  if(!occ.length){
+    el.innerHTML = `<div class="note-box warn">Nenhum compromisso encontrado nos próximos 14 dias.
+      Se você tem eventos marcados, confira se o link é o <b>endereço secreto iCal</b> da agenda certa.
+      (Rodando localmente, a busca só funciona no site publicado — ela passa pela função <code>/api/gcal</code>.)</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card-title" style="margin-bottom:8px">Próximos ${Math.min(occ.length,5)} compromissos</div>` +
+    occ.slice(0,5).map(e=>`
+      <div class="list-item">
+        <div style="font-size:15px">🗓️</div>
+        <div class="li-info">
+          <div class="li-title">${escapeHtml(e.title)}</div>
+          <div class="li-sub">${e.allDay?fmtDateShort(e.date)+' · dia todo':fmtDate(e.at)}</div>
+        </div>
+      </div>`).join('');
+}
+
+// ──────────── CAL.COM (página de agendamento) ────────────
+async function salvarCal(){
+  const url = document.getElementById('cal-url').value.trim();
+  if(!url){
+    if(!confirm('Remover a página de agendamento?')) return;
+    await sb.from('app_settings').delete().eq('key','cal_embed_url');
+    calUrl = null; showToast('Página removida'); pintarStatus(); return;
+  }
+  if(!/^https:\/\//i.test(url)){ showToast('O link precisa começar com https://', true); return }
+  const {error} = await setSetting('cal_embed_url', url);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  calUrl = url;
+  showToast('Página de agendamento salva ✓');
+  pintarStatus();
+}
+
+function abrirCal(){ if(calUrl) window.open(calUrl, '_blank', 'noopener') }
+
+async function copiarCal(){
+  if(!calUrl) return;
+  try{ await navigator.clipboard.writeText(calUrl); showToast('Link copiado ✓') }
+  catch(e){ showToast('Copie manualmente: '+calUrl, true) }
+}
+</script>
+</body>
+</html>

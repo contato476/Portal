@@ -1,0 +1,16 @@
+# Arquivos de sistema operacional
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+
+# Dependências (caso um dia use Node)
+node_modules/
+
+# Variáveis de ambiente com segredos (nunca subir)
+.env
+.env.local
+*.key

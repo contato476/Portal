@@ -6,6 +6,7 @@
 <title>Admin — Jenneffer Prazeres</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/helpers.js"></script>
 <style>
 :root{
   --green:#1A7A4A;--green2:#22A060;--green-l:#E6F5EE;
@@ -563,7 +564,6 @@ let allClients = [];
 let editingProjectId = null;
 
 // ──────────── HELPERS ────────────
-function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
 // Texto do período de suporte, com indicação de ativo/encerrado pela data de fim.
 function supportLabel(start,end){
@@ -579,10 +579,6 @@ function supportLabel(start,end){
   return txt;
 }
 function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-blue',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
-function fmtDate(d){return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
-function fmtDateShort(d){return new Date(d+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
-function fmtSize(b){return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
-function showToast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isErr?' err':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
 
 // ──────────── AUTH ────────────
 async function doLogin(){
@@ -717,7 +713,6 @@ function safeUrl(u){
   try{const p=new URL(u.trim());return(p.protocol==='http:'||p.protocol==='https:')?p.href:null}
   catch(e){return null}
 }
-function setBadge(id,n){const el=document.getElementById(id);el.textContent=n;el.style.display=n>0?'inline':'none'}
 
 // ──────────── CLIENTES ────────────
 async function loadClients(){
@@ -1460,19 +1455,6 @@ async function deleteManual(id,path){
 }
 
 // Sanitiza nome de arquivo pra path do Supabase Storage
-function sanitizeFileName(name){
-  const lastDot=name.lastIndexOf('.');
-  const ext=lastDot>0?name.substring(lastDot):'';
-  let base=lastDot>0?name.substring(0,lastDot):name;
-  base=base
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-zA-Z0-9_-]+/g,'_')
-    .replace(/_+/g,'_')
-    .replace(/^_|_$/g,'')
-    .substring(0,80);
-  if(!base)base='arquivo';
-  return base+ext.toLowerCase().replace(/[^a-z0-9.]/g,'');
-}
 
 async function adminUploadDoc(ev){
   const file=ev.target.files[0];
@@ -1668,7 +1650,6 @@ async function deleteProject(){
 // ──────────── MODAIS ────────────
 function openAddCheckItem(){if(!currentProjectId){showToast('Selecione um cliente',true);return}document.getElementById('modal-check').classList.add('open')}
 function openAddFase(){if(!currentProjectId){showToast('Selecione um cliente',true);return}document.getElementById('modal-fase').classList.add('open')}
-function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id)}));
 </script>
 </body>

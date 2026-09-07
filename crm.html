@@ -8,17 +8,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="assets/shared.css">
 <style>
-.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}
-.kb-col{min-width:230px;width:230px;flex-shrink:0;background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 280px)}
-.kb-hd{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
-.kb-dot{width:8px;height:8px;border-radius:50%}
-.kb-title{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
-.kb-sum{margin-left:auto;font-size:10.5px;color:var(--text3)}
-.kb-body{padding:9px;overflow-y:auto;flex:1;min-height:60px}
-.kb-body.dragover{background:rgba(26,122,74,.07);border-radius:0 0 var(--radius) var(--radius)}
-.deal-card{background:var(--dark3);border:1px solid var(--border);border-radius:9px;padding:11px 12px;margin-bottom:8px;cursor:grab}
-.deal-card:active{cursor:grabbing}
-.deal-card:hover{border-color:var(--border2)}
 .deal-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
 .deal-meta{font-size:11px;color:var(--text3)}
 .deal-value{font-size:12.5px;font-weight:600;color:#4ADE80;margin-top:5px}
@@ -201,7 +190,9 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
 <script>
 const STAGES = [
   {id:'novo',       label:'Novo',         color:'#8B949E'},

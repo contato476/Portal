@@ -10,10 +10,6 @@
 <style>
 .painel-grid{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
 .painel-col{display:flex;flex-direction:column;gap:16px}
-.task-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;transition:all .15s}
-.task-check:hover{border-color:var(--green)}
-.task-check.done{background:var(--green);border-color:var(--green)}
-.task-late{border-left:3px solid var(--red)}
 .funil-row{display:flex;align-items:center;gap:10px;padding:7px 17px;font-size:12.5px}
 .funil-bar{height:8px;border-radius:4px;background:var(--green);min-width:4px;transition:width .3s}
 .funil-label{width:90px;color:var(--text2);flex-shrink:0}
@@ -69,8 +65,18 @@
             <div id="fin-list" style="padding:12px"><div class="loading">Carregando...</div></div>
           </div>
           <div class="card">
-            <div class="card-hd"><div class="card-title">Projetos em andamento</div></div>
+            <div class="card-hd">
+              <div class="card-title">Projetos em andamento</div>
+              <a class="btn btn-ghost btn-sm" href="projetos.html">Ver todos</a>
+            </div>
             <div id="proj-list"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title">Ajustes em aberto</div>
+              <a class="btn btn-ghost btn-sm" href="tempo.html">Relatório</a>
+            </div>
+            <div id="ajustes-list" style="padding:12px"><div class="loading">Carregando...</div></div>
           </div>
           <div class="card">
             <div class="card-hd"><div class="card-title">Suporte dos projetos</div></div>
@@ -79,7 +85,17 @@
         </div>
         <div class="painel-col">
           <div class="card">
-            <div class="card-hd"><div class="card-title">Próximos eventos (7 dias)</div></div>
+            <div class="card-hd">
+              <div class="card-title">Tempo hoje</div>
+              <span class="card-title" id="tempo-total" style="color:var(--text)">—</span>
+            </div>
+            <div id="tempo-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title">Compromissos (Google Agenda)</div>
+              <a class="btn btn-ghost btn-sm" href="agendamento.html">Configurar</a>
+            </div>
             <div id="agenda-list" style="padding:12px"><div class="loading">Carregando...</div></div>
           </div>
           <div class="card">
@@ -129,10 +145,12 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script src="assets/gcal.js"></script>
 <script>
 const STAGE_LABELS = {novo:'Novo', contato:'Contato', proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido'};
-const EVENT_ICONS = {compromisso:'📌', reuniao:'🗓️', entrega:'📦', pessoal:'🏠'};
 // Rótulos dos motivos de perda (mesma lista do CRM).
 const LOST_LABEL = {preco:'Preço/orçamento', prazo:'Prazo', concorrente:'Escolheu concorrente', sem_retorno:'Sumiu/sem retorno', fora_perfil:'Fora do perfil', adiou:'Adiou decisão', outro:'Outro', sem_motivo:'Sem motivo'};
 let projMap = {};
@@ -144,18 +162,31 @@ async function loadPainel(){
   const in7 = new Date(Date.now()+7*86400000).toISOString();
   const monthStart = today.slice(0,8)+'01';
 
-  const [tasksRes, finRes, dealsRes, agendaRes, projRes, contractsRes, supportRes, lostRes] = await Promise.all([
-    sb.from('tasks').select('*').in('status',['pendente','em_andamento']).order('due_date',{ascending:true,nullsFirst:false}),
-    sb.from('fin_transactions').select('*').neq('status','cancelado'),
+  // Janela de 1 ano no financeiro: o card só olha os próximos 7 dias e o
+  // saldo do mês, mas sem filtro nenhum a query cresceria para sempre.
+  const umAnoAtras = new Date(Date.now()-365*86400000).toISOString().slice(0,10);
+
+  const [tasksRes, finRes, dealsRes, projRes, contractsRes, supportRes, lostRes, timeRes, revRes, namesRes] = await Promise.all([
+    // .is('parent_task_id', null): subtarefas aparecem dentro da tarefa pai,
+    // não como tarefas soltas — senão o painel contaria o mesmo trabalho 2x.
+    sb.from('tasks').select('*').is('parent_task_id', null).in('status',['pendente','em_andamento']).order('due_date',{ascending:true,nullsFirst:false}).limit(200),
+    sb.from('fin_transactions').select('*').neq('status','cancelado').gte('due_date', umAnoAtras).limit(500),
     sb.from('crm_deals').select('*').not('stage','in','("fechado","perdido")'),
-    sb.from('agenda_events').select('*').gte('start_at', new Date(Date.now()-3600000).toISOString()).lte('start_at', in7).order('start_at'),
     sb.from('projects').select('*').eq('status','em_andamento').order('end_date',{ascending:true,nullsFirst:false}),
     sb.from('contracts').select('*').in('status',['rascunho','enviado']).order('created_at',{ascending:false}),
     // Todos os projetos que têm suporte definido (qualquer status), para o card de Suporte.
     sb.from('projects').select('id,name,support_start,support_end').or('support_start.not.is.null,support_end.not.is.null'),
     // Negócios perdidos, para o indicador de Motivos de perda.
     sb.from('crm_deals').select('lost_reason').eq('stage','perdido'),
+    // Tempo cronometrado hoje (tabela do sql/09 — pode ainda não existir).
+    sb.from('time_entries').select('project_id,kind,duration_seconds,started_at,ended_at').gte('started_at', today+'T00:00:00'),
+    // Pedidos de ajuste em aberto (tabela do sql/09).
+    sb.from('revision_requests').select('*').in('status',['aberto','em_andamento']).order('requested_at',{ascending:false}),
+    // Nomes de TODOS os projetos: os cards de tempo e de ajustes precisam
+    // nomear projetos que não estão "em andamento".
+    sb.from('projects').select('id,name'),
   ]);
+  (namesRes.data||[]).forEach(p=>{ projMap[p.id] = projMap[p.id] || p });
 
   // Se as tabelas novas ainda não existem, orienta rodar o SQL
   if(isMissingTable(tasksRes.error)){
@@ -171,12 +202,18 @@ async function loadPainel(){
   renderTasks(tasksRes.data||[], today);
   renderFinance(finRes.data||[], today, monthStart);
   renderFunil(dealsRes.data||[]);
-  renderAgenda(agendaRes.data||[]);
   renderContracts(contractsRes.data||[]);
   loadProjects(projRes);
   renderSupport(supportRes);
   renderLostReasons(lostRes);
+  renderTempoHoje(timeRes);
+  renderAjustes(revRes);
   fillProjectSelect();
+
+  // Google Agenda fica FORA do Promise.all de propósito: é um fetch
+  // externo, mais lento e que pode falhar. Se entrasse junto, uma queda
+  // do Google deixaria o painel inteiro carregando para sempre.
+  loadGcalOccurrences(0, 7).then(renderCompromissos);
 }
 
 function renderTasks(tasks, today){
@@ -247,16 +284,79 @@ function renderFunil(deals){
     </div>`).join('');
 }
 
-function renderAgenda(events){
+// Compromissos vindos da Google Agenda (leitura do iCal, via /api/gcal).
+// As reuniões que as pessoas marcam pelo Cal.com caem lá e aparecem aqui.
+function renderCompromissos(occ){
   const el = document.getElementById('agenda-list');
-  if(!events.length){el.innerHTML='<div class="empty">Sem eventos nos próximos 7 dias</div>';return}
-  el.innerHTML = events.slice(0,8).map(e=>`
+  if(!occ || !occ.length){
+    el.innerHTML = `<div class="empty">Nenhum compromisso nos próximos 7 dias.<br>
+      <a href="agendamento.html" style="color:var(--green2)">Conectar a Google Agenda</a></div>`;
+    return;
+  }
+  el.innerHTML = occ.slice(0,8).map(e=>`
     <div class="list-item">
-      <div style="font-size:16px">${EVENT_ICONS[e.type]||'📌'}</div>
+      <div style="font-size:16px">🗓️</div>
       <div class="li-info">
         <div class="li-title">${escapeHtml(e.title)}</div>
-        <div class="li-sub">${e.all_day?fmtDateShort(e.start_at.slice(0,10))+' · dia todo':fmtDate(e.start_at)}${e.location?' · '+escapeHtml(e.location):''}</div>
+        <div class="li-sub">${e.allDay?fmtDateShort(e.date)+' · dia todo':fmtDate(e.at)}${e.location?' · '+escapeHtml(e.location):''}</div>
       </div>
+    </div>`).join('');
+}
+
+// Tempo cronometrado hoje, por projeto, com atalho para retomar.
+function renderTempoHoje(res){
+  const el = document.getElementById('tempo-list');
+  if(!el) return;
+  if(res.error){
+    el.innerHTML = isMissingTable(res.error)
+      ? '<div class="empty">Rode o <b>sql/09_projetos_tempo.sql</b> para ativar o controle de tempo.</div>'
+      : '<div class="empty">—</div>';
+    return;
+  }
+  const rows = res.data||[];
+  const total = rows.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  document.getElementById('tempo-total').textContent = fmtDuration(total);
+
+  const agg = {};
+  rows.forEach(r=>{ const k = r.project_id||'_sem'; agg[k] = (agg[k]||0) + (r.duration_seconds||0) });
+  const lista = Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,4);
+
+  if(!lista.length){
+    el.innerHTML = `<div class="empty">Nada cronometrado hoje.<br>
+      <span style="color:var(--text2)">Use o ⏱ no topo ou o ▶ em cada projeto.</span></div>`;
+    return;
+  }
+  el.innerHTML = lista.map(([pid,seg])=>{
+    const nome = pid==='_sem' ? 'Sem projeto' : (projMap[pid]?.name || 'Projeto');
+    return `<div class="list-item">
+      ${pid==='_sem'?'':`<button class="play-btn" title="Retomar" onclick="toggleTimer({project_id:'${pid}',kind:'projeto',label:${JSON.stringify(nome)}})">▶</button>`}
+      <div class="li-info"><div class="li-title">${escapeHtml(nome)}</div></div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--text)">${fmtDuration(seg)}</div>
+    </div>`;
+  }).join('');
+}
+
+// Pedidos de ajuste em aberto — o que está esperando você.
+function renderAjustes(res){
+  const el = document.getElementById('ajustes-list');
+  if(!el) return;
+  if(res.error){
+    el.innerHTML = isMissingTable(res.error)
+      ? '<div class="empty">Rode o <b>sql/09_projetos_tempo.sql</b> para registrar pedidos de ajuste.</div>'
+      : '<div class="empty">—</div>';
+    return;
+  }
+  const rows = res.data||[];
+  if(!rows.length){ el.innerHTML = '<div class="empty">Nenhum ajuste em aberto 🎉</div>'; return }
+  el.innerHTML = rows.slice(0,6).map(r=>`
+    <div class="list-item" style="cursor:pointer" onclick="location.href='projetos.html?id='+${JSON.stringify(r.project_id)}">
+      <div class="li-dot" style="background:${r.is_billable?'var(--red)':'var(--amber)'}"></div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(r.title)}</div>
+        <div class="li-sub">${escapeHtml(projMap[r.project_id]?.name||'')} · pedido ${fmtDateShort(r.requested_at)}${r.is_billable?' · <b style="color:var(--red)">fora do escopo</b>':''}</div>
+      </div>
+      <button class="play-btn" title="Cronometrar este ajuste"
+        onclick="event.stopPropagation();toggleTimer({revision_id:'${r.id}',project_id:'${r.project_id}',kind:'ajuste',label:${JSON.stringify(r.title)}})">▶</button>
     </div>`).join('');
 }
 
@@ -279,7 +379,7 @@ function loadProjects(projRes){
   if(!projects.length){el.innerHTML='<div class="empty">Nenhum projeto em andamento</div>';return}
   el.innerHTML = `<table><thead><tr><th>Projeto</th><th>Entrega</th><th>Status</th></tr></thead><tbody>${projects.map(p=>{
     const lateProj = p.end_date && p.end_date < todayISO();
-    return `<tr class="clickable" onclick="location.href='admin.html'">
+    return `<tr class="clickable" onclick="location.href='projetos.html?id=${p.id}'">
       <td><div class="td-main">${escapeHtml(p.name)}</div></td>
       <td style="font-size:12px;color:${lateProj?'var(--red)':'var(--text3)'}">${p.end_date?fmtDateShort(p.end_date):'—'}${lateProj?' ⚠️':''}</td>
       <td><span class="badge bg-green">Em andamento</span></td>

@@ -7,23 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="assets/shared.css">
-<style>
-.task-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;transition:all .15s}
-.task-check:hover{border-color:var(--green)}
-.task-check.done{background:var(--green);border-color:var(--green)}
-.task-late{border-left:3px solid var(--red)}
-.task-group{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
-.task-group:first-child{margin-top:0}
-.filters-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-.filters-row .form-input{width:auto;min-width:160px;padding:7px 12px;font-size:12.5px}
-.task-title-done{text-decoration:line-through;color:var(--text3)}
-.li-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
-.list-item:hover .li-actions{opacity:1}
-.icon-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;display:flex}
-.icon-btn:hover{color:var(--text);background:rgba(255,255,255,.06)}
-.icon-btn.danger:hover{color:var(--red)}
-@media(hover:none){.li-actions{opacity:1}}
-</style>
 </head>
 <body>
 
@@ -97,7 +80,11 @@
     <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="t-title" placeholder="O que precisa ser feito?"></div>
     <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="t-desc" placeholder="Detalhes (opcional)"></textarea></div>
     <div class="form-row">
+      <div class="form-group"><label class="form-label">Início</label><input class="form-input" id="t-start" type="date"></div>
       <div class="form-group"><label class="form-label">Prazo</label><input class="form-input" id="t-due" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Estimativa (minutos)</label><input class="form-input" id="t-estimate" type="number" min="0" step="15" placeholder="120"></div>
       <div class="form-group"><label class="form-label">Prioridade</label>
         <select class="form-input form-select" id="t-priority">
           <option value="baixa">Baixa</option>
@@ -119,6 +106,7 @@
         </select>
       </div>
     </div>
+    <div id="t-sub-note" class="note-box" style="display:none;margin-bottom:14px">Esta é uma <b>subtarefa</b>. Ela acompanha o projeto da tarefa principal.</div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-task" style="margin-right:auto;display:none" onclick="deleteTask()">Excluir</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancelar</button>
@@ -129,12 +117,18 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
 <script>
-let allTasks = [];
+let allTasks = [];       // só as tarefas PRINCIPAIS (parent_task_id nulo)
+let subMap = {};         // {idDaTarefaPai: [subtarefas]}
+let taskById = {};       // índice de todas (pais + subtarefas)
+let expandedTasks = new Set();
 let projMap = {};
 let currentTab = 'hoje';
 let editingTaskId = null;
+let newTaskParentId = null;  // preenchido ao criar uma SUBTAREFA
 
 const PRIORITY_BADGE = {
   alta:'<span class="badge bg-red">Alta</span>',
@@ -145,8 +139,12 @@ const PRIORITY_BADGE = {
 window.addEventListener('DOMContentLoaded', () => { renderSidebar('tarefas'); requireAdmin(loadAll); });
 
 async function loadAll(){
-  const [tasksRes, projRes] = await Promise.all([
-    sb.from('tasks').select('*').order('due_date',{ascending:true,nullsFirst:false}).order('priority'),
+  // allTasks guarda só as tarefas PRINCIPAIS. As subtarefas vêm à parte
+  // e aparecem expandidas dentro da linha da tarefa pai — se entrassem
+  // na mesma lista, contariam duas vezes nas estatísticas e nos grupos.
+  const [tasksRes, subsRes, projRes] = await Promise.all([
+    sb.from('tasks').select('*').is('parent_task_id', null).order('due_date',{ascending:true,nullsFirst:false}).order('priority'),
+    sb.from('tasks').select('*').not('parent_task_id','is',null).order('order_num').order('due_date',{ascending:true,nullsFirst:false}),
     sb.from('projects').select('id,name').order('name'),
   ]);
   if(tasksRes.error){
@@ -154,6 +152,12 @@ async function loadAll(){
     return;
   }
   allTasks = tasksRes.data||[];
+  subMap = {}; taskById = {};
+  allTasks.forEach(t=>taskById[t.id]=t);
+  (subsRes.data||[]).forEach(s=>{
+    (subMap[s.parent_task_id] = subMap[s.parent_task_id] || []).push(s);
+    taskById[s.id] = s;
+  });
   projMap = {};
   (projRes.data||[]).forEach(p=>projMap[p.id]=p);
   fillProjectSelects();
@@ -278,43 +282,99 @@ function taskRow(t, today){
   if(proj) subParts.push(escapeHtml(proj.name));
   if(t.status==='em_andamento' && !done) subParts.push('<span style="color:#60A5FA">em andamento</span>');
   if(done && t.completed_at) subParts.push('Concluída '+fmtDateShort(t.completed_at.slice(0,10)));
+
+  const subs = subMap[t.id] || [];
+  const feitas = subs.filter(s=>s.status==='concluida').length;
+  const aberto = expandedTasks.has(t.id);
+
   return `<div class="list-item${late?' task-late':''}">
     <div class="task-check${done?' done':''}" onclick="toggleDone('${t.id}', ${done})" title="${done?'Reabrir':'Concluir'}">${done?'✓':''}</div>
+    ${subs.length ? `<button class="subtask-toggle${aberto?' open':''}" onclick="toggleSubs('${t.id}')" title="Ver subtarefas">▶</button>` : ''}
     <div class="li-info" style="cursor:pointer" onclick="openEditTask('${t.id}')">
       <div class="li-title${done?' task-title-done':''}">${escapeHtml(t.title)}</div>
       <div class="li-sub">${subParts.join(' · ')||'Sem prazo'}</div>
     </div>
+    ${subs.length?`<span class="sub-count">${feitas}/${subs.length}</span>`:''}
     ${done?'':PRIORITY_BADGE[t.priority]||''}
     <div class="li-actions">
+      <button class="play-btn" title="Cronometrar esta tarefa"
+        onclick="event.stopPropagation();toggleTimer({task_id:'${t.id}',project_id:${JSON.stringify(t.project_id||null)},kind:${JSON.stringify(t.project_id?'projeto':'geral')},label:${JSON.stringify(t.title)}})">▶</button>
+      <button class="icon-btn" onclick="event.stopPropagation();openNewSubtask('${t.id}')" title="Adicionar subtarefa">＋</button>
       <button class="icon-btn" onclick="openEditTask('${t.id}')" title="Editar"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="1.8"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="1.8"/></svg></button>
     </div>
+  </div>
+  ${subs.length && aberto ? `<div class="subtask-wrap">${subs.map(s=>subRow(s, today)).join('')}</div>` : ''}`;
+}
+
+// Linha da subtarefa: mesma lógica da tarefa, sem grupos nem filtros.
+function subRow(s, today){
+  const done = s.status==='concluida';
+  const late = !done && s.due_date && s.due_date<today;
+  const partes = [];
+  if(s.due_date) partes.push(late?`<span style="color:var(--red)">Venceu ${fmtDateShort(s.due_date)}</span>`:'Prazo '+fmtDateShort(s.due_date));
+  if(s.estimate_minutes) partes.push('previsto '+fmtDuration(s.estimate_minutes*60));
+  if(s.status==='em_andamento' && !done) partes.push('<span style="color:#60A5FA">em andamento</span>');
+  return `<div class="subtask-row${late?' task-late':''}">
+    <div class="task-check${done?' done':''}" onclick="toggleDone('${s.id}', ${done})" title="${done?'Reabrir':'Concluir'}">${done?'✓':''}</div>
+    <div class="li-info" style="cursor:pointer" onclick="openEditTask('${s.id}')">
+      <div class="li-title${done?' task-title-done':''}">${escapeHtml(s.title)}</div>
+      <div class="li-sub">${partes.join(' · ')||'&nbsp;'}</div>
+    </div>
+    <button class="play-btn" title="Cronometrar"
+      onclick="event.stopPropagation();toggleTimer({task_id:'${s.id}',project_id:${JSON.stringify(s.project_id||null)},kind:${JSON.stringify(s.project_id?'projeto':'geral')},label:${JSON.stringify(s.title)}})">▶</button>
   </div>`;
+}
+
+function toggleSubs(id){
+  expandedTasks.has(id) ? expandedTasks.delete(id) : expandedTasks.add(id);
+  renderList();
 }
 
 function openNewTask(){
   editingTaskId = null;
+  newTaskParentId = null;
   document.getElementById('modal-task-title').textContent = 'Nova tarefa';
   document.getElementById('btn-del-task').style.display = 'none';
+  document.getElementById('t-sub-note').style.display = 'none';
   document.getElementById('t-title').value = '';
   document.getElementById('t-desc').value = '';
+  document.getElementById('t-start').value = '';
   document.getElementById('t-due').value = '';
+  document.getElementById('t-estimate').value = '';
   document.getElementById('t-priority').value = 'media';
   document.getElementById('t-project').value = '';
+  document.getElementById('t-project').disabled = false;
   document.getElementById('t-status').value = 'pendente';
   openModal('modal-task');
 }
 
+// Subtarefa: herda o projeto da tarefa pai, para as duas nunca divergirem.
+function openNewSubtask(parentId){
+  openNewTask();
+  newTaskParentId = parentId;
+  const pai = taskById[parentId];
+  document.getElementById('modal-task-title').textContent = 'Nova subtarefa';
+  document.getElementById('t-sub-note').style.display = 'block';
+  document.getElementById('t-project').value = pai?.project_id || '';
+  document.getElementById('t-project').disabled = true;
+}
+
 function openEditTask(id){
-  const t = allTasks.find(x=>x.id===id);
+  const t = taskById[id];
   if(!t) return;
   editingTaskId = id;
-  document.getElementById('modal-task-title').textContent = 'Editar tarefa';
+  newTaskParentId = t.parent_task_id || null;
+  document.getElementById('modal-task-title').textContent = t.parent_task_id ? 'Editar subtarefa' : 'Editar tarefa';
   document.getElementById('btn-del-task').style.display = 'inline-flex';
+  document.getElementById('t-sub-note').style.display = t.parent_task_id ? 'block' : 'none';
   document.getElementById('t-title').value = t.title;
   document.getElementById('t-desc').value = t.description||'';
+  document.getElementById('t-start').value = t.start_date||'';
   document.getElementById('t-due').value = t.due_date||'';
+  document.getElementById('t-estimate').value = t.estimate_minutes??'';
   document.getElementById('t-priority').value = t.priority;
   document.getElementById('t-project').value = t.project_id||'';
+  document.getElementById('t-project').disabled = !!t.parent_task_id;
   document.getElementById('t-status').value = t.status;
   openModal('modal-task');
 }
@@ -326,9 +386,15 @@ async function saveTask(){
   const payload = {
     title,
     description: document.getElementById('t-desc').value.trim()||null,
+    start_date: document.getElementById('t-start').value||null,
     due_date: document.getElementById('t-due').value||null,
+    estimate_minutes: document.getElementById('t-estimate').value||null,
     priority: document.getElementById('t-priority').value,
-    project_id: document.getElementById('t-project').value||null,
+    // Subtarefa segue o projeto da tarefa pai (o select fica desabilitado)
+    project_id: newTaskParentId
+      ? (taskById[newTaskParentId]?.project_id || null)
+      : (document.getElementById('t-project').value||null),
+    parent_task_id: newTaskParentId,
     status,
     completed_at: status==='concluida'?new Date().toISOString():null,
   };
@@ -339,6 +405,7 @@ async function saveTask(){
     : await sb.from('tasks').insert(payload);
   btn.disabled = false;
   if(error){showToast('Erro: '+error.message, true);return}
+  if(newTaskParentId) expandedTasks.add(newTaskParentId);
   closeModal('modal-task');
   showToast(editingTaskId?'Tarefa atualizada ✓':'Tarefa criada ✓');
   loadAll();
@@ -356,7 +423,8 @@ async function toggleDone(id, isDone){
 
 async function deleteTask(){
   if(!editingTaskId) return;
-  if(!confirm('Excluir esta tarefa de vez?')) return;
+  const nSubs = (subMap[editingTaskId]||[]).length;
+  if(!confirm(nSubs ? `Excluir esta tarefa e suas ${nSubs} subtarefas?` : 'Excluir esta tarefa de vez?')) return;
   const {error} = await sb.from('tasks').delete().eq('id',editingTaskId);
   if(error){showToast('Erro: '+error.message, true);return}
   closeModal('modal-task');

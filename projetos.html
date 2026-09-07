@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projetos — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.proj-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--dark3);border-radius:9px;margin-bottom:7px;cursor:pointer;border-left:3px solid transparent}
+.proj-row:hover{background:rgba(255,255,255,.05)}
+.proj-row.late{border-left-color:var(--red)}
+.proj-name{font-size:13.5px;font-weight:500;color:var(--text)}
+.proj-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.proj-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.proj-hours{font-size:11.5px;color:var(--text2);text-align:right;min-width:70px}
+.pd-hd{display:flex;align-items:flex-start;gap:14px;margin-bottom:6px}
+.pd-hd h3{font-family:'Cormorant Garamond',serif;font-size:24px;line-height:1.2}
+.pd-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.pd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+.pd-stat{background:var(--dark3);border-radius:8px;padding:10px 12px}
+.pd-stat-l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.pd-stat-v{font-size:17px;font-weight:600;color:var(--text);margin-top:3px}
+.rev-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--dark3);border-radius:8px;margin-bottom:6px}
+.rev-num{font-size:11px;font-weight:700;color:var(--text3);background:var(--dark2);border-radius:6px;padding:3px 7px;flex-shrink:0}
+@media(max-width:768px){.pd-stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Projetos</div>
+      <button class="btn btn-primary" onclick="openNewProject()">+ Novo projeto</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Em andamento</div><div class="stat-val" id="st-ativos">—</div><div class="stat-sub">projetos ativos</div></div>
+        <div class="stat"><div class="stat-label">Prazo apertado</div><div class="stat-val" id="st-prazo" style="color:var(--amber)">—</div><div class="stat-sub">vencem em 7 dias</div></div>
+        <div class="stat"><div class="stat-label">Ajustes abertos</div><div class="stat-val" id="st-ajustes" style="color:var(--red)">—</div><div class="stat-sub">pedidos pendentes</div></div>
+        <div class="stat"><div class="stat-label">Horas no mês</div><div class="stat-val" id="st-horas" style="color:#4ADE80">—</div><div class="stat-sub">tempo cronometrado</div></div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="lista" onclick="switchTab('lista')">Lista</div>
+        <div class="dtab" data-tab="kanban" onclick="switchTab('kanban')">Kanban</div>
+        <div class="dtab" data-tab="timeline" onclick="switchTab('timeline')">Timeline</div>
+      </div>
+
+      <div class="filters-row">
+        <select class="form-input form-select" id="f-status" onchange="renderAll()">
+          <option value="">Todos os status</option>
+        </select>
+        <select class="form-input form-select" id="f-priority" onchange="renderAll()">
+          <option value="">Todas as prioridades</option>
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="f-arquivados" onchange="renderAll()"> Mostrar arquivados
+        </label>
+      </div>
+
+      <div class="dtab-view active" id="tab-lista">
+        <div id="lista-container"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <div class="dtab-view" id="tab-kanban">
+        <div class="kanban" id="kanban-container"></div>
+      </div>
+
+      <div class="dtab-view" id="tab-timeline">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="card-hd">
+            <span class="card-title" id="tl-range">Timeline</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="shiftTimeline(-1)">‹</button>
+              <button class="btn btn-ghost btn-sm" onclick="shiftTimeline(0)">Hoje</button>
+              <button class="btn btn-ghost btn-sm" onclick="shiftTimeline(1)">›</button>
+            </div>
+          </div>
+          <div class="timeline" id="timeline-container"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════ MODAL: PROJETO (novo/editar) ════════ -->
+<div class="overlay" id="modal-proj">
+  <div class="modal" style="width:600px">
+    <div class="modal-title" id="modal-proj-title">Novo projeto</div>
+    <div class="form-group"><label class="form-label">Nome do projeto *</label><input class="form-input" id="p-name" placeholder="Site institucional — Cliente X"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="p-desc" rows="2"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Status</label><select class="form-input form-select" id="p-status"></select></div>
+      <div class="form-group"><label class="form-label">Prioridade</label>
+        <select class="form-input form-select" id="p-priority">
+          <option value="alta">Alta</option><option value="media" selected>Média</option><option value="baixa">Baixa</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Início</label><input type="date" class="form-input" id="p-start"></div>
+      <div class="form-group"><label class="form-label">Prazo de entrega</label><input type="date" class="form-input" id="p-end"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Cliente (contato do CRM)</label><select class="form-input form-select" id="p-contact"><option value="">— sem contato —</option></select></div>
+
+    <div class="form-section">Gestão interna (o cliente não vê)</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Horas previstas</label><input type="number" step="0.5" min="0" class="form-input" id="p-estimate" placeholder="40"></div>
+      <div class="form-group"><label class="form-label">Valor/hora (R$)</label><input type="number" step="1" min="0" class="form-input" id="p-rate" placeholder="120"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Anotações internas</label><textarea class="form-input" id="p-notes" rows="2" placeholder="Só você enxerga isto."></textarea></div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="p-archived"> Arquivar projeto (some da lista principal)
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-proj" style="margin-right:auto;display:none" onclick="deleteProject()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-proj')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-proj" onclick="saveProject()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: DETALHE DO PROJETO ════════ -->
+<div class="overlay" id="modal-detail">
+  <div class="modal" style="width:880px">
+    <div class="pd-hd">
+      <div style="flex:1;min-width:0">
+        <h3 id="pd-name">—</h3>
+        <div class="pd-sub" id="pd-sub"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openEditProject(detailProjectId)">Editar</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-detail')">✕</button>
+    </div>
+
+    <div class="pd-stats">
+      <div class="pd-stat"><div class="pd-stat-l">Progresso</div><div class="pd-stat-v" id="pd-prog">—</div></div>
+      <div class="pd-stat"><div class="pd-stat-l">Tempo gasto</div><div class="pd-stat-v" id="pd-time">—</div></div>
+      <div class="pd-stat"><div class="pd-stat-l">Ajustes</div><div class="pd-stat-v" id="pd-revs">—</div></div>
+      <div class="pd-stat"><div class="pd-stat-l">Prazo</div><div class="pd-stat-v" id="pd-prazo">—</div></div>
+    </div>
+
+    <div class="tabs-row" style="margin-bottom:14px">
+      <div class="dtab active" data-ptab="tarefas" onclick="switchPTab('tarefas')">Tarefas</div>
+      <div class="dtab" data-ptab="marcos" onclick="switchPTab('marcos')">Marcos</div>
+      <div class="dtab" data-ptab="ajustes" onclick="switchPTab('ajustes')">Ajustes</div>
+      <div class="dtab" data-ptab="tempo" onclick="switchPTab('tempo')">Tempo</div>
+    </div>
+
+    <div class="dtab-view active" id="ptab-tarefas">
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:12px" onclick="openNewTask(detailProjectId)">+ Nova tarefa</button>
+      <div id="pd-tasks"></div>
+    </div>
+    <div class="dtab-view" id="ptab-marcos">
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:12px" onclick="openNewMilestone()">+ Novo marco</button>
+      <div id="pd-milestones"></div>
+    </div>
+    <div class="dtab-view" id="ptab-ajustes">
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:12px" onclick="openNewRevision()">+ Registrar pedido de ajuste</button>
+      <div id="pd-revisions"></div>
+    </div>
+    <div class="dtab-view" id="ptab-tempo">
+      <div id="pd-timelist"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: TAREFA / SUBTAREFA ════════ -->
+<div class="overlay" id="modal-task">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="modal-task-title">Nova tarefa</div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="t-title"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="t-desc" rows="2"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Início</label><input type="date" class="form-input" id="t-start"></div>
+      <div class="form-group"><label class="form-label">Prazo</label><input type="date" class="form-input" id="t-due"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Prioridade</label>
+        <select class="form-input form-select" id="t-priority">
+          <option value="alta">Alta</option><option value="media" selected>Média</option><option value="baixa">Baixa</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-input form-select" id="t-status">
+          <option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option>
+          <option value="concluida">Concluída</option><option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Projeto</label><select class="form-input form-select" id="t-project"><option value="">— sem projeto —</option></select></div>
+      <div class="form-group"><label class="form-label">Estimativa (minutos)</label><input type="number" min="0" step="15" class="form-input" id="t-estimate" placeholder="120"></div>
+    </div>
+    <div id="t-sub-note" class="note-box" style="display:none;margin-bottom:14px">Esta é uma <b>subtarefa</b>. O projeto acompanha a tarefa principal.</div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-task" style="margin-right:auto;display:none" onclick="deleteTask()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-task" onclick="saveTask()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: MARCO ════════ -->
+<div class="overlay" id="modal-mile">
+  <div class="modal" style="width:480px">
+    <div class="modal-title" id="modal-mile-title">Novo marco</div>
+    <div class="note-box" style="margin-bottom:14px">Marcos são <b>internos</b>. Para o cronograma que o cliente vê, use o <b>Admin do portal</b>.</div>
+    <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="m-title" placeholder="Entrega do layout aprovado"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="m-desc" rows="2"></textarea></div>
+    <div class="form-group"><label class="form-label">Data prevista</label><input type="date" class="form-input" id="m-due"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-mile" style="margin-right:auto;display:none" onclick="deleteMilestone()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-mile')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-mile" onclick="saveMilestone()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: PEDIDO DE AJUSTE ════════ -->
+<div class="overlay" id="modal-rev">
+  <div class="modal" style="width:580px">
+    <div class="modal-title" id="modal-rev-title">Registrar pedido de ajuste</div>
+    <div class="form-group"><label class="form-label">O que foi pedido *</label><input class="form-input" id="r-title" placeholder="Trocar as fotos da home"></div>
+    <div class="form-group"><label class="form-label">Detalhes</label><textarea class="form-input" id="r-desc" rows="3"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Quem pediu</label><input class="form-input" id="r-by" placeholder="Nome"></div>
+      <div class="form-group"><label class="form-label">Por onde chegou</label>
+        <select class="form-input form-select" id="r-channel">
+          <option value="whatsapp">WhatsApp</option><option value="email">E-mail</option>
+          <option value="reuniao">Reunião</option><option value="portal">Portal</option><option value="outro">Outro</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Data do pedido</label><input type="date" class="form-input" id="r-date"></div>
+      <div class="form-group"><label class="form-label">Prioridade</label>
+        <select class="form-input form-select" id="r-priority">
+          <option value="alta">Alta</option><option value="media" selected>Média</option><option value="baixa">Baixa</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Status</label>
+      <select class="form-input form-select" id="r-status">
+        <option value="aberto">Aberto</option><option value="em_andamento">Em andamento</option>
+        <option value="concluido">Concluído</option><option value="recusado">Recusado</option>
+      </select>
+    </div>
+
+    <div class="form-section">Escopo e cobrança</div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="r-billable" onchange="toggleBillable()"> Está <b style="color:var(--text)">fora do escopo</b> — é cobrável
+      </label>
+    </div>
+    <div class="form-row" id="r-bill-block" style="display:none">
+      <div class="form-group"><label class="form-label">Valor a cobrar (R$)</label><input type="number" step="1" min="0" class="form-input" id="r-amount"></div>
+      <div class="form-group"><label class="form-label">Justificativa</label><input class="form-input" id="r-scope" placeholder="Não estava na proposta"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-rev" style="margin-right:auto;display:none" onclick="deleteRevision()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-rev')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-rev" onclick="saveRevision()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   PROJETOS — visão geral (lista / kanban / timeline), subtarefas,
+   marcos internos, pedidos de ajuste e tempo por projeto.
+   Tudo aqui é INTERNO: nada escrito nesta tela aparece no portal do
+   cliente. Publicar para o cliente continua sendo no Admin do portal.
+   ════════════════════════════════════════════════════════════════════ */
+
+// Status reais já usados no sistema (mesmo conjunto do admin.html)
+const PROJ_STATUS = [
+  {id:'pre_inicio',         label:'Pré-início',         color:'#E3B341', badge:'bg-amber'},
+  {id:'em_andamento',       label:'Em andamento',       color:'#22A060', badge:'bg-green'},
+  {id:'testes_cliente',     label:'Testes cliente',     color:'#2188FF', badge:'bg-blue'},
+  {id:'ajustes_pos_testes', label:'Ajustes pós testes', color:'#E3B341', badge:'bg-amber'},
+  {id:'aguardando',         label:'Aguardando',         color:'#8B949E', badge:'bg-gray'},
+  {id:'pausado',            label:'Pausado',            color:'#F85149', badge:'bg-red'},
+  {id:'concluido',          label:'Concluído',          color:'#60A5FA', badge:'bg-blue'},
+];
+const ST = {}; PROJ_STATUS.forEach(s=>ST[s.id]=s);
+const statusLabel = s => ST[s]?.label || s || '—';
+const statusBadge = s => `<span class="badge ${ST[s]?.badge||'bg-gray'}">${escapeHtml(statusLabel(s))}</span>`;
+const PRIORITY_BADGE = {
+  alta:'<span class="badge bg-red">Alta</span>',
+  media:'<span class="badge bg-amber">Média</span>',
+  baixa:'<span class="badge bg-gray">Baixa</span>',
+};
+const REV_BADGE = {
+  aberto:'<span class="badge bg-amber">Aberto</span>',
+  em_andamento:'<span class="badge bg-blue">Em andamento</span>',
+  concluido:'<span class="badge bg-green">Concluído</span>',
+  recusado:'<span class="badge bg-gray">Recusado</span>',
+};
+
+// ──────────── ESTADO ────────────
+let allProjects = [], allTasks = [], allRevisions = [], allMilestones = [], timeRows = [];
+let contactMap = {}, subMap = {}, taskMap = {};
+let currentTab = 'lista';
+let detailProjectId = null, currentPTab = 'tarefas';
+let editingProjectId = null, editingTaskId = null, editingMileId = null, editingRevId = null;
+let newTaskParentId = null;   // preenchido quando se cria uma SUBTAREFA
+let expandedTasks = new Set();// tarefas com as subtarefas abertas na tela
+let draggedProjectId = null;
+let tlOffset = 0;             // deslocamento da timeline, em meses
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('projetos');
+  fillStatusSelects();
+  requireAdmin(loadAll);
+});
+
+function fillStatusSelects(){
+  const opts = PROJ_STATUS.map(s=>`<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('');
+  document.getElementById('p-status').innerHTML = opts;
+  document.getElementById('f-status').innerHTML = '<option value="">Todos os status</option>'+opts;
+}
+
+// ──────────── CARGA ────────────
+async function loadAll(){
+  const [projRes, taskRes, revRes, mileRes, timeRes, contactRes] = await Promise.all([
+    sb.from('projects').select('*').order('end_date',{ascending:true,nullsFirst:false}),
+    sb.from('tasks').select('*').order('order_num').order('due_date',{ascending:true,nullsFirst:false}),
+    sb.from('revision_requests').select('*').order('requested_at',{ascending:false}),
+    sb.from('project_milestones').select('*').order('order_num').order('due_date',{ascending:true,nullsFirst:false}),
+    sb.from('time_entries').select('project_id,revision_id,task_id,kind,duration_seconds,started_at,ended_at,description,needs_review,id').order('started_at',{ascending:false}),
+    sb.from('crm_contacts').select('id,name,company'),
+  ]);
+
+  if(projRes.error){
+    document.getElementById('lista-container').innerHTML =
+      isMissingTable(projRes.error) ? SQL_HINT : '<div class="empty">Erro: '+escapeHtml(projRes.error.message)+'</div>';
+    return;
+  }
+  // As tabelas novas vêm do sql/09 — se ainda não rodou, avisa em vez de quebrar.
+  if(revRes.error && isMissingTable(revRes.error)){
+    document.getElementById('lista-container').innerHTML =
+      '<div class="empty">Tabelas de projetos ainda não criadas.<br>Rode o arquivo <b>sql/09_projetos_tempo.sql</b> no SQL Editor do Supabase.</div>';
+    return;
+  }
+
+  allProjects   = projRes.data || [];
+  allTasks      = taskRes.data || [];
+  allRevisions  = revRes.data || [];
+  allMilestones = mileRes.data || [];
+  timeRows      = timeRes.data || [];
+
+  contactMap = {};
+  (contactRes.data||[]).forEach(c=>contactMap[c.id]=c);
+
+  // Índices client-side (o padrão do projeto: sem select aninhado)
+  taskMap = {}; subMap = {};
+  allTasks.forEach(t=>{
+    taskMap[t.id] = t;
+    if(t.parent_task_id) (subMap[t.parent_task_id] = subMap[t.parent_task_id] || []).push(t);
+  });
+
+  fillProjectSelects();
+  updateStats();
+  renderAll();
+
+  // ?id=<uuid> abre o projeto direto (vem do card do painel)
+  const wanted = new URLSearchParams(location.search).get('id');
+  if(wanted && allProjects.some(p=>p.id===wanted)) openProject(wanted);
+}
+
+function fillProjectSelects(){
+  const sel = document.getElementById('t-project');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">— sem projeto —</option>' +
+    allProjects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  sel.value = keep;
+
+  const csel = document.getElementById('p-contact');
+  const ckeep = csel.value;
+  csel.innerHTML = '<option value="">— sem contato —</option>' +
+    Object.values(contactMap).sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+      .map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${c.company?' — '+escapeHtml(c.company):''}</option>`).join('');
+  csel.value = ckeep;
+}
+
+// ──────────── AGREGAÇÕES ────────────
+function secondsByProject(pid){
+  return timeRows.filter(t=>t.project_id===pid).reduce((s,t)=>s+(t.duration_seconds||0),0);
+}
+function projectProgress(pid){
+  const ts = allTasks.filter(t=>t.project_id===pid && t.status!=='cancelada');
+  const done = ts.filter(t=>t.status==='concluida').length;
+  return {done, total:ts.length, pct: ts.length ? Math.round(done/ts.length*100) : 0};
+}
+function openRevisions(pid){
+  return allRevisions.filter(r=>r.project_id===pid && (r.status==='aberto'||r.status==='em_andamento'));
+}
+
+function updateStats(){
+  const hoje = todayISO();
+  const ativos = allProjects.filter(p=>!p.archived && p.status!=='concluido').length;
+  const em7 = allProjects.filter(p=>!p.archived && p.status!=='concluido' && p.end_date
+                                    && p.end_date>=hoje && daysBetween(hoje,p.end_date)<=7).length;
+  const ajustes = allRevisions.filter(r=>r.status==='aberto'||r.status==='em_andamento').length;
+  const mesIni = hoje.slice(0,8)+'01';
+  const segMes = timeRows.filter(t=>t.started_at && t.started_at.slice(0,10)>=mesIni)
+                         .reduce((s,t)=>s+(t.duration_seconds||0),0);
+  document.getElementById('st-ativos').textContent  = ativos;
+  document.getElementById('st-prazo').textContent   = em7;
+  document.getElementById('st-ajustes').textContent = ajustes;
+  document.getElementById('st-horas').textContent   = fmtDuration(segMes);
+}
+
+// ──────────── ABAS / FILTROS ────────────
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.tabs-row .dtab[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('#tab-lista,#tab-kanban,#tab-timeline').forEach(v=>v.classList.remove('active'));
+  document.getElementById('tab-'+name)?.classList.add('active');
+  renderAll();
+}
+
+function filtered(){
+  const st = document.getElementById('f-status').value;
+  const pr = document.getElementById('f-priority').value;
+  const arq = document.getElementById('f-arquivados').checked;
+  return allProjects.filter(p=>{
+    if(!arq && p.archived) return false;
+    if(st && p.status!==st) return false;
+    if(pr && (p.priority||'media')!==pr) return false;
+    return true;
+  });
+}
+
+function renderAll(){
+  if(currentTab==='lista') renderList();
+  else if(currentTab==='kanban') renderKanban();
+  else renderTimeline();
+}
+
+// ──────────── VISÃO: LISTA ────────────
+function renderList(){
+  const el = document.getElementById('lista-container');
+  const list = filtered();
+  if(!list.length){
+    el.innerHTML = '<div class="empty">Nenhum projeto por aqui.<br>Clique em <b>+ Novo projeto</b> para começar.</div>';
+    return;
+  }
+  // Agrupa por status, na ordem do fluxo de trabalho
+  const grupos = PROJ_STATUS.map(s=>[s, list.filter(p=>p.status===s.id)]).filter(([,ps])=>ps.length);
+  const semStatus = list.filter(p=>!ST[p.status]);
+  if(semStatus.length) grupos.push([{label:'Sem status'}, semStatus]);
+
+  el.innerHTML = grupos.map(([s, ps]) => `
+    <div class="task-group">${escapeHtml(s.label)} · ${ps.length}</div>
+    ${ps.map(projRow).join('')}
+  `).join('');
+}
+
+function projRow(p){
+  const hoje = todayISO();
+  const atrasado = p.end_date && p.end_date < hoje && p.status!=='concluido';
+  const prog = projectProgress(p.id);
+  const seg = secondsByProject(p.id);
+  const prev = p.estimate_hours ? Number(p.estimate_hours)*3600 : 0;
+  const ajustes = openRevisions(p.id).length;
+  const contato = p.contact_id && contactMap[p.contact_id];
+
+  const meta = [];
+  if(contato) meta.push(escapeHtml(contato.name));
+  if(p.end_date) meta.push(atrasado ? 'venceu '+fmtDateShort(p.end_date) : 'prazo '+fmtDateShort(p.end_date));
+  if(ajustes) meta.push(ajustes+' ajuste'+(ajustes>1?'s':'')+' aberto'+(ajustes>1?'s':''));
+  if(p.archived) meta.push('arquivado');
+
+  return `
+    <div class="proj-row${atrasado?' late':''}" onclick="openProject('${p.id}')">
+      <button class="play-btn" title="Cronometrar este projeto"
+        onclick="event.stopPropagation();toggleTimer({project_id:'${p.id}',kind:'projeto',label:${JSON.stringify(p.name)}})">▶</button>
+      <div style="flex:1;min-width:0">
+        <div class="proj-name">${escapeHtml(p.name)}</div>
+        <div class="proj-meta">${meta.map(escapeHtml).join(' · ')||'sem prazo definido'}</div>
+        <div class="prog-row" style="margin-top:7px;max-width:280px">
+          <div class="prog-track"><div class="prog-fill" style="width:${prog.pct}%"></div></div>
+          <div class="prog-pct">${prog.total?prog.pct+'%':'—'}</div>
+        </div>
+      </div>
+      <div class="proj-right">
+        <div class="proj-hours">
+          ${fmtDuration(seg)}
+          ${prev?`<div style="font-size:10px;color:var(--text3)">de ${fmtDuration(prev)}</div>`:''}
+        </div>
+        ${PRIORITY_BADGE[p.priority||'media']||''}
+        ${statusBadge(p.status)}
+      </div>
+    </div>`;
+}
+
+// ──────────── VISÃO: KANBAN ────────────
+// Arrastar e soltar nativo, mesmo padrão do crm.html
+function renderKanban(){
+  const list = filtered();
+  document.getElementById('kanban-container').innerHTML = PROJ_STATUS.map(s=>{
+    const ps = list.filter(p=>p.status===s.id);
+    return `
+      <div class="kb-col">
+        <div class="kb-hd">
+          <div class="kb-dot" style="background:${s.color}"></div>
+          <div class="kb-title">${escapeHtml(s.label)}</div>
+          <div class="kb-sum">${ps.length}</div>
+        </div>
+        <div class="kb-body" data-status="${s.id}"
+             ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropProject(event)">
+          ${ps.map(projCard).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function projCard(p){
+  const prog = projectProgress(p.id);
+  const hoje = todayISO();
+  const atrasado = p.end_date && p.end_date < hoje && p.status!=='concluido';
+  return `
+    <div class="kb-card" draggable="true" ondragstart="dragStart(event,'${p.id}')" onclick="openProject('${p.id}')">
+      <div class="kb-card-title">${escapeHtml(p.name)}</div>
+      <div class="kb-card-meta">${p.end_date ? (atrasado?'⚠ venceu ':'')+fmtDateShort(p.end_date) : 'sem prazo'}</div>
+      <div class="prog-row" style="margin-top:8px">
+        <div class="prog-track"><div class="prog-fill" style="width:${prog.pct}%"></div></div>
+        <div class="prog-pct">${prog.total?prog.pct+'%':'—'}</div>
+      </div>
+    </div>`;
+}
+
+function dragStart(e,id){ draggedProjectId = id; e.dataTransfer.effectAllowed='move' }
+function dragOver(e){ e.preventDefault(); e.currentTarget.classList.add('dragover') }
+function dragLeave(e){ e.currentTarget.classList.remove('dragover') }
+
+async function dropProject(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const status = e.currentTarget.dataset.status;
+  const id = draggedProjectId; draggedProjectId = null;
+  if(!id) return;
+  const p = allProjects.find(x=>x.id===id);
+  if(!p || p.status===status) return;
+  const {error} = await sb.from('projects').update({status}).eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  showToast(status==='concluido' ? 'Projeto concluído! 🎉' : 'Status atualizado ✓');
+  loadAll();
+}
+
+// ──────────── VISÃO: TIMELINE ────────────
+function timelineWindow(){
+  const base = new Date(); base.setDate(1); base.setHours(0,0,0,0);
+  base.setMonth(base.getMonth()-1+tlOffset);            // começa 1 mês atrás
+  const start = new Date(base);
+  const end = new Date(base); end.setMonth(end.getMonth()+6);  // janela de 6 meses
+  return {start, end};
+}
+function shiftTimeline(delta){
+  tlOffset = delta===0 ? 0 : tlOffset+delta;
+  renderTimeline();
+}
+
+function renderTimeline(){
+  const {start, end} = timelineWindow();
+  const total = end - start;
+  const pos = d => Math.max(0, Math.min(100, (new Date(String(d).length<=10?d+'T00:00:00':d) - start)/total*100));
+
+  const meses = [];
+  const m = new Date(start);
+  while(m < end){ meses.push(new Date(m)); m.setMonth(m.getMonth()+1) }
+
+  document.getElementById('tl-range').textContent =
+    meses[0].toLocaleDateString('pt-BR',{month:'long',year:'numeric'}) + ' → ' +
+    meses[meses.length-1].toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  const list = filtered();
+  if(!list.length){
+    document.getElementById('timeline-container').innerHTML = '<div class="empty">Nenhum projeto para mostrar.</div>';
+    return;
+  }
+
+  const hojePct = pos(todayISO());
+  const hoje = todayISO();
+
+  const linhas = list.map(p=>{
+    const barra = barraDe(p.start_date, p.end_date, {
+      late: p.end_date && p.end_date<hoje && p.status!=='concluido',
+      done: p.status==='concluido',
+      texto: p.name, click: `openProject('${p.id}')`, pos, sub:false,
+    });
+    const subs = allTasks
+      .filter(t=>t.project_id===p.id && !t.parent_task_id && (t.start_date||t.due_date))
+      .slice(0,6)
+      .map(t=>`
+        <div class="tl-row sub">
+          <div class="tl-label" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+          <div class="tl-track">${barraDe(t.start_date, t.due_date, {
+            late: t.due_date && t.due_date<hoje && t.status!=='concluida',
+            done: t.status==='concluida',
+            texto: t.title, click: `openEditTask('${t.id}')`, pos, sub:true,
+          })}</div>
+        </div>`).join('');
+    return `
+      <div class="tl-row">
+        <div class="tl-label" title="${escapeHtml(p.name)}"><b>${escapeHtml(p.name)}</b></div>
+        <div class="tl-track">${barra}</div>
+      </div>${subs}`;
+  }).join('');
+
+  document.getElementById('timeline-container').innerHTML = `
+    <div class="tl-inner">
+      <div class="tl-head">
+        <div class="tl-label">Projeto / tarefa</div>
+        <div class="tl-months">${meses.map(d=>`<div class="tl-month">${d.toLocaleDateString('pt-BR',{month:'short'})}</div>`).join('')}</div>
+      </div>
+      <div style="position:relative">
+        <div class="tl-today" style="left:calc(200px + (100% - 200px) * ${hojePct/100})"></div>
+        ${linhas}
+      </div>
+    </div>`;
+}
+
+// Desenha uma barra na faixa. Sem datas, mostra um aviso discreto.
+function barraDe(ini, fim, o){
+  if(!ini && !fim) return '<div class="tl-nodate">sem datas</div>';
+  const a = ini || fim, b = fim || ini;
+  const left = o.pos(a), right = o.pos(b);
+  const width = Math.max(1.2, right-left);
+  const cls = 'tl-bar'+(o.sub?' sub':'')+(o.done?' done':(o.late?' late':''));
+  return `<div class="${cls}" style="left:${left}%;width:${width}%" title="${escapeHtml(o.texto)}"
+            onclick="${o.click}">${o.sub?'':escapeHtml(o.texto)}</div>`;
+}
+
+// ──────────── DETALHE DO PROJETO ────────────
+function openProject(id){
+  detailProjectId = id;
+  const p = allProjects.find(x=>x.id===id);
+  if(!p) return;
+  const contato = p.contact_id && contactMap[p.contact_id];
+  const prog = projectProgress(id);
+  const seg = secondsByProject(id);
+  const revs = allRevisions.filter(r=>r.project_id===id);
+  const hoje = todayISO();
+
+  document.getElementById('pd-name').textContent = p.name;
+  document.getElementById('pd-sub').innerHTML = [
+    statusBadge(p.status), PRIORITY_BADGE[p.priority||'media']||'',
+    contato ? escapeHtml(contato.name) : '',
+  ].filter(Boolean).join(' ');
+
+  document.getElementById('pd-prog').textContent = prog.total ? `${prog.done}/${prog.total}` : '—';
+  document.getElementById('pd-time').textContent = fmtDuration(seg) +
+    (p.estimate_hours ? ` / ${Number(p.estimate_hours)}h` : '');
+  document.getElementById('pd-revs').textContent = revs.length
+    ? `${revs.filter(r=>r.status==='aberto'||r.status==='em_andamento').length} abertos` : '0';
+  document.getElementById('pd-prazo').textContent = p.end_date
+    ? (p.end_date<hoje && p.status!=='concluido' ? 'venceu' : daysBetween(hoje,p.end_date)+'d')
+    : '—';
+  document.getElementById('pd-prazo').style.color =
+    (p.end_date && p.end_date<hoje && p.status!=='concluido') ? 'var(--red)' : '';
+
+  switchPTab(currentPTab);
+  openModal('modal-detail');
+}
+
+function switchPTab(name){
+  currentPTab = name;
+  document.querySelectorAll('.dtab[data-ptab]').forEach(t=>t.classList.toggle('active', t.dataset.ptab===name));
+  ['tarefas','marcos','ajustes','tempo'].forEach(n=>
+    document.getElementById('ptab-'+n)?.classList.toggle('active', n===name));
+  if(name==='tarefas')      renderProjTasks();
+  else if(name==='marcos')  renderProjMilestones();
+  else if(name==='ajustes') renderProjRevisions();
+  else                      renderProjTime();
+}
+
+function renderProjTasks(){
+  const el = document.getElementById('pd-tasks');
+  const pais = allTasks.filter(t=>t.project_id===detailProjectId && !t.parent_task_id);
+  if(!pais.length){ el.innerHTML = '<div class="empty">Nenhuma tarefa ainda.</div>'; return }
+  el.innerHTML = pais.map(t=>taskBlock(t)).join('');
+}
+
+function taskBlock(t){
+  const subs = subMap[t.id] || [];
+  const feitas = subs.filter(s=>s.status==='concluida').length;
+  const hoje = todayISO();
+  const atrasada = t.due_date && t.due_date < hoje && t.status!=='concluida';
+  const aberto = expandedTasks.has(t.id);
+
+  return `
+    <div class="list-item${atrasada?' task-late':''}">
+      <div class="task-check${t.status==='concluida'?' done':''}"
+           onclick="event.stopPropagation();toggleTaskDone('${t.id}')">${t.status==='concluida'?'✓':''}</div>
+      ${subs.length ? `<button class="subtask-toggle${aberto?' open':''}" onclick="toggleSubs('${t.id}')">▶</button>` : '<span style="width:16px"></span>'}
+      <div class="li-info" style="cursor:pointer" onclick="openEditTask('${t.id}')">
+        <div class="li-title${t.status==='concluida'?' task-title-done':''}">${escapeHtml(t.title)}</div>
+        <div class="li-sub">${subLinha(t, hoje)}</div>
+      </div>
+      ${subs.length?`<span class="sub-count">${feitas}/${subs.length}</span>`:''}
+      ${PRIORITY_BADGE[t.priority]||''}
+      <div class="li-actions">
+        <button class="play-btn" title="Cronometrar"
+          onclick="event.stopPropagation();toggleTimer({task_id:'${t.id}',project_id:${JSON.stringify(t.project_id||null)},kind:'projeto',label:${JSON.stringify(t.title)}})">▶</button>
+        <button class="icon-btn" title="Adicionar subtarefa" onclick="event.stopPropagation();openNewTask('${t.project_id||''}','${t.id}')">＋</button>
+      </div>
+    </div>
+    ${subs.length && aberto ? `<div class="subtask-wrap">${subs.map(s=>subRow(s,hoje)).join('')}</div>` : ''}`;
+}
+
+function subRow(s, hoje){
+  const atrasada = s.due_date && s.due_date < hoje && s.status!=='concluida';
+  return `
+    <div class="subtask-row${atrasada?' task-late':''}">
+      <div class="task-check${s.status==='concluida'?' done':''}"
+           onclick="event.stopPropagation();toggleTaskDone('${s.id}')">${s.status==='concluida'?'✓':''}</div>
+      <div class="li-info" style="cursor:pointer" onclick="openEditTask('${s.id}')">
+        <div class="li-title${s.status==='concluida'?' task-title-done':''}">${escapeHtml(s.title)}</div>
+        <div class="li-sub">${subLinha(s, hoje)}</div>
+      </div>
+      <button class="play-btn" title="Cronometrar"
+        onclick="event.stopPropagation();toggleTimer({task_id:'${s.id}',project_id:${JSON.stringify(s.project_id||null)},kind:'projeto',label:${JSON.stringify(s.title)}})">▶</button>
+    </div>`;
+}
+
+function subLinha(t, hoje){
+  const partes = [];
+  if(t.due_date) partes.push(t.due_date < hoje && t.status!=='concluida' ? 'venceu '+fmtDateShort(t.due_date) : 'prazo '+fmtDateShort(t.due_date));
+  if(t.estimate_minutes) partes.push('previsto '+fmtDuration(t.estimate_minutes*60));
+  const seg = timeRows.filter(x=>x.task_id===t.id).reduce((s,x)=>s+(x.duration_seconds||0),0);
+  if(seg) partes.push('gasto '+fmtDuration(seg));
+  if(t.status==='em_andamento') partes.push('em andamento');
+  return escapeHtml(partes.join(' · ')) || '&nbsp;';
+}
+
+function toggleSubs(id){
+  expandedTasks.has(id) ? expandedTasks.delete(id) : expandedTasks.add(id);
+  renderProjTasks();
+}
+
+function renderProjMilestones(){
+  const el = document.getElementById('pd-milestones');
+  const ms = allMilestones.filter(m=>m.project_id===detailProjectId);
+  if(!ms.length){ el.innerHTML = '<div class="empty">Nenhum marco interno.</div>'; return }
+  const hoje = todayISO();
+  el.innerHTML = ms.map(m=>{
+    const atrasado = m.due_date && m.due_date<hoje && !m.done;
+    return `
+      <div class="list-item${atrasado?' task-late':''}">
+        <div class="task-check${m.done?' done':''}" onclick="toggleMilestone('${m.id}')">${m.done?'✓':''}</div>
+        <div class="li-info" style="cursor:pointer" onclick="openEditMilestone('${m.id}')">
+          <div class="li-title${m.done?' task-title-done':''}">${escapeHtml(m.title)}</div>
+          <div class="li-sub">${m.due_date ? (atrasado?'venceu ':'previsto ')+fmtDateShort(m.due_date) : 'sem data'}${m.description?' · '+escapeHtml(m.description):''}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderProjRevisions(){
+  const el = document.getElementById('pd-revisions');
+  const rs = allRevisions.filter(r=>r.project_id===detailProjectId);
+  if(!rs.length){
+    el.innerHTML = '<div class="empty">Nenhum pedido de ajuste registrado.<br>Registre cada pedido aqui para medir quanto tempo eles consomem.</div>';
+    return;
+  }
+  const totalCobravel = rs.filter(r=>r.is_billable)
+    .reduce((s,r)=>s + timeRows.filter(t=>t.revision_id===r.id).reduce((a,t)=>a+(t.duration_seconds||0),0), 0);
+
+  el.innerHTML =
+    (totalCobravel ? `<div class="note-box warn" style="margin-bottom:12px">
+       <b>${fmtDuration(totalCobravel)}</b> gastos em ajustes marcados como <b>fora do escopo</b> neste projeto.</div>` : '') +
+    rs.map(r=>{
+      const seg = timeRows.filter(t=>t.revision_id===r.id).reduce((s,t)=>s+(t.duration_seconds||0),0);
+      return `
+        <div class="rev-row">
+          <div class="rev-num">#${r.number||'?'}</div>
+          <div class="li-info" style="cursor:pointer" onclick="openEditRevision('${r.id}')">
+            <div class="li-title">${escapeHtml(r.title)}</div>
+            <div class="li-sub">${escapeHtml([
+              fmtDateShort(r.requested_at),
+              r.requested_by||'',
+              r.channel||'',
+              seg ? fmtDuration(seg)+' gastos' : 'sem tempo registrado',
+              r.is_billable ? 'FORA DO ESCOPO' : 'dentro do escopo',
+            ].filter(Boolean).join(' · '))}</div>
+          </div>
+          ${r.is_billable && r.charged_amount ? `<span class="badge bg-green">${fmtMoney(r.charged_amount)}</span>` : ''}
+          ${REV_BADGE[r.status]||''}
+          <button class="play-btn" title="Cronometrar este ajuste"
+            onclick="event.stopPropagation();toggleTimer({revision_id:'${r.id}',project_id:'${r.project_id}',kind:'ajuste',label:${JSON.stringify('Ajuste #'+(r.number||'')+' — '+r.title)}})">▶</button>
+        </div>`;
+    }).join('');
+}
+
+function renderProjTime(){
+  const el = document.getElementById('pd-timelist');
+  const rows = timeRows.filter(t=>t.project_id===detailProjectId);
+  if(!rows.length){ el.innerHTML = '<div class="empty">Nenhum tempo cronometrado neste projeto ainda.</div>'; return }
+  const porTipo = {projeto:0, ajuste:0, geral:0};
+  rows.forEach(r=>porTipo[r.kind] = (porTipo[r.kind]||0) + (r.duration_seconds||0));
+
+  el.innerHTML = `
+    <div class="pd-stats" style="margin-top:0">
+      <div class="pd-stat"><div class="pd-stat-l">No projeto</div><div class="pd-stat-v">${fmtDuration(porTipo.projeto)}</div></div>
+      <div class="pd-stat"><div class="pd-stat-l">Em ajustes</div><div class="pd-stat-v">${fmtDuration(porTipo.ajuste)}</div></div>
+      <div class="pd-stat"><div class="pd-stat-l">Sessões</div><div class="pd-stat-v">${rows.length}</div></div>
+      <div class="pd-stat"><div class="pd-stat-l">Total</div><div class="pd-stat-v">${fmtDuration(porTipo.projeto+porTipo.ajuste+porTipo.geral)}</div></div>
+    </div>
+    ${rows.slice(0,40).map(r=>`
+      <div class="list-item">
+        <div class="li-info">
+          <div class="li-title">${escapeHtml(r.description || (r.task_id && taskMap[r.task_id]?.title) || (r.kind==='ajuste'?'Ajuste':'Trabalho no projeto'))}</div>
+          <div class="li-sub">${fmtDate(r.started_at)}${r.ended_at?'':' · <b style="color:var(--green2)">rodando agora</b>'}${r.needs_review?' · <b style="color:var(--amber)">revisar</b>':''}</div>
+        </div>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text)">${r.ended_at?fmtDuration(r.duration_seconds):'—'}</div>
+      </div>`).join('')}
+    <div style="text-align:center;margin-top:10px"><a href="tempo.html" style="color:var(--green2);font-size:12.5px">Ver relatório completo de tempo →</a></div>`;
+}
+
+// ──────────── CRUD: PROJETO ────────────
+function openNewProject(){
+  editingProjectId = null;
+  document.getElementById('modal-proj-title').textContent = 'Novo projeto';
+  document.getElementById('btn-del-proj').style.display = 'none';
+  ['p-name','p-desc','p-start','p-end','p-estimate','p-rate','p-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('p-status').value = 'pre_inicio';
+  document.getElementById('p-priority').value = 'media';
+  document.getElementById('p-contact').value = '';
+  document.getElementById('p-archived').checked = false;
+  openModal('modal-proj');
+}
+
+function openEditProject(id){
+  const p = allProjects.find(x=>x.id===id);
+  if(!p) return;
+  editingProjectId = id;
+  document.getElementById('modal-proj-title').textContent = 'Editar projeto';
+  document.getElementById('btn-del-proj').style.display = 'inline-flex';
+  document.getElementById('p-name').value     = p.name||'';
+  document.getElementById('p-desc').value     = p.description||'';
+  document.getElementById('p-status').value   = p.status||'pre_inicio';
+  document.getElementById('p-priority').value = p.priority||'media';
+  document.getElementById('p-start').value    = p.start_date||'';
+  document.getElementById('p-end').value      = p.end_date||'';
+  document.getElementById('p-contact').value  = p.contact_id||'';
+  document.getElementById('p-estimate').value = p.estimate_hours??'';
+  document.getElementById('p-rate').value     = p.hourly_rate??'';
+  document.getElementById('p-notes').value    = p.internal_notes||'';
+  document.getElementById('p-archived').checked = !!p.archived;
+  openModal('modal-proj');
+}
+
+async function saveProject(){
+  const name = document.getElementById('p-name').value.trim();
+  if(!name){ showToast('Dê um nome ao projeto', true); return }
+  const payload = {
+    name,
+    description:    document.getElementById('p-desc').value.trim()||null,
+    status:         document.getElementById('p-status').value,
+    priority:       document.getElementById('p-priority').value,
+    start_date:     document.getElementById('p-start').value||null,
+    end_date:       document.getElementById('p-end').value||null,
+    contact_id:     document.getElementById('p-contact').value||null,
+    estimate_hours: document.getElementById('p-estimate').value||null,
+    hourly_rate:    document.getElementById('p-rate').value||null,
+    internal_notes: document.getElementById('p-notes').value.trim()||null,
+    archived:       document.getElementById('p-archived').checked,
+  };
+  const btn = document.getElementById('btn-save-proj');
+  btn.disabled = true;
+  const {error} = editingProjectId
+    ? await sb.from('projects').update(payload).eq('id', editingProjectId)
+    : await sb.from('projects').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-proj');
+  closeModal('modal-detail');
+  showToast(editingProjectId?'Projeto atualizado ✓':'Projeto criado ✓');
+  loadAll();
+}
+
+async function deleteProject(){
+  if(!editingProjectId) return;
+  const p = allProjects.find(x=>x.id===editingProjectId);
+  if(!confirm(`Excluir "${p?.name||'este projeto'}"?\n\nTarefas, marcos, ajustes e registros de tempo ligados a ele também serão afetados. Se a ideia é só tirar da lista, prefira ARQUIVAR.`)) return;
+  const {error} = await sb.from('projects').delete().eq('id', editingProjectId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-proj'); closeModal('modal-detail');
+  showToast('Projeto excluído');
+  loadAll();
+}
+
+// ──────────── CRUD: TAREFA / SUBTAREFA ────────────
+function openNewTask(projectId, parentId){
+  editingTaskId = null;
+  newTaskParentId = parentId || null;
+  document.getElementById('modal-task-title').textContent = parentId ? 'Nova subtarefa' : 'Nova tarefa';
+  document.getElementById('btn-del-task').style.display = 'none';
+  document.getElementById('t-sub-note').style.display = parentId ? 'block' : 'none';
+  ['t-title','t-desc','t-start','t-due','t-estimate'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('t-priority').value = 'media';
+  document.getElementById('t-status').value = 'pendente';
+  document.getElementById('t-project').value = projectId || detailProjectId || '';
+  document.getElementById('t-project').disabled = !!parentId;
+  openModal('modal-task');
+}
+
+function openEditTask(id){
+  const t = taskMap[id];
+  if(!t) return;
+  editingTaskId = id;
+  newTaskParentId = t.parent_task_id || null;
+  document.getElementById('modal-task-title').textContent = t.parent_task_id ? 'Editar subtarefa' : 'Editar tarefa';
+  document.getElementById('btn-del-task').style.display = 'inline-flex';
+  document.getElementById('t-sub-note').style.display = t.parent_task_id ? 'block' : 'none';
+  document.getElementById('t-title').value    = t.title||'';
+  document.getElementById('t-desc').value     = t.description||'';
+  document.getElementById('t-start').value    = t.start_date||'';
+  document.getElementById('t-due').value      = t.due_date||'';
+  document.getElementById('t-priority').value = t.priority||'media';
+  document.getElementById('t-status').value   = t.status||'pendente';
+  document.getElementById('t-project').value  = t.project_id||'';
+  document.getElementById('t-project').disabled = !!t.parent_task_id;
+  document.getElementById('t-estimate').value = t.estimate_minutes??'';
+  openModal('modal-task');
+}
+
+async function saveTask(){
+  const title = document.getElementById('t-title').value.trim();
+  if(!title){ showToast('Dê um título à tarefa', true); return }
+  const status = document.getElementById('t-status').value;
+  // Subtarefa herda o projeto da tarefa pai — assim as duas nunca divergem.
+  const projectId = newTaskParentId
+    ? (taskMap[newTaskParentId]?.project_id || null)
+    : (document.getElementById('t-project').value || null);
+
+  const payload = {
+    title,
+    description:      document.getElementById('t-desc').value.trim()||null,
+    start_date:       document.getElementById('t-start').value||null,
+    due_date:         document.getElementById('t-due').value||null,
+    priority:         document.getElementById('t-priority').value,
+    status,
+    project_id:       projectId,
+    parent_task_id:   newTaskParentId,
+    estimate_minutes: document.getElementById('t-estimate').value||null,
+    completed_at:     status==='concluida' ? new Date().toISOString() : null,
+  };
+  const btn = document.getElementById('btn-save-task');
+  btn.disabled = true;
+  const {error} = editingTaskId
+    ? await sb.from('tasks').update(payload).eq('id', editingTaskId)
+    : await sb.from('tasks').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  if(newTaskParentId) expandedTasks.add(newTaskParentId);
+  closeModal('modal-task');
+  showToast(editingTaskId?'Tarefa atualizada ✓':'Tarefa criada ✓');
+  await loadAll();
+  if(detailProjectId) switchPTab('tarefas');
+}
+
+async function toggleTaskDone(id){
+  const t = taskMap[id];
+  if(!t) return;
+  const feito = t.status==='concluida';
+  const payload = feito
+    ? {status:'pendente', completed_at:null}
+    : {status:'concluida', completed_at:new Date().toISOString()};
+  const {error} = await sb.from('tasks').update(payload).eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  showToast(feito?'Tarefa reaberta':'Tarefa concluída ✓');
+  await loadAll();
+  if(detailProjectId) switchPTab('tarefas');
+}
+
+async function deleteTask(){
+  if(!editingTaskId) return;
+  const subs = (subMap[editingTaskId]||[]).length;
+  if(!confirm(subs ? `Excluir esta tarefa e suas ${subs} subtarefas?` : 'Excluir esta tarefa de vez?')) return;
+  const {error} = await sb.from('tasks').delete().eq('id', editingTaskId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-task');
+  showToast('Tarefa excluída');
+  await loadAll();
+  if(detailProjectId) switchPTab('tarefas');
+}
+
+// ──────────── CRUD: MARCO ────────────
+function openNewMilestone(){
+  editingMileId = null;
+  document.getElementById('modal-mile-title').textContent = 'Novo marco';
+  document.getElementById('btn-del-mile').style.display = 'none';
+  ['m-title','m-desc','m-due'].forEach(id=>document.getElementById(id).value='');
+  openModal('modal-mile');
+}
+
+function openEditMilestone(id){
+  const m = allMilestones.find(x=>x.id===id);
+  if(!m) return;
+  editingMileId = id;
+  document.getElementById('modal-mile-title').textContent = 'Editar marco';
+  document.getElementById('btn-del-mile').style.display = 'inline-flex';
+  document.getElementById('m-title').value = m.title||'';
+  document.getElementById('m-desc').value  = m.description||'';
+  document.getElementById('m-due').value   = m.due_date||'';
+  openModal('modal-mile');
+}
+
+async function saveMilestone(){
+  const title = document.getElementById('m-title').value.trim();
+  if(!title){ showToast('Dê um título ao marco', true); return }
+  const payload = {
+    project_id:  detailProjectId,
+    title,
+    description: document.getElementById('m-desc').value.trim()||null,
+    due_date:    document.getElementById('m-due').value||null,
+  };
+  const btn = document.getElementById('btn-save-mile');
+  btn.disabled = true;
+  const {error} = editingMileId
+    ? await sb.from('project_milestones').update(payload).eq('id', editingMileId)
+    : await sb.from('project_milestones').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-mile');
+  showToast(editingMileId?'Marco atualizado ✓':'Marco criado ✓');
+  await loadAll(); switchPTab('marcos');
+}
+
+async function toggleMilestone(id){
+  const m = allMilestones.find(x=>x.id===id);
+  if(!m) return;
+  const {error} = await sb.from('project_milestones')
+    .update({done:!m.done, done_at: m.done ? null : new Date().toISOString()}).eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  await loadAll(); switchPTab('marcos');
+}
+
+async function deleteMilestone(){
+  if(!editingMileId) return;
+  if(!confirm('Excluir este marco?')) return;
+  const {error} = await sb.from('project_milestones').delete().eq('id', editingMileId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-mile');
+  showToast('Marco excluído');
+  await loadAll(); switchPTab('marcos');
+}
+
+// ──────────── CRUD: PEDIDO DE AJUSTE ────────────
+function toggleBillable(){
+  document.getElementById('r-bill-block').style.display =
+    document.getElementById('r-billable').checked ? 'grid' : 'none';
+}
+
+function openNewRevision(){
+  editingRevId = null;
+  document.getElementById('modal-rev-title').textContent = 'Registrar pedido de ajuste';
+  document.getElementById('btn-del-rev').style.display = 'none';
+  ['r-title','r-desc','r-by','r-amount','r-scope'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('r-channel').value = 'whatsapp';
+  document.getElementById('r-priority').value = 'media';
+  document.getElementById('r-status').value = 'aberto';
+  document.getElementById('r-date').value = todayISO();
+  document.getElementById('r-billable').checked = false;
+  toggleBillable();
+  openModal('modal-rev');
+}
+
+function openEditRevision(id){
+  const r = allRevisions.find(x=>x.id===id);
+  if(!r) return;
+  editingRevId = id;
+  document.getElementById('modal-rev-title').textContent = 'Ajuste #'+(r.number||'');
+  document.getElementById('btn-del-rev').style.display = 'inline-flex';
+  document.getElementById('r-title').value    = r.title||'';
+  document.getElementById('r-desc').value     = r.description||'';
+  document.getElementById('r-by').value       = r.requested_by||'';
+  document.getElementById('r-channel').value  = r.channel||'whatsapp';
+  document.getElementById('r-date').value     = r.requested_at||todayISO();
+  document.getElementById('r-priority').value = r.priority||'media';
+  document.getElementById('r-status').value   = r.status||'aberto';
+  document.getElementById('r-billable').checked = !!r.is_billable;
+  document.getElementById('r-amount').value   = r.charged_amount??'';
+  document.getElementById('r-scope').value    = r.scope_note||'';
+  toggleBillable();
+  openModal('modal-rev');
+}
+
+async function saveRevision(){
+  const title = document.getElementById('r-title').value.trim();
+  if(!title){ showToast('Descreva o que foi pedido', true); return }
+  const status = document.getElementById('r-status').value;
+  const payload = {
+    project_id:     detailProjectId,
+    title,
+    description:    document.getElementById('r-desc').value.trim()||null,
+    requested_by:   document.getElementById('r-by').value.trim()||null,
+    channel:        document.getElementById('r-channel').value,
+    requested_at:   document.getElementById('r-date').value||todayISO(),
+    priority:       document.getElementById('r-priority').value,
+    status,
+    is_billable:    document.getElementById('r-billable').checked,
+    charged_amount: document.getElementById('r-amount').value||null,
+    scope_note:     document.getElementById('r-scope').value.trim()||null,
+    completed_at:   status==='concluido' ? new Date().toISOString() : null,
+  };
+  const btn = document.getElementById('btn-save-rev');
+  btn.disabled = true;
+  const {error} = editingRevId
+    ? await sb.from('revision_requests').update(payload).eq('id', editingRevId)
+    : await sb.from('revision_requests').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-rev');
+  showToast(editingRevId?'Ajuste atualizado ✓':'Ajuste registrado ✓');
+  await loadAll(); switchPTab('ajustes');
+}
+
+async function deleteRevision(){
+  if(!editingRevId) return;
+  if(!confirm('Excluir este pedido de ajuste? O tempo cronometrado nele continua no relatório, mas sem vínculo.')) return;
+  const {error} = await sb.from('revision_requests').delete().eq('id', editingRevId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-rev');
+  showToast('Ajuste excluído');
+  await loadAll(); switchPTab('ajustes');
+}
+</script>
+</body>
+</html>
