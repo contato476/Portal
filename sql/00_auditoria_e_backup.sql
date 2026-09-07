@@ -23,10 +23,10 @@
 -- Isso significa que hoje, se o projeto do Supabase for perdido ou
 -- você quiser montar um ambiente de teste, o sistema é IRRECUPERÁVEL.
 --
--- O QUE FAZER: selecione daqui até o final do bloco, rode, copie o
--- resultado da coluna "ddl" e salve num arquivo novo chamado
--- sql/00_schema_base.sql aqui na pasta. Refaça sempre que criar uma
--- tabela nova pelo painel.
+-- ✅ FEITO EM 07/09/2026: o arquivo sql/00_schema_base.sql já existe,
+-- gerado a partir do resultado deste bloco. Rode de novo só quando
+-- criar uma tabela nova ou uma coluna nova pelo painel — aí atualize
+-- o 00_schema_base.sql com o resultado.
 --
 -- Obs.: o resultado sai sem o ponto e vírgula no fim de cada comando —
 -- acrescente ao colar no arquivo.
@@ -129,21 +129,48 @@ order by c.relrowsecurity, c.relname;
 
 
 -- ════════════════════════════════════════════════════════════════════
--- BLOCO 6 — CORREÇÃO SUGERIDA PARA O DELETE DE "documents"
+-- BLOCO 6 — DELETE DE "documents": VERIFICADO EM 07/09/2026, ESTÁ OK
 --
--- ⚠️ Rode SÓ DEPOIS de olhar o resultado do BLOCO 4.
--- Este é o único bloco do arquivo que ALTERA alguma coisa, e por isso
--- está comentado. Para usar, tire os "--" do começo das linhas.
+-- ⚠️ NÃO HÁ NADA A FAZER AQUI. Deixo o registro para você não precisar
+-- reinvestigar isso depois.
 --
--- O que ele faz: garante que um cliente só possa apagar documento que
--- ELE MESMO enviou, nunca os que você enviou.
+-- A dúvida era: o cliente consegue apagar documento que VOCÊ subiu?
+-- Resposta: NÃO. A policy documents_delete, criada pelo painel e vista
+-- no BLOCO 4, já diz exatamente o certo:
+--
+--   is_admin()
+--   OR (uploaded_by = auth.uid()      <- só o que ele mesmo enviou
+--       AND project_id IS NOT NULL
+--       AND o usuário é membro daquele projeto)
+--
+-- Ou seja: você apaga tudo, o cliente apaga só o que ele enviou.
+-- É o comportamento correto, e ele já estava assim antes desta revisão.
+--
+-- (A policy só não estava versionada em nenhum arquivo sql/ — isso sim
+--  era o risco, e está resolvido pelo BLOCO 7 abaixo.)
 -- ════════════════════════════════════════════════════════════════════
--- drop policy if exists "member_delete_own" on public.documents;
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- BLOCO 7 — BACKUP DAS PERMISSÕES (RLS)  ⚠️ IMPORTANTE
 --
--- create policy "member_delete_own" on public.documents
---   for delete to authenticated
---   using (
---     public.is_member(project_id)
---     and user_id = auth.uid()
---     and coalesce(uploaded_by, '') <> 'admin'
---   );
+-- POR QUÊ: várias policies foram criadas pelo painel do Supabase e não
+-- existem em nenhum arquivo aqui. Sem elas, um banco reconstruído fica
+-- com as tabelas certas e ninguém conseguindo ler nada.
+--
+-- O QUE FAZER: rode e cole o resultado da coluna "ddl" no fim do
+-- arquivo sql/00_schema_base.sql.
+-- ════════════════════════════════════════════════════════════════════
+select
+  tablename as tabela,
+  'drop policy if exists ' || quote_ident(policyname) || ' on public.' || quote_ident(tablename) ||
+  chr(10) ||
+  'create policy ' || quote_ident(policyname) || ' on public.' || quote_ident(tablename) ||
+  ' as ' || permissive ||
+  ' for ' || cmd ||
+  ' to ' || array_to_string(roles, ', ') ||
+  coalesce(chr(10) || '  using (' || qual || ')', '') ||
+  coalesce(chr(10) || '  with check (' || with_check || ')', '') as ddl
+from pg_policies
+where schemaname = 'public'
+order by tablename, policyname;
