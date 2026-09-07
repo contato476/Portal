@@ -52,12 +52,17 @@
   <div class="main-area">
     <div class="topbar">
       <div class="topbar-title">Marketing</div>
-      <div style="display:flex;gap:9px">
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="sincronizarInstagram()" id="btn-sync-ig">🔄 Sincronizar Instagram</button>
+        <button class="btn btn-ghost" onclick="openColar()">📋 Importar colando</button>
         <button class="btn btn-ghost" onclick="openReport()">📊 Relatório mensal</button>
         <button class="btn btn-primary" onclick="openNewMetric()">+ Registrar métricas</button>
       </div>
     </div>
     <div class="main-content">
+
+      <div id="ig-status" style="margin-bottom:16px"></div>
+
 
       <div class="stats-row">
         <div class="stat"><div class="stat-label">Seguidores (total)</div><div class="stat-val" id="st-fol">—</div><div class="stat-sub">último registro</div></div>
@@ -151,6 +156,47 @@
   </div>
 </div>
 
+<!-- MODAL: IMPORTAR COLANDO -->
+<div class="overlay" id="modal-colar">
+  <div class="modal" style="width:700px">
+    <div class="modal-title">Importar métricas colando</div>
+    <div class="note-box" style="margin-bottom:14px">
+      Cole aqui os números direto de uma planilha (Excel, Google Sheets) ou do que você anotou.
+      <b>Uma linha por dia</b>, colunas separadas por tabulação, ponto e vírgula ou vírgula.<br><br>
+      Ordem esperada: <code>data · alcance · visualizações · interações · visitas ao perfil · toques no link · seguidores · leads · posts</code><br>
+      Só a <b>data</b> é obrigatória; o que faltar fica em branco. Datas aceitas: 07/09/2026 ou 2026-09-07.
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Canal</label>
+        <select class="form-input form-select" id="col-channel">
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="tiktok">TikTok</option>
+          <option value="youtube">YouTube</option>
+          <option value="site">Site</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end">
+        <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="col-sobrescrever"> Sobrescrever o que já existe nessas datas
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cole aqui</label>
+      <textarea class="form-input" id="col-texto" rows="7" style="font-family:monospace;font-size:12.5px"
+        placeholder="07/09/2026	1200	3400	85	42	7	2150	3	2&#10;08/09/2026	980	2900	61	38	4	2158	1	1"
+        oninput="previewColagem()"></textarea>
+    </div>
+    <div id="col-preview"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-colar')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-col-save" onclick="salvarColagem()">Importar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="assets/helpers.js"></script>
@@ -164,7 +210,197 @@ let metrics = [];
 let editingMkId = null;
 let viewMonth = todayISO().slice(0,7);
 
-window.addEventListener('DOMContentLoaded', () => { renderSidebar('marketing'); requireAdmin(loadAll); });
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('marketing');
+  requireAdmin(async ()=>{ await loadAll(); mostrarStatusInstagram(); });
+});
+
+/* ════════════════════════════════════════════════════════════════════
+   INSTAGRAM
+   O token da Meta NUNCA passa por aqui: ele vive só na função
+   /api/instagram, no servidor. Esta tela pede os números para lá e
+   grava no banco com a sua própria sessão.
+   ════════════════════════════════════════════════════════════════════ */
+
+async function mostrarStatusInstagram(){
+  const el = document.getElementById('ig-status');
+  if(!el) return;
+  const [usuario, ultima, expira] = await Promise.all([
+    getSetting('ig_username'), getSetting('ig_last_sync'), getSetting('ig_token_expires_at'),
+  ]);
+  if(!ultima){
+    el.innerHTML = `<div class="note-box">
+      <b>Instagram ainda não conectado.</b> Enquanto isso, use <b>📋 Importar colando</b> ou
+      <b>+ Registrar métricas</b> — a tela funciona igual.<br>
+      Para conectar de verdade, siga o passo a passo do arquivo
+      <code>INSTAGRAM.md</code> e depois clique em <b>🔄 Sincronizar Instagram</b>.</div>`;
+    return;
+  }
+  // Token da Meta vale 60 dias e não se renova sozinho — avisa antes.
+  let alerta = '';
+  if(expira){
+    const faltam = daysBetween(todayISO(), expira.slice(0,10));
+    if(faltam <= 10) alerta = `<br><b style="color:var(--red)">O acesso à Meta expira em ${faltam} dia(s).</b> Gere um token novo e atualize na Vercel.`;
+    else if(faltam <= 20) alerta = `<br><b style="color:var(--amber)">O acesso à Meta expira em ${faltam} dias.</b>`;
+  }
+  el.innerHTML = `<div class="note-box">
+    Instagram conectado${usuario?' como <b>@'+escapeHtml(usuario)+'</b>':''} ·
+    última sincronização em <b>${escapeHtml(fmtDate(ultima))}</b>${alerta}</div>`;
+}
+
+async function sincronizarInstagram(){
+  const btn = document.getElementById('btn-sync-ig');
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Sincronizando...';
+  try{
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session) throw new Error('Sessão expirada — entre de novo');
+
+    const r = await fetch('/api/instagram?days=30', {
+      headers: {Authorization: 'Bearer '+session.access_token},
+    });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || ('A função respondeu '+r.status));
+    if(!j.metrics || !j.metrics.length) throw new Error('A Meta não devolveu nenhuma métrica no período');
+
+    // REGRA ANTI-ATROPELO: o que você digitou à mão não é sobrescrito
+    // sem você mandar. Sem isto, a primeira sincronização apagaria o
+    // trabalho manual em silêncio (a tabela usa upsert por data).
+    const datas = j.metrics.map(m=>m.metric_date);
+    const {data: existentes} = await sb.from('mkt_metrics')
+      .select('metric_date,source').eq('channel','instagram').in('metric_date', datas);
+    const manuais = new Set((existentes||[]).filter(x=>x.source==='manual').map(x=>x.metric_date));
+
+    let paraGravar = j.metrics;
+    if(manuais.size){
+      const ok = confirm(
+        `${manuais.size} dia(s) desse período você preencheu à mão.\n\n` +
+        `OK = sobrescrever com os números do Instagram\n` +
+        `Cancelar = manter o que você digitou e importar só o resto`
+      );
+      if(!ok) paraGravar = j.metrics.filter(m=>!manuais.has(m.metric_date));
+    }
+
+    if(paraGravar.length){
+      const linhas = paraGravar.map(m=>{
+        const {posts_total, ...resto} = m;   // posts_total é acumulado, não do dia
+        return {...resto, channel:'instagram', source:'instagram_api', synced_at:new Date().toISOString()};
+      });
+      const {error} = await sb.from('mkt_metrics')
+        .upsert(linhas, {onConflict:'channel,metric_date'});
+      if(error) throw error;
+    }
+
+    await setSetting('ig_last_sync', new Date().toISOString());
+    if(j.username) await setSetting('ig_username', j.username);
+    if(j.token_expires_at) await setSetting('ig_token_expires_at', j.token_expires_at);
+
+    // Métrica que a Meta não sabe calcular fica sempre por sua conta.
+    let msg = paraGravar.length+' dia(s) atualizados ✓';
+    if(j.avisos && j.avisos.length) msg += ' — com ressalvas';
+    showToast(msg);
+    if(j.avisos && j.avisos.length){
+      document.getElementById('ig-status').innerHTML += `
+        <div class="note-box warn" style="margin-top:8px">
+          <b>Algumas métricas não vieram:</b><br>${j.avisos.map(escapeHtml).join('<br>')}
+          <div style="margin-top:8px">A Meta troca o nome das métricas de tempos em tempos.
+          O resto foi importado normalmente — complete o que faltar à mão.</div>
+        </div>`;
+    }
+    await loadAll();
+    mostrarStatusInstagram();
+  }catch(e){
+    showToast('Instagram: '+(e.message||e), true);
+    document.getElementById('ig-status').innerHTML = `<div class="note-box warn">
+      <b>Não consegui sincronizar:</b> ${escapeHtml(e.message||String(e))}<br>
+      Confira o passo a passo em <code>INSTAGRAM.md</code>. Enquanto isso, os números podem
+      entrar por <b>📋 Importar colando</b> ou <b>+ Registrar métricas</b>.</div>`;
+  }finally{
+    btn.disabled = false; btn.textContent = antes;
+  }
+}
+
+/* ──────────── IMPORTAR COLANDO ──────────── */
+const COLUNAS_COLAGEM = ['reach','views','interactions','profile_visits','link_taps','followers','leads','posts'];
+
+function parseDataBR(s){
+  const t = String(s).trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return t;
+  m = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  if(!m) return null;
+  const ano = m[3].length === 2 ? '20'+m[3] : m[3];
+  return `${ano}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
+
+function parseColagem(texto){
+  const linhas = String(texto).split('\n').map(l=>l.trim()).filter(Boolean);
+  const ok = [], ruins = [];
+  linhas.forEach((linha, i)=>{
+    const partes = linha.split(/\t|;|,(?![0-9]{3}\b)/).map(p=>p.trim());
+    const data = parseDataBR(partes[0]);
+    if(!data){ ruins.push({linha: i+1, texto: linha}); return }
+    const reg = {metric_date: data};
+    COLUNAS_COLAGEM.forEach((col, j)=>{
+      const bruto = (partes[j+1]||'').replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,'');
+      if(bruto !== '' && !isNaN(Number(bruto))) reg[col] = Math.round(Number(bruto));
+    });
+    ok.push(reg);
+  });
+  return {ok, ruins};
+}
+
+function previewColagem(){
+  const {ok, ruins} = parseColagem(document.getElementById('col-texto').value);
+  const el = document.getElementById('col-preview');
+  if(!ok.length && !ruins.length){ el.innerHTML = ''; return }
+  el.innerHTML = `
+    ${ruins.length?`<div class="note-box warn" style="margin-bottom:10px">
+      <b>${ruins.length} linha(s) sem data reconhecível</b> — vou pular:
+      ${ruins.slice(0,3).map(r=>'<br><code>'+escapeHtml(r.texto.slice(0,60))+'</code>').join('')}</div>`:''}
+    ${ok.length?`<div class="tbl-wrap" style="max-height:200px;overflow:auto"><table>
+      <thead><tr><th>Data</th>${COLUNAS_COLAGEM.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${ok.slice(0,10).map(r=>`<tr><td>${fmtDateShort(r.metric_date)}</td>${
+        COLUNAS_COLAGEM.map(c=>`<td>${r[c]??'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div><div style="font-size:11.5px;color:var(--text3);margin-top:6px">${ok.length} linha(s) prontas${ok.length>10?' (mostrando 10)':''}</div>`:''}`;
+}
+
+function openColar(){
+  document.getElementById('col-texto').value = '';
+  document.getElementById('col-preview').innerHTML = '';
+  document.getElementById('col-sobrescrever').checked = false;
+  document.getElementById('col-channel').value = 'instagram';
+  openModal('modal-colar');
+}
+
+async function salvarColagem(){
+  const canal = document.getElementById('col-channel').value;
+  const {ok} = parseColagem(document.getElementById('col-texto').value);
+  if(!ok.length){ showToast('Nada para importar', true); return }
+
+  let linhas = ok;
+  if(!document.getElementById('col-sobrescrever').checked){
+    const {data: existentes} = await sb.from('mkt_metrics')
+      .select('metric_date').eq('channel', canal).in('metric_date', ok.map(r=>r.metric_date));
+    const jaTem = new Set((existentes||[]).map(x=>x.metric_date));
+    linhas = ok.filter(r=>!jaTem.has(r.metric_date));
+    if(jaTem.size && !linhas.length){
+      showToast('Todas essas datas já existem. Marque "sobrescrever" se quiser trocar.', true);
+      return;
+    }
+  }
+
+  const btn = document.getElementById('btn-col-save');
+  btn.disabled = true;
+  const {error} = await sb.from('mkt_metrics').upsert(
+    linhas.map(r=>({...r, channel:canal, source:'importacao', synced_at:new Date().toISOString()})),
+    {onConflict:'channel,metric_date'});
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-colar');
+  showToast(linhas.length+' registro(s) importados ✓');
+  loadAll();
+}
 
 async function loadAll(){
   const {data, error} = await sb.from('mkt_metrics').select('*').order('metric_date',{ascending:false});
@@ -325,6 +561,9 @@ async function saveMetric(){
     leads: numOrNull('m-leads'),
     posts: numOrNull('m-posts'),
     notes: document.getElementById('m-notes').value.trim()||null,
+    // Marca como seu: a sincronização do Instagram pergunta antes de
+    // passar por cima do que foi digitado à mão.
+    source: 'manual',
   };
   const btn = document.getElementById('btn-save-mk');
   btn.disabled = true;

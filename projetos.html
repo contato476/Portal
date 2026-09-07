@@ -336,6 +336,7 @@ const REV_BADGE = {
 
 // ──────────── ESTADO ────────────
 let allProjects = [], allTasks = [], allRevisions = [], allMilestones = [], timeRows = [];
+let clientRequests = [];   // pedidos vindos do portal do cliente
 let contactMap = {}, subMap = {}, taskMap = {};
 let currentTab = 'lista';
 let detailProjectId = null, currentPTab = 'tarefas';
@@ -359,13 +360,15 @@ function fillStatusSelects(){
 
 // ──────────── CARGA ────────────
 async function loadAll(){
-  const [projRes, taskRes, revRes, mileRes, timeRes, contactRes] = await Promise.all([
+  const [projRes, taskRes, revRes, mileRes, timeRes, contactRes, pedRes] = await Promise.all([
     sb.from('projects').select('*').order('end_date',{ascending:true,nullsFirst:false}),
     sb.from('tasks').select('*').order('order_num').order('due_date',{ascending:true,nullsFirst:false}),
     sb.from('revision_requests').select('*').order('requested_at',{ascending:false}),
     sb.from('project_milestones').select('*').order('order_num').order('due_date',{ascending:true,nullsFirst:false}),
     sb.from('time_entries').select('project_id,revision_id,task_id,kind,duration_seconds,started_at,ended_at,description,needs_review,id').order('started_at',{ascending:false}),
     sb.from('crm_contacts').select('id,name,company'),
+    // Pedidos que os clientes mandaram pelo portal (sql/12).
+    sb.from('client_requests').select('*').order('created_at',{ascending:false}),
   ]);
 
   if(projRes.error){
@@ -385,6 +388,7 @@ async function loadAll(){
   allRevisions  = revRes.data || [];
   allMilestones = mileRes.data || [];
   timeRows      = timeRes.data || [];
+  clientRequests = pedRes.data || [];   // vazio se o sql/12 ainda não rodou
 
   contactMap = {};
   (contactRes.data||[]).forEach(c=>contactMap[c.id]=c);
@@ -508,6 +512,7 @@ function projRow(p){
   if(p.end_date) meta.push(atrasado ? 'venceu '+fmtDateShort(p.end_date) : 'prazo '+fmtDateShort(p.end_date));
   if(ajustes) meta.push(ajustes+' ajuste'+(ajustes>1?'s':'')+' aberto'+(ajustes>1?'s':''));
   if(p.archived) meta.push('arquivado');
+  const pedidosNovos = clientRequests.filter(x=>x.project_id===p.id && x.status==='novo').length;
 
   return `
     <div class="proj-row${atrasado?' late':''}" onclick="openProject('${p.id}')">
@@ -522,6 +527,7 @@ function projRow(p){
         </div>
       </div>
       <div class="proj-right">
+        ${pedidosNovos?`<span class="badge bg-amber" title="Pedidos novos do cliente, pelo portal">💬 ${pedidosNovos}</span>`:''}
         <div class="proj-hours">
           ${fmtDuration(seg)}
           ${prev?`<div style="font-size:10px;color:var(--text3)">de ${fmtDuration(prev)}</div>`:''}
@@ -702,6 +708,16 @@ function openProject(id){
 
   switchPTab(currentPTab);
   openModal('modal-detail');
+
+  // Marca como lido o que o cliente mandou — assim ele vê no portal que
+  // você já abriu, e para de poder editar o texto por baixo.
+  const novos = clientRequests.filter(p=>p.project_id===id && p.status==='novo');
+  if(novos.length){
+    sb.from('client_requests')
+      .update({status:'lido', read_at:new Date().toISOString()})
+      .in('id', novos.map(p=>p.id))
+      .then(()=>{ novos.forEach(p=>p.status='lido') }, ()=>{});
+  }
 }
 
 function switchPTab(name){
@@ -801,13 +817,15 @@ function renderProjRevisions(){
   const el = document.getElementById('pd-revisions');
   const rs = allRevisions.filter(r=>r.project_id===detailProjectId);
   if(!rs.length){
-    el.innerHTML = '<div class="empty">Nenhum pedido de ajuste registrado.<br>Registre cada pedido aqui para medir quanto tempo eles consomem.</div>';
+    el.innerHTML = caixaDeEntrada() +
+      '<div class="empty">Nenhum pedido de ajuste registrado.<br>Registre cada pedido aqui para medir quanto tempo eles consomem.</div>';
     return;
   }
   const totalCobravel = rs.filter(r=>r.is_billable)
     .reduce((s,r)=>s + timeRows.filter(t=>t.revision_id===r.id).reduce((a,t)=>a+(t.duration_seconds||0),0), 0);
 
   el.innerHTML =
+    caixaDeEntrada() +
     (totalCobravel ? `<div class="note-box warn" style="margin-bottom:12px">
        <b>${fmtDuration(totalCobravel)}</b> gastos em ajustes marcados como <b>fora do escopo</b> neste projeto.</div>` : '') +
     rs.map(r=>{
@@ -831,6 +849,70 @@ function renderProjRevisions(){
             onclick="event.stopPropagation();toggleTimer({revision_id:'${r.id}',project_id:'${r.project_id}',kind:'ajuste',label:${JSON.stringify('Ajuste #'+(r.number||'')+' — '+r.title)}})">▶</button>
         </div>`;
     }).join('');
+}
+
+// ──────────── CAIXA DE ENTRADA (pedidos vindos do portal) ────────────
+// O cliente escreve no portal; aqui você decide o que fazer. Nada vira
+// trabalho sozinho — converter em ajuste é uma ação sua.
+function caixaDeEntrada(){
+  const pend = clientRequests.filter(p=>p.project_id===detailProjectId && ['novo','lido'].includes(p.status));
+  if(!pend.length) return '';
+  return `
+    <div class="note-box" style="margin-bottom:14px">
+      <b>${pend.length} pedido(s) do cliente esperando você.</b>
+      ${pend.map(p=>`
+        <div style="background:var(--dark2);border-radius:8px;padding:11px 13px;margin-top:10px">
+          <div style="font-size:13px;font-weight:500;color:var(--text)">${escapeHtml(p.title)}</div>
+          ${p.description?`<div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.6;white-space:pre-wrap">${escapeHtml(p.description)}</div>`:''}
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">Recebido em ${fmtDate(p.created_at)}${p.status==='lido'?' · você já abriu':''}</div>
+          <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="converterPedido('${p.id}')">Virar ajuste</button>
+            <button class="btn btn-ghost btn-sm" onclick="responderPedido('${p.id}','recusado')">Não vou fazer</button>
+            <button class="btn btn-ghost btn-sm" onclick="responderPedido('${p.id}','arquivado')">Arquivar</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// Transforma o pedido do cliente num ajuste seu, já com a numeração e o
+// cronômetro disponíveis. O texto original vai junto, para não se perder.
+async function converterPedido(id){
+  const p = clientRequests.find(x=>x.id===id);
+  if(!p) return;
+  const cobravel = confirm(
+    `Virar ajuste: "${p.title}"\n\n` +
+    `Este pedido está FORA DO ESCOPO (cobrável)?\n\n` +
+    `OK = fora do escopo, vou cobrar\n` +
+    `Cancelar = está dentro do que foi combinado`
+  );
+  const {data, error} = await sb.from('revision_requests').insert({
+    project_id: p.project_id,
+    title: p.title,
+    description: p.description,
+    channel: 'portal',
+    requested_at: (p.created_at||'').slice(0,10) || todayISO(),
+    is_billable: cobravel,
+  }).select('id').single();
+  if(error){ showToast('Erro: '+error.message, true); return }
+
+  await sb.from('client_requests')
+    .update({status:'convertido', revision_id:data.id, read_at:new Date().toISOString()})
+    .eq('id', id);
+  showToast('Pedido virou ajuste ✓ — já dá para cronometrar');
+  await loadAll(); switchPTab('ajustes');
+}
+
+async function responderPedido(id, status){
+  const nota = prompt(status==='recusado'
+    ? 'Explique para o cliente por que este pedido não será feito:'
+    : 'Alguma observação para o cliente? (opcional)', '');
+  if(status==='recusado' && nota === null) return;
+  const {error} = await sb.from('client_requests')
+    .update({status, admin_note: nota||null, read_at:new Date().toISOString()})
+    .eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  showToast(status==='recusado' ? 'Cliente avisado' : 'Pedido arquivado');
+  await loadAll(); switchPTab('ajustes');
 }
 
 function renderProjTime(){

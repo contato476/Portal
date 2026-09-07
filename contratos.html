@@ -15,6 +15,27 @@ textarea.tpl-body{min-height:240px;font-family:monospace;font-size:12.5px;line-h
 .wizard-steps{display:flex;gap:6px;margin-bottom:18px}
 .wstep{flex:1;height:3px;border-radius:2px;background:var(--dark3)}
 .wstep.on{background:var(--green)}
+
+/* Editor Quill no tema escuro do sistema */
+.ql-toolbar.ql-snow{border:1px solid var(--border);border-bottom:none;border-radius:var(--radius-sm) var(--radius-sm) 0 0;background:var(--dark3)}
+.ql-container.ql-snow{border:1px solid var(--border);border-radius:0 0 var(--radius-sm) var(--radius-sm);background:var(--dark3);font-family:'DM Sans',sans-serif;font-size:13.5px}
+.ql-editor{min-height:260px;max-height:400px;color:var(--text);line-height:1.75}
+.ql-editor.ql-blank::before{color:var(--text3);font-style:normal}
+.ql-snow .ql-stroke{stroke:var(--text2)}
+.ql-snow .ql-fill{fill:var(--text2)}
+.ql-snow .ql-picker-label{color:var(--text2)}
+.ql-snow .ql-picker-options{background:var(--dark2);border-color:var(--border)}
+.ql-snow.ql-toolbar button:hover .ql-stroke{stroke:var(--green2)}
+.ql-snow.ql-toolbar button.ql-active .ql-stroke{stroke:var(--green2)}
+/* Variáveis {{x}} destacadas na prévia */
+.var-mark{background:rgba(227,179,65,.22);border-radius:3px;padding:0 3px}
+.sug-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--dark3);border-radius:7px;margin-bottom:6px;font-size:12.5px}
+.sug-txt{flex:1;min-width:0;font-family:monospace;color:var(--amber);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.varlbl-row{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:6px}
+.varlbl-row code{font-size:11.5px;color:var(--text3)}
+.preview-box.html-preview{white-space:normal}
+.preview-box.html-preview p{margin-bottom:8px}
+.preview-box.html-preview h1,.preview-box.html-preview h2{color:var(--text);margin:10px 0 6px}
 </style>
 </head>
 <body>
@@ -80,11 +101,26 @@ textarea.tpl-body{min-height:240px;font-family:monospace;font-size:12.5px;line-h
   <div class="modal" style="width:680px">
     <div class="modal-title" id="modal-tpl-title">Novo modelo</div>
     <div class="form-group"><label class="form-label">Nome do modelo *</label><input class="form-input" id="tp-name" placeholder="Ex.: Contrato de prestação de serviços"></div>
-    <div class="form-group">
-      <label class="form-label">Texto do contrato * — use variáveis entre chaves duplas, ex.: {{cliente}}</label>
-      <textarea class="form-input tpl-body" id="tp-body" placeholder="CONTRATO DE PRESTAÇÃO DE SERVIÇOS&#10;&#10;CONTRATANTE: {{cliente}}, inscrito sob o CPF/CNPJ {{cpf_cnpj}}..."></textarea>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('tp-file').click()">📄 Importar de um arquivo</button>
+      <input type="file" id="tp-file" accept=".docx,.pdf" style="display:none" onchange="importarModelo(event)">
+      <button class="btn btn-ghost btn-sm" onclick="virarVariavel()" title="Selecione um trecho no texto e clique aqui">{ } Virar variável</button>
+      <span id="tp-import-status" style="font-size:11.5px;color:var(--text3)"></span>
     </div>
-    <div style="font-size:11.5px;color:var(--text3)">Variáveis encontradas: <span id="tp-vars">—</span></div>
+
+    <div class="form-group">
+      <label class="form-label">Texto do contrato * — o que estiver entre chaves duplas vira campo a preencher, ex.: {{cliente}}</label>
+      <div id="tp-editor"></div>
+    </div>
+
+    <div id="tp-sugestoes"></div>
+
+    <div class="form-group" id="tp-vars-block" style="display:none">
+      <label class="form-label">Campos deste modelo — dê um nome fácil para cada um</label>
+      <div id="tp-vars-list"></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text3)">Campos encontrados: <span id="tp-vars">—</span></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-tpl" style="margin-right:auto;display:none" onclick="deleteTemplate()">Excluir</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-tpl')">Cancelar</button>
@@ -154,10 +190,11 @@ textarea.tpl-body{min-height:240px;font-family:monospace;font-size:12.5px;line-h
       </div>
       <div class="form-group"><label class="form-label">Data da assinatura</label><input class="form-input" id="ct-signed" type="date"></div>
     </div>
-    <div class="form-group"><label class="form-label">Texto do contrato</label><textarea class="form-input tpl-body" id="ct-body"></textarea></div>
+    <div class="form-group"><label class="form-label">Texto do contrato</label><div id="ct-editor"></div></div>
     <div class="modal-footer">
       <button class="btn btn-danger" style="margin-right:auto" onclick="deleteContract()">Excluir</button>
-      <button class="btn btn-ghost" onclick="printContract()">🖨️ Imprimir / PDF</button>
+      <button class="btn btn-ghost" onclick="printContract()" title="Abre a versão pronta para imprimir. No Ctrl+P, escolha 'Salvar como PDF'">🖨️ Imprimir / PDF</button>
+      <button class="btn btn-ghost" id="btn-pdf" onclick="baixarPdfAnexado()" title="Gera um PDF e anexa ao contrato. Fica mais pesado que o do Ctrl+P.">📎 Anexar PDF</button>
       <button class="btn btn-ghost" onclick="launchRevenue()" title="Cria uma receita pendente no financeiro com o valor do contrato">💰 Lançar receita</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-ct')">Fechar</button>
       <button class="btn btn-primary" onclick="updateContract()">Salvar</button>
@@ -167,6 +204,14 @@ textarea.tpl-body{min-height:240px;font-family:monospace;font-size:12.5px;line-h
 
 <div class="toast" id="toast"></div>
 
+<!-- Bibliotecas carregadas SÓ nesta tela (juntas dão ~1,1 MB).
+     Versões fixas de propósito: sem etapa de build, uma versão nova
+     publicada no CDN quebraria a página em produção sem aviso.
+     mammoth  → lê .docx    pdf.js → lê PDF    Quill → editor -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
@@ -226,10 +271,34 @@ let templates = [], contracts = [], contacts = [], projects = [];
 let tplMap = {}, contactMap = {};
 let editingTplId = null, editingCtId = null;
 
+// Editores de texto com formatação. Criados uma vez só, na primeira
+// abertura do modal — não no boot, para não pesar a tela à toa.
+let tplQuill = null, ctQuill = null;
+// Arquivo que originou o modelo aberto (para guardar a procedência).
+let tplSource = {path:null, name:null, type:null};
+let tplVarLabels = {};
+
+const BARRA_EDITOR = [
+  [{header:[1,2,3,false]}],
+  ['bold','italic','underline'],
+  [{list:'ordered'},{list:'bullet'}],
+  [{align:[]}],
+  ['clean'],
+];
+
+function editor(id, guardado){
+  if(guardado) return guardado;
+  const q = new Quill('#'+id, {
+    theme:'snow',
+    modules:{toolbar: BARRA_EDITOR},
+    placeholder:'CONTRATO DE PRESTAÇÃO DE SERVIÇOS\n\nCONTRATANTE: {{cliente}}, inscrito sob o CPF/CNPJ {{cpf_cnpj}}...',
+  });
+  return q;
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   renderSidebar('contratos');
   requireAdmin(loadAll);
-  document.getElementById('tp-body').addEventListener('input', updateTplVars);
 });
 
 async function loadAll(){
@@ -296,7 +365,7 @@ function renderTemplates(){
   el.innerHTML = `<table>
     <thead><tr><th>Modelo</th><th>Variáveis</th><th>Criado</th></tr></thead>
     <tbody>${templates.map(t=>{
-      const vars = extractVars(t.body);
+      const vars = [...new Set([...extractVars(t.body), ...extractVars(t.body_html||'')])];
       return `<tr class="clickable" onclick="openEditTemplate('${t.id}')">
         <td><div class="td-main">${escapeHtml(t.name)}</div></td>
         <td>${vars.slice(0,6).map(v=>'<span class="var-chip">'+escapeHtml(v)+'</span>').join('')}${vars.length>6?' +'+(vars.length-6):''}</td>
@@ -309,41 +378,240 @@ function extractVars(body){
   const m = (body||'').match(/{{\s*[\w]+\s*}}/g)||[];
   return [...new Set(m.map(v=>v.replace(/[{}\s]/g,'')))];
 }
-function updateTplVars(){
-  const vars = extractVars(document.getElementById('tp-body').value);
-  document.getElementById('tp-vars').innerHTML = vars.length?vars.map(v=>'<span class="var-chip">'+escapeHtml(v)+'</span>').join(''):'—';
+function abrirModalModelo(){
+  openModal('modal-tpl');
+  tplQuill = editor('tp-editor', tplQuill);
+  tplQuill.off('text-change', updateTplVars);
+  tplQuill.on('text-change', updateTplVars);
 }
+
 function openNewTemplate(){
   editingTplId = null;
+  tplSource = {path:null, name:null, type:null};
+  tplVarLabels = {};
   document.getElementById('modal-tpl-title').textContent = 'Novo modelo';
   document.getElementById('btn-del-tpl').style.display = 'none';
-  document.getElementById('tp-name').value='';
-  document.getElementById('tp-body').value='';
+  document.getElementById('tp-name').value = '';
+  document.getElementById('tp-import-status').textContent = '';
+  abrirModalModelo();
+  tplQuill.setText('');
   updateTplVars();
-  openModal('modal-tpl');
 }
+
 function openEditTemplate(id){
   const t = tplMap[id];
   if(!t) return;
   editingTplId = id;
+  tplSource = {path:t.source_path||null, name:t.source_name||null, type:t.source_type||null};
+  tplVarLabels = t.var_labels || {};
   document.getElementById('modal-tpl-title').textContent = 'Editar modelo';
   document.getElementById('btn-del-tpl').style.display = 'inline-flex';
   document.getElementById('tp-name').value = t.name;
-  document.getElementById('tp-body').value = t.body;
+  document.getElementById('tp-import-status').textContent =
+    t.source_name ? 'Veio do arquivo: '+t.source_name : '';
+  abrirModalModelo();
+  // Modelos antigos são texto puro; os novos guardam a formatação.
+  if(t.format === 'html' && t.body_html) tplQuill.setContents(tplQuill.clipboard.convert({html:t.body_html}));
+  else tplQuill.setText(t.body || '');
   updateTplVars();
-  openModal('modal-tpl');
 }
+
 async function saveTemplate(){
   const name = document.getElementById('tp-name').value.trim();
-  const body = document.getElementById('tp-body').value.trim();
-  if(!name || !body){showToast('Preencha nome e texto',true);return}
+  const texto = tplQuill ? tplQuill.getText().trim() : '';
+  if(!name || !texto){ showToast('Preencha o nome e o texto do contrato', true); return }
+  const payload = {
+    name,
+    // body continua sendo texto puro: é o que os contratos antigos usam
+    // e o que o buscador de variáveis lê. body_html guarda a formatação.
+    body: texto,
+    body_html: tplQuill.root.innerHTML,
+    format: 'html',
+    var_labels: tplVarLabels,
+    source_path: tplSource.path,
+    source_name: tplSource.name,
+    source_type: tplSource.type,
+  };
   const {error} = editingTplId
-    ? await sb.from('contract_templates').update({name,body}).eq('id',editingTplId)
-    : await sb.from('contract_templates').insert({name,body});
-  if(error){showToast('Erro: '+error.message,true);return}
+    ? await sb.from('contract_templates').update(payload).eq('id', editingTplId)
+    : await sb.from('contract_templates').insert(payload);
+  if(error){ showToast('Erro: '+error.message, true); return }
   closeModal('modal-tpl');
   showToast('Modelo salvo ✓');
   loadAll();
+}
+
+// ──────────── IMPORTAR .docx / PDF ────────────
+async function importarModelo(ev){
+  const file = ev.target.files[0];
+  ev.target.value = '';                 // permite reimportar o mesmo arquivo
+  if(!file) return;
+  const status = document.getElementById('tp-import-status');
+  status.textContent = 'Lendo o arquivo...';
+  status.style.color = 'var(--text3)';
+
+  let html = '';
+  try{
+    if(/\.docx$/i.test(file.name)){
+      const res = await mammoth.convertToHtml({arrayBuffer: await file.arrayBuffer()});
+      html = res.value || '';
+    }else if(/\.pdf$/i.test(file.name)){
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+      const partes = [];
+      for(let p=1; p<=pdf.numPages; p++){
+        const c = await (await pdf.getPage(p)).getTextContent();
+        partes.push(c.items.map(i=>i.str).join(' '));
+      }
+      html = partes.map(t=>'<p>'+escapeHtml(t)+'</p>').join('');
+    }else{
+      status.textContent = 'Envie um arquivo .docx ou .pdf'; status.style.color = 'var(--red)'; return;
+    }
+  }catch(e){
+    status.textContent = 'Não consegui ler este arquivo: '+(e.message||e);
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  // PDF escaneado (imagem) devolve texto vazio — melhor avisar do que
+  // salvar um modelo em branco e ela descobrir depois.
+  if(html.replace(/<[^>]*>/g,'').trim().length < 50){
+    status.textContent = 'O arquivo não tem texto para copiar. Se for um PDF escaneado (foto do documento), não dá para importar — envie o .docx.';
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  tplQuill.setContents(tplQuill.clipboard.convert({html}));
+  if(!document.getElementById('tp-name').value.trim())
+    document.getElementById('tp-name').value = file.name.replace(/\.(docx|pdf)$/i,'');
+
+  // Guarda o original, para você poder conferir de onde veio o texto.
+  const caminho = `contratos/modelos/${Date.now()}-${sanitizeFileName(file.name)}`;
+  const {error} = await sb.storage.from('gestao-files').upload(caminho, file);
+  tplSource = error ? {path:null, name:file.name, type:file.type}
+                    : {path:caminho, name:file.name, type:file.type};
+
+  const ehPdf = /\.pdf$/i.test(file.name);
+  status.innerHTML = ehPdf
+    ? '<b style="color:var(--amber)">Texto importado, mas o PDF perde a formatação</b> — o PDF guarda pedaços de texto, não parágrafos. Reveja os títulos e a quebra dos parágrafos. Se puder, prefira o .docx.'
+    : 'Importado de <b>'+escapeHtml(file.name)+'</b>. Confira a formatação e marque os campos a preencher.';
+  status.style.color = 'var(--text2)';
+  updateTplVars();
+}
+
+// ──────────── CAMPOS A PREENCHER (variáveis) ────────────
+// Trechos que costumam indicar uma lacuna num contrato pronto.
+const PADROES_LACUNA = [
+  /_{4,}/g,                              // ______________
+  /\[([A-ZÀ-Ú][A-ZÀ-Ú0-9 ./-]{2,40})\]/g,  // [NOME DO CLIENTE]
+  /<([A-ZÀ-Ú][A-ZÀ-Ú0-9 ./-]{2,40})>/g,    // <VALOR>
+  /\bX{4,}\b/gi,                         // XXXXXXX
+];
+
+function acharLacunas(texto){
+  const achadas = [];
+  PADROES_LACUNA.forEach(re=>{
+    re.lastIndex = 0;
+    let m;
+    while((m = re.exec(texto)) !== null){
+      if(!achadas.includes(m[0])) achadas.push(m[0]);
+      if(achadas.length > 12) break;
+    }
+  });
+  return achadas;
+}
+
+function updateTplVars(){
+  if(!tplQuill) return;
+  const texto = tplQuill.getText();
+  const vars = extractVars(texto);
+
+  document.getElementById('tp-vars').innerHTML = vars.length
+    ? vars.map(v=>'<span class="var-chip">'+escapeHtml(v)+'</span>').join('') : '—';
+
+  // Rótulo amigável de cada campo, para o formulário não mostrar
+  // {{cpf_cnpj}} cru na hora de gerar o contrato.
+  const bloco = document.getElementById('tp-vars-block');
+  bloco.style.display = vars.length ? 'block' : 'none';
+  document.getElementById('tp-vars-list').innerHTML = vars.map(v=>`
+    <div class="varlbl-row">
+      <code>{{${escapeHtml(v)}}}</code>
+      <input class="form-input" style="padding:6px 10px;font-size:12.5px"
+             placeholder="${escapeHtml(rotuloPadrao(v))}"
+             value="${escapeHtml(tplVarLabels[v]||'')}"
+             oninput="tplVarLabels[${JSON.stringify(v)}]=this.value">
+    </div>`).join('');
+
+  // Sugestões: só sugerem. A detecção automática não é confiável, e a
+  // tela não finge que é — você confirma cada uma.
+  const lacunas = acharLacunas(texto);
+  document.getElementById('tp-sugestoes').innerHTML = lacunas.length ? `
+    <div class="note-box warn" style="margin-bottom:12px">
+      <b>Encontrei ${lacunas.length} lacuna(s) no texto.</b> Podem ser campos a preencher —
+      confira uma por uma. O caminho que sempre funciona é selecionar o trecho no texto
+      e clicar em <b>{ } Virar variável</b>.
+      <div style="margin-top:10px">
+        ${lacunas.map((l,i)=>`
+          <div class="sug-row">
+            <div class="sug-txt">${escapeHtml(l)}</div>
+            <button class="btn btn-ghost btn-sm" onclick="converterLacuna(${i})">Virar campo</button>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+  window._lacunas = lacunas;
+}
+
+function rotuloPadrao(v){
+  return v.replace(/_/g,' ').replace(/^./, c=>c.toUpperCase());
+}
+
+function nomeDeVariavel(sugestao){
+  const nome = prompt('Nome do campo (sem espaço nem acento):', sugestao||'');
+  if(!nome) return null;
+  const limpo = nome.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9_]+/g,'_').replace(/^_|_$/g,'');
+  if(!limpo){ showToast('Nome inválido', true); return null }
+  return limpo;
+}
+
+// Troca todas as ocorrências de uma lacuna encontrada por {{campo}}.
+function converterLacuna(i){
+  const alvo = (window._lacunas||[])[i];
+  if(!alvo || !tplQuill) return;
+  const miolo = alvo.replace(/^[[<]|[\]>]$/g,'').trim();
+  const nome = nomeDeVariavel(/^[_X\s]+$/i.test(miolo) ? '' : miolo);
+  if(!nome) return;
+  let idx = 0, achou = 0;
+  const texto = tplQuill.getText();
+  // De trás para frente: assim os índices anteriores não se deslocam.
+  const posicoes = [];
+  while((idx = texto.indexOf(alvo, idx)) !== -1){ posicoes.push(idx); idx += alvo.length }
+  posicoes.reverse().forEach(p=>{
+    tplQuill.deleteText(p, alvo.length);
+    tplQuill.insertText(p, '{{'+nome+'}}');
+    achou++;
+  });
+  showToast(achou+' trecho(s) viraram o campo {{'+nome+'}} ✓');
+  updateTplVars();
+}
+
+// Transforma o trecho selecionado no editor num campo.
+function virarVariavel(){
+  if(!tplQuill) return;
+  const sel = tplQuill.getSelection();
+  if(!sel || sel.length === 0){
+    showToast('Selecione no texto o trecho que deve virar campo', true);
+    return;
+  }
+  const trecho = tplQuill.getText(sel.index, sel.length).trim();
+  const nome = nomeDeVariavel(trecho.length <= 30 ? trecho : '');
+  if(!nome) return;
+  tplQuill.deleteText(sel.index, sel.length);
+  tplQuill.insertText(sel.index, '{{'+nome+'}}');
+  showToast('Campo {{'+nome+'}} criado ✓');
+  updateTplVars();
 }
 async function deleteTemplate(){
   if(!editingTplId) return;
@@ -386,7 +654,10 @@ function wizStep2(){
   if(!tplId){showToast('Selecione um modelo',true);return}
   if(!document.getElementById('w-title').value.trim()){showToast('Dê um título ao contrato',true);return}
   const tpl = tplMap[tplId];
-  const vars = extractVars(tpl.body);
+  // Lê os campos das DUAS versões: se um {{campo}} existe só na versão
+  // formatada, ele ainda aparece no formulário — senão ficaria cru no
+  // contrato final, sem ninguém para preencher.
+  const vars = [...new Set([...extractVars(tpl.body), ...extractVars(tpl.body_html||'')])];
   const contact = contactMap[document.getElementById('w-contact').value];
   const value = document.getElementById('w-value').value;
   const auto = {
@@ -397,11 +668,13 @@ function wizStep2(){
     valor: value?Number(value).toLocaleString('pt-BR',{minimumFractionDigits:2}):'',
     data: new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'}),
   };
+  // Mostra o rótulo amigável definido no modelo, em vez de {{cpf_cnpj}}
+  const rotulos = tpl.var_labels || {};
   document.getElementById('w-vars').innerHTML = vars.map(v=>`
     <div class="form-group" style="margin-bottom:4px">
-      <label class="form-label" style="font-family:monospace">{{${escapeHtml(v)}}}</label>
+      <label class="form-label">${escapeHtml(rotulos[v] || rotuloPadrao(v))}</label>
       <input class="form-input wvar" data-var="${escapeHtml(v)}" value="${escapeHtml(auto[v]||'')}" oninput="updatePreview()">
-    </div>`).join('')||'<div class="empty" style="padding:10px;grid-column:1/-1">Este modelo não tem variáveis</div>';
+    </div>`).join('')||'<div class="empty" style="padding:10px;grid-column:1/-1">Este modelo não tem campos a preencher</div>';
   document.getElementById('wiz-step1').style.display='none';
   document.getElementById('wiz-step2').style.display='block';
   document.getElementById('ws-2').classList.add('on');
@@ -424,10 +697,28 @@ function renderBody(tplBody, vars){
   });
   return out;
 }
+// Preenche as variáveis dentro do HTML formatado. O valor digitado é
+// escapado antes de entrar: ele é texto, não pode virar marcação.
+function renderBodyHtml(tplHtml, vars){
+  let out = tplHtml || '';
+  Object.entries(vars).forEach(([k,v])=>{
+    out = out.replace(new RegExp('{{\\s*'+k+'\\s*}}','g'),
+      v ? escapeHtml(v) : '<span class="var-mark">_______</span>');
+  });
+  return out;
+}
+
 function updatePreview(){
   const tpl = tplMap[document.getElementById('w-template').value];
   if(!tpl) return;
-  document.getElementById('w-preview').textContent = renderBody(tpl.body, collectVars());
+  const box = document.getElementById('w-preview');
+  if(tpl.format === 'html' && tpl.body_html){
+    box.classList.add('html-preview');
+    box.innerHTML = renderBodyHtml(tpl.body_html, collectVars());
+  }else{
+    box.classList.remove('html-preview');
+    box.textContent = renderBody(tpl.body, collectVars());
+  }
 }
 async function saveContract(){
   const tpl = tplMap[document.getElementById('w-template').value];
@@ -440,6 +731,7 @@ async function saveContract(){
     project_id: document.getElementById('w-project').value||null,
     title: document.getElementById('w-title').value.trim(),
     body: renderBody(tpl.body, vars),
+    body_html: (tpl.format==='html' && tpl.body_html) ? renderBodyHtml(tpl.body_html, vars) : null,
     variables: vars,
     value: Number(document.getElementById('w-value').value)||null,
     status: 'rascunho',
@@ -461,8 +753,11 @@ function openContract(id){
   document.getElementById('ct-value').value = c.value||'';
   document.getElementById('ct-status').value = c.status;
   document.getElementById('ct-signed').value = c.signed_at||'';
-  document.getElementById('ct-body').value = c.body;
   openModal('modal-ct');
+  ctQuill = editor('ct-editor', ctQuill);
+  if(c.body_html) ctQuill.setContents(ctQuill.clipboard.convert({html:c.body_html}));
+  else ctQuill.setText(c.body||'');
+  document.getElementById('btn-pdf').textContent = c.pdf_path ? '📎 PDF anexado ✓' : '📎 Anexar PDF';
 }
 async function updateContract(){
   const status = document.getElementById('ct-status').value;
@@ -473,7 +768,8 @@ async function updateContract(){
     value: Number(document.getElementById('ct-value').value)||null,
     status,
     signed_at: signed,
-    body: document.getElementById('ct-body').value,
+    body: ctQuill ? ctQuill.getText() : '',
+    body_html: ctQuill ? ctQuill.root.innerHTML : null,
   }).eq('id',editingCtId);
   if(error){showToast('Erro: '+error.message,true);return}
   closeModal('modal-ct');
@@ -498,18 +794,99 @@ async function deleteContract(){
   showToast('Contrato excluído');
   loadAll();
 }
-function printContract(){
+// Monta o HTML do contrato pronto para papel. É usado tanto pela
+// impressão quanto pelo anexo em PDF.
+function contratoParaImpressao(){
   const title = document.getElementById('ct-title').value;
-  const body = document.getElementById('ct-body').value;
+  const corpo = ctQuill
+    ? (ctQuill.getLength() > 1 ? ctQuill.root.innerHTML : '')
+    : '';
+  const estilo = `
+      @page{size:A4;margin:22mm 18mm}
+      *{box-sizing:border-box}
+      body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:760px;margin:0 auto;padding:24px 30px;line-height:1.75;font-size:12.5pt}
+      h1{font-size:16pt;text-align:center;margin:0 0 18px}
+      h2{font-size:13.5pt;margin:20px 0 8px}
+      h3{font-size:12.5pt;margin:16px 0 6px}
+      p{margin:0 0 10px;text-align:justify}
+      ol,ul{margin:0 0 10px 22px}
+      li{margin-bottom:4px}
+      .ql-align-center{text-align:center}
+      .ql-align-right{text-align:right}
+      .ql-align-justify{text-align:justify}
+      /* Evita que um parágrafo ou um item de lista seja cortado ao meio
+         na virada da página — o padrão do navegador corta. */
+      p,li,h1,h2,h3{page-break-inside:avoid;break-inside:avoid}
+      h1,h2,h3{page-break-after:avoid;break-after:avoid}
+      @media print{body{padding:0}}`;
+  return {title, corpo, estilo};
+}
+
+// Caminho principal: o Ctrl+P do navegador gera um PDF vetorial de uns
+// 50 KB, com o texto selecionável e pesquisável.
+function printContract(){
+  const {title, corpo, estilo} = contratoParaImpressao();
   const w = window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title>
-    <style>
-      body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;max-width:720px;margin:40px auto;padding:0 30px;line-height:1.8;font-size:13.5px}
-      pre{white-space:pre-wrap;font-family:inherit;margin:0}
-      @media print{body{margin:10mm auto}}
-    </style></head><body><pre>${escapeHtml(body)}</pre>
+    <style>${estilo}</style></head><body>${corpo}
     <script>window.onload=()=>window.print()<\/script></body></html>`);
   w.document.close();
+}
+
+// Caminho secundário: gera um PDF e anexa ao contrato, para ficar
+// guardado junto. Fica mais pesado que o do Ctrl+P porque a biblioteca
+// transforma a página em imagem — por isso não é o botão principal.
+let html2pdfCarregado = false;
+async function carregarHtml2pdf(){
+  if(html2pdfCarregado) return;
+  await new Promise((ok, falha)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js';
+    s.onload = ok;
+    s.onerror = () => falha(new Error('Não consegui carregar o gerador de PDF'));
+    document.head.appendChild(s);
+  });
+  html2pdfCarregado = true;
+}
+
+async function baixarPdfAnexado(){
+  if(!editingCtId) return;
+  const btn = document.getElementById('btn-pdf');
+  const antes = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Gerando...';
+  try{
+    await carregarHtml2pdf();
+    const {title, corpo, estilo} = contratoParaImpressao();
+    const div = document.createElement('div');
+    div.innerHTML = `<style>${estilo}</style><div style="background:#fff">${corpo}</div>`;
+    const blob = await html2pdf().set({
+      margin: [18,15,18,15],
+      html2canvas: {scale: 2, backgroundColor:'#ffffff'},
+      jsPDF: {unit:'mm', format:'a4', orientation:'portrait'},
+      pagebreak: {mode:['css','legacy']},
+    }).from(div).outputPdf('blob');
+
+    const nome = sanitizeFileName((title||'contrato')+'.pdf');
+    const caminho = `contratos/gerados/${editingCtId}-${Date.now()}-${nome}`;
+    const {error} = await sb.storage.from('gestao-files').upload(caminho, blob, {contentType:'application/pdf'});
+    if(error) throw error;
+    await sb.from('contracts').update({pdf_path: caminho}).eq('id', editingCtId);
+
+    // Também entrega o arquivo para ela, na hora.
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nome; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+
+    btn.textContent = '📎 PDF anexado ✓';
+    showToast('PDF gerado e anexado ao contrato ✓');
+    loadAll();
+  }catch(e){
+    btn.textContent = antes;
+    showToast('Erro ao gerar o PDF: '+(e.message||e), true);
+  }finally{
+    btn.disabled = false;
+  }
 }
 async function launchRevenue(){
   const c = contracts.find(x=>x.id===editingCtId);

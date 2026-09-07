@@ -246,6 +246,10 @@ textarea.form-input{resize:vertical;min-height:80px}
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.8"/><polyline points="14 2 14 8 20 8" stroke-width="1.8"/></svg>
         <span>Documentos</span>
       </div>
+      <div class="nav-item" data-view="pedidos" onclick="showView('pedidos')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke-width="1.8"/></svg>
+        <span>Pedir ajuste</span>
+      </div>
     </nav>
     <div class="sb-footer">
       <div class="sb-user">
@@ -303,6 +307,17 @@ textarea.form-input{resize:vertical;min-height:80px}
           <div class="upload-sub">PDF, imagens, Word, Excel · até 50MB</div>
         </div>
         <div id="docs-content"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- PEDIR AJUSTE -->
+      <div class="view" id="view-pedidos">
+        <div class="page-hd">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div><h2>Pedir ajuste</h2><p>Peça uma alteração no projeto e acompanhe a resposta por aqui</p></div>
+            <button class="btn btn-primary" onclick="openNovoPedido()">+ Novo pedido</button>
+          </div>
+        </div>
+        <div id="pedidos-content"><div class="loading">Carregando...</div></div>
       </div>
 
     </div>
@@ -368,6 +383,26 @@ textarea.form-input{resize:vertical;min-height:80px}
     <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
       <button class="btn btn-ghost" onclick="closeChangePassword()">Cancelar</button>
       <button class="btn btn-primary" id="cp-btn" onclick="saveNewPassword()">Salvar nova senha</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO PEDIDO DE AJUSTE -->
+<div class="overlay" id="modal-pedido">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="modal-pedido-title">Novo pedido de ajuste</div>
+    <div class="form-group">
+      <label class="form-label">O que você gostaria de mudar? *</label>
+      <input class="form-input" id="pd-title" placeholder="Ex.: trocar as fotos da página inicial">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Conte com detalhes</label>
+      <textarea class="form-input" id="pd-desc" rows="5" placeholder="Quanto mais específico, mais rápido fica. Se tiver arquivos, envie na aba Documentos e cite aqui."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-pedido" style="margin-right:auto;display:none" onclick="excluirPedido()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-pedido')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-pedido" onclick="salvarPedido()">Enviar pedido</button>
     </div>
   </div>
 </div>
@@ -625,7 +660,134 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 // ──────────── NAVEGAÇÃO ────────────
-const viewTitles={home:'Início',checklist:'Checklist',cronograma:'Cronograma',combinados:'Combinados',documentos:'Documentos'};
+const viewTitles={home:'Início',checklist:'Checklist',cronograma:'Cronograma',combinados:'Combinados',documentos:'Documentos',pedidos:'Pedir ajuste'};
+
+/* ════════════════════════════════════════════════════════════════════
+   PEDIR AJUSTE
+   O fluxo é do CLIENTE PARA A JENNEFFER. O pedido entra na caixa de
+   entrada dela, no sistema de gestão — nada vira trabalho sozinho.
+   Enquanto o pedido está "novo" o cliente ainda pode corrigir; depois
+   que ela lê, o texto trava (senão mudaria embaixo do trabalho já
+   começado). Isso é garantido por permissão no banco, não só na tela.
+   ════════════════════════════════════════════════════════════════════ */
+
+let pedidos = [];
+let editandoPedidoId = null;
+
+// Carimba a visita UMA VEZ por sessão, depois de a home já ter sido
+// montada. Se carimbasse a cada visita à home, as novidades sumiriam
+// assim que o cliente clicasse em outra aba e voltasse.
+// currentProfile.last_seen_at fica com o valor ANTIGO de propósito:
+// é ele que define "desde a última vez".
+let visitaCarimbada = false;
+function marcarVisita(){
+  if(visitaCarimbada || !currentUser) return '';
+  visitaCarimbada = true;
+  sb.from('profiles').update({last_seen_at: new Date().toISOString()})
+    .eq('id', currentUser.id)
+    .then(()=>{}, ()=>{});   // se a coluna ainda não existe, segue a vida
+  return '';
+}
+
+const PEDIDO_BADGE = {
+  novo:        '<span class="badge bg-amber">Enviado</span>',
+  lido:        '<span class="badge bg-blue">Lido pela Jenneffer</span>',
+  convertido:  '<span class="badge bg-green">Em andamento</span>',
+  recusado:    '<span class="badge bg-gray">Não será feito</span>',
+  arquivado:   '<span class="badge bg-gray">Arquivado</span>',
+};
+
+async function loadPedidos(){
+  const el = document.getElementById('pedidos-content');
+  if(!currentProject){
+    el.innerHTML = '<div class="empty">Seu projeto ainda está sendo configurado.</div>';
+    return;
+  }
+  const {data, error} = await sb.from('client_requests')
+    .select('*').eq('project_id', currentProject.id).order('created_at',{ascending:false});
+  if(error){
+    el.innerHTML = '<div class="empty">Não consegui carregar os pedidos agora.<br>'+escapeHtml(error.message)+'</div>';
+    return;
+  }
+  pedidos = data || [];
+  if(!pedidos.length){
+    el.innerHTML = `<div class="empty">
+      Você ainda não fez nenhum pedido.<br><br>
+      Use o botão <b>+ Novo pedido</b> para pedir uma alteração no projeto.
+      Assim fica tudo registrado num lugar só, com data e resposta.</div>`;
+    return;
+  }
+  el.innerHTML = pedidos.map(p=>`
+    <div class="card" style="padding:16px 18px;margin-bottom:12px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:500;color:var(--text)">${escapeHtml(p.title)}</div>
+          ${p.description?`<div style="font-size:12.5px;color:var(--text2);margin-top:5px;line-height:1.6;white-space:pre-wrap">${escapeHtml(p.description)}</div>`:''}
+          <div style="font-size:11px;color:var(--text3);margin-top:7px">Enviado em ${fmtDate(p.created_at)}</div>
+        </div>
+        ${PEDIDO_BADGE[p.status]||''}
+      </div>
+      ${p.admin_note?`
+        <div style="margin-top:12px;padding:11px 13px;background:var(--dark3);border-radius:8px;border-left:3px solid var(--green)">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px">Resposta da Jenneffer</div>
+          <div style="font-size:12.5px;color:var(--text2);line-height:1.6;white-space:pre-wrap">${escapeHtml(p.admin_note)}</div>
+        </div>`:''}
+      ${p.status==='novo'?`
+        <div style="margin-top:11px;display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="openEditarPedido('${p.id}')">Editar</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Você ainda pode alterar este pedido — depois que a Jenneffer abrir, ele fica travado.</div>`:''}
+    </div>`).join('');
+}
+
+function openNovoPedido(){
+  editandoPedidoId = null;
+  document.getElementById('modal-pedido-title').textContent = 'Novo pedido de ajuste';
+  document.getElementById('btn-del-pedido').style.display = 'none';
+  document.getElementById('pd-title').value = '';
+  document.getElementById('pd-desc').value = '';
+  openModal('modal-pedido');
+}
+
+function openEditarPedido(id){
+  const p = pedidos.find(x=>x.id===id);
+  if(!p) return;
+  editandoPedidoId = id;
+  document.getElementById('modal-pedido-title').textContent = 'Editar pedido';
+  document.getElementById('btn-del-pedido').style.display = 'inline-flex';
+  document.getElementById('pd-title').value = p.title||'';
+  document.getElementById('pd-desc').value = p.description||'';
+  openModal('modal-pedido');
+}
+
+async function salvarPedido(){
+  const title = document.getElementById('pd-title').value.trim();
+  if(!title){ showToast('Escreva o que você quer ajustar', true); return }
+  const payload = {
+    title,
+    description: document.getElementById('pd-desc').value.trim()||null,
+  };
+  const btn = document.getElementById('btn-save-pedido');
+  btn.disabled = true;
+  const {error} = editandoPedidoId
+    ? await sb.from('client_requests').update(payload).eq('id', editandoPedidoId)
+    : await sb.from('client_requests').insert({...payload, project_id: currentProject.id, user_id: currentUser.id});
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-pedido');
+  showToast(editandoPedidoId?'Pedido atualizado ✓':'Pedido enviado ✓');
+  loadPedidos();
+}
+
+async function excluirPedido(){
+  if(!editandoPedidoId) return;
+  if(!confirm('Apagar este pedido?')) return;
+  const {error} = await sb.from('client_requests').delete().eq('id', editandoPedidoId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-pedido');
+  showToast('Pedido apagado');
+  loadPedidos();
+}
 function showView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -637,6 +799,7 @@ function showView(name){
   if(name==='cronograma')loadCronograma();
   if(name==='combinados')loadAgreements();
   if(name==='documentos')loadDocumentos();
+  if(name==='pedidos')loadPedidos();
 }
 
 // ──────────── HOME ────────────
@@ -651,13 +814,17 @@ async function loadHome(){
     return;
   }
 
-  // Carrega tudo do projeto
-  const [itRes,stRes,phRes,agRes,docRes]=await Promise.all([
+  // Carrega tudo do projeto. As três últimas consultas trazem também a
+  // data de criação, para montar a faixa de "Novidades" — sem elas o
+  // cliente teria que abrir aba por aba pra descobrir se mudou algo.
+  const [itRes,stRes,phRes,agRes,docRes,agNovRes,phNovRes]=await Promise.all([
     sb.from('checklist_items').select('id').eq('project_id',currentProject.id),
     sb.from('checklist_states').select('item_id,done,sent_by_client,rejected_at').eq('project_id',currentProject.id),
     sb.from('project_phases').select('status').eq('project_id',currentProject.id),
     sb.from('agreements').select('id,status').eq('project_id',currentProject.id).in('status',['pendente','em_andamento']),
-    sb.from('documents').select('id').eq('project_id',currentProject.id),
+    sb.from('documents').select('id,name,created_at,uploaded_by').eq('project_id',currentProject.id),
+    sb.from('agreements').select('id,title,type,created_at,created_by_role').eq('project_id',currentProject.id).order('created_at',{ascending:false}).limit(5),
+    sb.from('project_phases').select('id,title,created_at').eq('project_id',currentProject.id).order('created_at',{ascending:false}).limit(5),
   ]);
   const totalItems=(itRes.data||[]).length;
   const states=(stRes.data||[]);
@@ -686,12 +853,44 @@ async function loadHome(){
   else if(overallPct>=75&&overallPct<100)phaseLabel='Quase lá! ✨';
   else if(overallPct>=100)phaseLabel='Projeto concluído! 🎉';
 
+  // ─── Novidades: o que a Jenneffer publicou desde a sua última visita ───
+  const desde = currentProfile.last_seen_at;
+  const novidades = [
+    ...(docRes.data||[])
+      .filter(d=>d.uploaded_by && d.uploaded_by !== currentUser.id)
+      .map(d=>({at:d.created_at, icone:'📄', texto:'Novo documento: '+d.name, view:'documentos'})),
+    ...(agNovRes.data||[])
+      .filter(a=>a.created_by_role === 'admin')
+      .map(a=>({at:a.created_at, icone:'📝', texto:'Novo combinado: '+a.title, view:'combinados'})),
+    ...(phNovRes.data||[])
+      .map(p=>({at:p.created_at, icone:'📅', texto:'Nova fase no cronograma: '+p.title, view:'cronograma'})),
+  ]
+   .filter(n=>n.at && (!desde || n.at > desde))
+   .sort((a,b)=>b.at.localeCompare(a.at))
+   .slice(0,5);
+
   el.innerHTML=`
     <div class="welcome">
       <h3>Olá, ${escapeHtml(currentProfile.name)} 👋</h3>
       <p>Bem-vindo ao portal do seu projeto. Aqui você acompanha tudo em tempo real — checklist, cronograma, combinados e arquivos.</p>
     </div>
     ${supportNotice(currentProject.support_end)}
+
+    ${novidades.length?`
+    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:rgba(26,122,74,.08);border-color:rgba(26,122,74,.3)">
+      <div style="font-size:11.5px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
+        ✨ Novidades desde a sua última visita
+      </div>
+      ${novidades.map(n=>`
+        <div style="display:flex;align-items:center;gap:11px;padding:7px 0;cursor:pointer" onclick="showView('${n.view}')">
+          <div style="font-size:16px">${n.icone}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text)">${escapeHtml(n.texto)}</div>
+            <div style="font-size:11px;color:var(--text3)">${fmtDate(n.at)}</div>
+          </div>
+          <div style="color:var(--text3);font-size:15px">›</div>
+        </div>`).join('')}
+    </div>`:''}
 
     <div class="project-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -760,6 +959,8 @@ async function loadHome(){
         </div>
       </div>
     </div>`:''}
+
+    ${marcarVisita()}
   `;
 }
 
