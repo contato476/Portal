@@ -111,7 +111,7 @@ const SQL_HINT = '<div class="empty">Tabelas de gestão ainda não criadas.<br>R
 // A cor de cada status, num lugar só: o quadro de projetos e os cartões de
 // tarefa (em projetos.html e tarefas.html) pintam a mesma bolinha.
 const PROJ_STATUS_COLOR = {
-  pre_inicio:'#E3B341', em_andamento:'#22A060', testes_cliente:'#2188FF',
+  pre_inicio:'#E3B341', em_andamento:'#22A060', testes_cliente:'#A78BFA',
   ajustes_pos_testes:'#E3B341', aguardando:'#8B949E', pausado:'#F85149',
   concluido:'#60A5FA',
 };

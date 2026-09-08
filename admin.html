@@ -578,7 +578,7 @@ function supportLabel(start,end){
   }
   return txt;
 }
-function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-blue',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
+function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-purple',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
 
 // ──────────── AUTH ────────────
 async function doLogin(){
