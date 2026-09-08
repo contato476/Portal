@@ -103,6 +103,13 @@
             <div id="funil-list" style="padding:10px 0"><div class="loading">Carregando...</div></div>
           </div>
           <div class="card">
+            <div class="card-hd">
+              <div class="card-title">Indicações</div>
+              <a class="btn btn-ghost btn-sm" href="indicacoes.html">Ver todas</a>
+            </div>
+            <div id="ind-list" style="padding:12px"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
             <div class="card-hd"><div class="card-title">Contratos pendentes</div></div>
             <div id="contracts-list" style="padding:12px"><div class="loading">Carregando...</div></div>
           </div>
@@ -167,7 +174,8 @@ async function loadPainel(){
   // saldo do mês, mas sem filtro nenhum a query cresceria para sempre.
   const umAnoAtras = new Date(Date.now()-365*86400000).toISOString().slice(0,10);
 
-  const [tasksRes, finRes, dealsRes, projRes, contractsRes, supportRes, lostRes, timeRes, revRes, namesRes] = await Promise.all([
+  const [tasksRes, finRes, dealsRes, projRes, contractsRes, supportRes, lostRes, timeRes, revRes, namesRes,
+         indRes, contatosRes] = await Promise.all([
     // .is('parent_task_id', null): subtarefas aparecem dentro da tarefa pai,
     // não como tarefas soltas — senão o painel contaria o mesmo trabalho 2x.
     sb.from('tasks').select('*').is('parent_task_id', null).in('status',['pendente','em_andamento']).order('due_date',{ascending:true,nullsFirst:false}).limit(200),
@@ -186,6 +194,11 @@ async function loadPainel(){
     // Nomes de TODOS os projetos: os cards de tempo e de ajustes precisam
     // nomear projetos que não estão "em andamento".
     sb.from('projects').select('id,name'),
+    // Indicações em aberto e cashback a pagar (tabela do sql/16).
+    sb.from('referrals').select('*').in('reward_status',['a_liberar','a_pagar'])
+      .order('referred_at',{ascending:false}),
+    // Nomes de quem indicou, para o card de indicações.
+    sb.from('crm_contacts').select('id,name'),
   ]);
   (namesRes.data||[]).forEach(p=>{ projMap[p.id] = projMap[p.id] || p });
 
@@ -196,6 +209,7 @@ async function loadPainel(){
     loadProjects(projRes);
     renderSupport(supportRes);
     renderLostReasons(lostRes);
+    renderIndicacoes(indRes, contatosRes);
     return;
   }
 
@@ -209,6 +223,7 @@ async function loadPainel(){
   renderLostReasons(lostRes);
   renderTempoHoje(timeRes);
   renderAjustes(revRes);
+  renderIndicacoes(indRes, contatosRes);
   fillProjectSelect();
 
   // Google Agenda fica FORA do Promise.all de propósito: é um fetch
@@ -365,6 +380,61 @@ function renderAjustes(res){
       <button class="play-btn" title="Cronometrar este ajuste"
         onclick="event.stopPropagation();toggleTimer({revision_id:'${r.id}',project_id:'${r.project_id}',kind:'ajuste',label:${JSON.stringify(r.title)}})">▶</button>
     </div>`).join('');
+}
+
+// Indicações: o que ainda não fechou e, principalmente, o cashback que
+// você deve. Quem indicou e está esperando o dinheiro vem primeiro —
+// é a única parte deste card que tem hora marcada.
+function renderIndicacoes(res, contatosRes){
+  const el = document.getElementById('ind-list');
+  if(!el) return;
+  if(res.error){
+    el.innerHTML = isMissingTable(res.error)
+      ? '<div class="empty">Rode o <b>sql/16_indicacoes.sql</b> para ligar o programa de indicação.</div>'
+      : '<div class="empty">—</div>';
+    return;
+  }
+  const rows = res.data || [];
+  if(!rows.length){
+    el.innerHTML = `<div class="empty">Nenhuma indicação em aberto.<br>
+      <a href="indicacoes.html" style="color:var(--green2)">Registrar uma indicação</a></div>`;
+    return;
+  }
+
+  const nomes = {};
+  (contatosRes?.data||[]).forEach(c=>nomes[c.id]=c.name);
+
+  const aPagar = rows.filter(r=>r.reward_status==='a_pagar');
+  const total = aPagar.reduce((s,r)=>s+(Number(r.reward_amount)||0), 0);
+  const emAberto = rows.length - aPagar.length;
+
+  const resumo = [];
+  if(total)     resumo.push(`<b class="money-neg">${fmtMoney(total)}</b> de cashback a pagar`);
+  if(emAberto)  resumo.push(`${emAberto} indicaç${emAberto===1?'ão':'ões'} em andamento`);
+
+  // A pagar primeiro; depois as mais recentes.
+  const ordem = {a_pagar:0, a_liberar:1};
+  const lista = rows.slice()
+    .sort((a,b)=>(ordem[a.reward_status]??9)-(ordem[b.reward_status]??9) ||
+                 String(b.referred_at||'').localeCompare(String(a.referred_at||'')))
+    .slice(0,5);
+
+  el.innerHTML =
+    (resumo.length ? `<div class="li-sub" style="padding:0 2px 10px">${resumo.join(' · ')}</div>` : '') +
+    lista.map(r=>{
+      const pagar = r.reward_status==='a_pagar';
+      const valor = Number(r.reward_amount)||0;
+      return `<div class="list-item" style="cursor:pointer" onclick="location.href='indicacoes.html'">
+        <div class="li-dot" style="background:${pagar?'var(--amber)':'var(--text3)'}"></div>
+        <div class="li-info">
+          <div class="li-title">${escapeHtml(r.referred_name)}</div>
+          <div class="li-sub">indicado por ${escapeHtml(nomes[r.referrer_contact_id]||'—')} · ${fmtDateShort(r.referred_at)}</div>
+        </div>
+        ${pagar && valor
+          ? `<div class="money-neg" style="font-weight:600;font-size:13px">${fmtMoney(valor)}</div>`
+          : '<span class="badge bg-gray">em aberto</span>'}
+      </div>`;
+    }).join('');
 }
 
 function renderContracts(contracts){
