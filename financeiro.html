@@ -26,6 +26,17 @@
 .cat-val{margin-left:auto;font-weight:500;font-size:12px}
 .pay-btn{font-size:10.5px;padding:2px 9px;border-radius:12px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer}
 .pay-btn:hover{border-color:var(--green);color:var(--green2)}
+/* Resultado do que está filtrado (cliente ou projeto) */
+.res-card{background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 17px;margin-bottom:14px}
+.res-hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.res-hd b{font-size:14px;color:var(--text)}
+.res-hd span{font-size:11.5px;color:var(--text3)}
+.res-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.res-item{background:var(--dark3);border-radius:8px;padding:10px 12px}
+.res-l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.res-v{font-size:19px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.res-sub{font-size:10.5px;color:var(--text3);margin-top:2px}
+@media(max-width:768px){.res-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.chart-month{max-width:60px}.chart-bar{width:11px}}
 </style>
 </head>
@@ -82,12 +93,22 @@
       </div>
 
       <div class="page-hd" style="margin-bottom:14px">
-        <div class="month-nav">
+        <div class="month-nav" id="month-nav">
           <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">←</button>
           <div class="month-label" id="month-label">—</div>
           <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">→</button>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input form-select" id="f-contact" style="width:auto;padding:6px 12px;font-size:12.5px" onchange="onContactFilter()">
+            <option value="">Todos os clientes</option>
+          </select>
+          <select class="form-input form-select" id="f-project" style="width:auto;padding:6px 12px;font-size:12.5px" onchange="renderTable()">
+            <option value="">Todos os projetos</option>
+          </select>
+          <select class="form-input form-select" id="f-period" style="width:auto;padding:6px 12px;font-size:12.5px" onchange="renderTable()">
+            <option value="mes">Este mês</option>
+            <option value="tudo">Todo o período</option>
+          </select>
           <select class="form-input form-select" id="f-kind" style="width:auto;padding:6px 12px;font-size:12.5px" onchange="renderTable()">
             <option value="">Tudo</option>
             <option value="receita">Receitas</option>
@@ -100,6 +121,7 @@
           </select>
         </div>
       </div>
+      <div id="res-box"></div>
       <div class="tbl-wrap" id="tx-table"><div class="loading">Carregando...</div></div>
 
     </div>
@@ -137,9 +159,14 @@
       <div class="form-group"><label class="form-label">Data do pagamento</label><input class="form-input" id="x-paid" type="date"></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label class="form-label">Cliente (opcional)</label>
+        <select class="form-input form-select" id="x-contact"><option value="">—</option></select>
+      </div>
       <div class="form-group"><label class="form-label">Projeto (opcional)</label>
         <select class="form-input form-select" id="x-project"><option value="">—</option></select>
       </div>
+    </div>
+    <div class="form-row">
       <div class="form-group" id="grp-repeat"><label class="form-label">Repetição</label>
         <select class="form-input form-select" id="x-repeat" onchange="onRepeatChange()">
           <option value="nao">Não repete</option>
@@ -190,18 +217,21 @@
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
 <script>
-let allTx = [], categories = [], projects = [];
-let catMap = {}, projMap = {};
+let allTx = [], categories = [], projects = [], contatos = [];
+let catMap = {}, projMap = {}, contatoMap = {};
 let editingTxId = null;
 let viewMonth = todayISO().slice(0,7); // 'YYYY-MM'
 
 window.addEventListener('DOMContentLoaded', () => { renderSidebar('financeiro'); requireAdmin(loadAll); });
 
 async function loadAll(){
-  const [txRes, catRes, projRes] = await Promise.all([
+  const [txRes, catRes, projRes, cRes] = await Promise.all([
     sb.from('fin_transactions').select('*').neq('status','cancelado').order('due_date',{ascending:false,nullsFirst:false}),
     sb.from('fin_categories').select('*').order('kind').order('name'),
-    sb.from('projects').select('id,name').order('name'),
+    // contact_id vem junto: é o que liga um projeto ao cliente dele, e
+    // o filtro por cliente pesca os lançamentos pelos dois caminhos.
+    sb.from('projects').select('id,name,contact_id').order('name'),
+    sb.from('crm_contacts').select('id,name,company').order('name'),
   ]);
   if(txRes.error){
     document.getElementById('tx-table').innerHTML = isMissingTable(txRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(txRes.error.message)+'</div>';
@@ -210,13 +240,54 @@ async function loadAll(){
   allTx = txRes.data||[];
   categories = catRes.data||[];
   projects = projRes.data||[];
+  contatos = cRes.data||[];
   catMap = {}; categories.forEach(c=>catMap[c.id]=c);
   projMap = {}; projects.forEach(p=>projMap[p.id]=p);
+  contatoMap = {}; contatos.forEach(c=>contatoMap[c.id]=c);
   fillCatSelect();
+  fillContactSelects();
   document.getElementById('x-project').innerHTML = '<option value="">—</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
   updateStats();
   renderChart();
   renderCatChart();
+  renderTable();
+}
+
+// ──────────── CLIENTE E PROJETO ────────────
+// O cliente de um lançamento é o dele; sem isso, o do projeto. Assim o
+// filtro acha também os lançamentos antigos, feitos só com o projeto.
+function clienteDe(t){
+  return t.contact_id || (t.project_id && projMap[t.project_id]?.contact_id) || null;
+}
+function nomeCliente(id){
+  const c = contatoMap[id];
+  return c ? c.name + (c.company ? ' — '+c.company : '') : '';
+}
+
+function fillContactSelects(){
+  const opts = contatos.map(c=>`<option value="${c.id}">${escapeHtml(nomeCliente(c.id))}</option>`).join('');
+  const f = document.getElementById('f-contact');
+  const keep = f.value;
+  f.innerHTML = '<option value="">Todos os clientes</option>'+opts;
+  f.value = keep;
+  document.getElementById('x-contact').innerHTML = '<option value="">—</option>'+opts;
+  preencherProjetosDoFiltro();
+}
+
+// A lista de projetos acompanha o cliente escolhido — escolher um cliente
+// e depois um projeto de outro não faria sentido.
+function preencherProjetosDoFiltro(){
+  const cli = document.getElementById('f-contact').value;
+  const sel = document.getElementById('f-project');
+  const keep = sel.value;
+  const lista = cli ? projects.filter(p=>p.contact_id===cli) : projects;
+  sel.innerHTML = '<option value="">Todos os projetos</option>' +
+    lista.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  sel.value = lista.some(p=>p.id===keep) ? keep : '';
+}
+
+function onContactFilter(){
+  preencherProjetosDoFiltro();
   renderTable();
 }
 
@@ -329,30 +400,105 @@ function renderTable(){
   document.getElementById('month-label').textContent = label;
   const fk = document.getElementById('f-kind').value;
   const fs = document.getElementById('f-status').value;
+  const fc = document.getElementById('f-contact').value;
+  const fp = document.getElementById('f-project').value;
+  const periodo = document.getElementById('f-period').value;
   const today = todayISO();
+
+  // "Todo o período" existe para o resultado de um projeto: ele não cabe
+  // num mês. Com ele ligado, a navegação por mês sai da frente.
+  document.getElementById('month-nav').style.visibility = periodo==='tudo' ? 'hidden' : '';
+
   const list = allTx.filter(t=>{
-    if(txDate(t).slice(0,7)!==viewMonth) return false;
+    if(periodo!=='tudo' && txDate(t).slice(0,7)!==viewMonth) return false;
+    if(fc && clienteDe(t)!==fc) return false;
+    if(fp && t.project_id!==fp) return false;
     if(fk && t.kind!==fk) return false;
     if(fs && t.status!==fs) return false;
     return true;
   }).sort((a,b)=>txDate(b).localeCompare(txDate(a)));
+
+  renderResultado(list, {fc, fp, periodo, label});
+
   const el = document.getElementById('tx-table');
-  if(!list.length){el.innerHTML='<div class="empty">Nenhum lançamento neste mês</div>';return}
+  if(!list.length){
+    el.innerHTML = '<div class="empty">Nenhum lançamento '+(periodo==='tudo'?'com esses filtros':'neste mês')+'</div>';
+    return;
+  }
   el.innerHTML = `<table>
     <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
     <tbody>${list.map(t=>{
       const late = t.status==='pendente' && t.due_date && t.due_date<today;
       const cat = t.category_id && catMap[t.category_id];
       const proj = t.project_id && projMap[t.project_id];
+      const cli = clienteDe(t);
+      const sub = [proj?proj.name:'', cli?contatoMap[cli]?.name:''].filter(Boolean);
       return `<tr class="clickable" onclick="openEditTx('${t.id}')">
         <td style="font-size:12px;color:${late?'var(--red)':'var(--text3)'}">${fmtDateShort(txDate(t))}${late?' ⚠️':''}</td>
-        <td><div class="td-main">${escapeHtml(t.description)}</div>${proj?'<div class="td-sub">'+escapeHtml(proj.name)+'</div>':''}</td>
+        <td><div class="td-main">${escapeHtml(t.description)}</div>${sub.length?'<div class="td-sub">'+escapeHtml(sub.join(' · '))+'</div>':''}</td>
         <td style="font-size:12px">${cat?escapeHtml(cat.name):'—'}${t.recurring==='mensal'?' 🔁':''}</td>
         <td style="text-align:right;font-weight:600" class="${t.kind==='receita'?'money-pos':'money-neg'}">${t.kind==='receita'?'+':'−'}${fmtMoney(t.amount)}</td>
         <td>${t.status==='pago'
           ? '<span class="badge bg-green">Pago</span>'
           : `<span class="badge ${late?'bg-red':'bg-amber'}">${late?'Vencido':'Pendente'}</span> <button class="pay-btn" onclick="event.stopPropagation();markPaid('${t.id}')">✓ pagar</button>`}</td>
       </tr>`;}).join('')}</tbody></table>`;
+}
+
+// O resultado do que está na tela. Só aparece quando há um cliente ou um
+// projeto escolhido: sem recorte, "resultado" já são os cards do topo.
+// As contas somam exatamente as linhas listadas abaixo — o número nunca
+// fala de um período diferente do que você está vendo.
+function renderResultado(list, {fc, fp, periodo, label}){
+  const box = document.getElementById('res-box');
+  if(!fc && !fp){ box.innerHTML = ''; return }
+
+  const soma = (kind, status) => list
+    .filter(t=>t.kind===kind && t.status===status)
+    .reduce((s,t)=>s+Number(t.amount||0), 0);
+
+  const recebido  = soma('receita','pago');
+  const aReceber  = soma('receita','pendente');
+  const gasto     = soma('despesa','pago');
+  const aPagar    = soma('despesa','pendente');
+  const resultado = recebido - gasto;
+  const previsto  = (recebido + aReceber) - (gasto + aPagar);
+
+  const proj = fp && projMap[fp];
+  const titulo = proj ? proj.name : nomeCliente(fc);
+  const recorte = [
+    proj ? 'projeto' : 'cliente',
+    periodo==='tudo' ? 'todo o período' : label,
+  ].join(' · ');
+
+  box.innerHTML = `
+    <div class="res-card">
+      <div class="res-hd">
+        <b>${escapeHtml(titulo || '—')}</b>
+        <span>${escapeHtml(recorte)} · ${list.length} lançamento${list.length===1?'':'s'}</span>
+      </div>
+      <div class="res-grid">
+        <div class="res-item">
+          <div class="res-l">Recebido</div>
+          <div class="res-v money-pos">${fmtMoney(recebido)}</div>
+          <div class="res-sub">${aReceber ? '+ '+fmtMoney(aReceber)+' a receber' : 'nada pendente'}</div>
+        </div>
+        <div class="res-item">
+          <div class="res-l">Despesas</div>
+          <div class="res-v money-neg">${fmtMoney(gasto)}</div>
+          <div class="res-sub">${aPagar ? '+ '+fmtMoney(aPagar)+' a pagar' : 'nada pendente'}</div>
+        </div>
+        <div class="res-item">
+          <div class="res-l">Resultado</div>
+          <div class="res-v ${resultado>=0?'money-pos':'money-neg'}">${fmtMoney(resultado)}</div>
+          <div class="res-sub">o que já entrou − o que já saiu</div>
+        </div>
+        <div class="res-item">
+          <div class="res-l">Previsto</div>
+          <div class="res-v ${previsto>=0?'money-pos':'money-neg'}">${fmtMoney(previsto)}</div>
+          <div class="res-sub">contando o que ainda está em aberto</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function fillCatSelect(){
@@ -370,6 +516,7 @@ function openNewTx(){
   ['x-amount','x-desc','x-due','x-paid','x-notes','x-installments','x-recur-months'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('x-status').value='pendente';
   document.getElementById('x-project').value='';
+  document.getElementById('x-contact').value = document.getElementById('f-contact').value||'';
   // bloco de repetição visível só na criação
   document.getElementById('grp-repeat').style.display='block';
   document.getElementById('x-repeat').value='nao';
@@ -395,6 +542,7 @@ function openEditTx(id){
   document.getElementById('x-status').value = t.status;
   document.getElementById('x-paid').value = t.paid_at||'';
   document.getElementById('x-project').value = t.project_id||'';
+  document.getElementById('x-contact').value = t.contact_id||'';
   document.getElementById('x-notes').value = t.notes||'';
   // editar mexe só nesta linha: esconde o bloco de repetição e mostra a info da série
   document.getElementById('grp-repeat').style.display='none';
@@ -426,6 +574,7 @@ function txPayload(){
     status,
     paid_at: paid,
     project_id: document.getElementById('x-project').value||null,
+    contact_id: document.getElementById('x-contact').value||null,
     notes: document.getElementById('x-notes').value.trim()||null,
   };
 }
