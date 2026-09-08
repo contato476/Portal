@@ -57,7 +57,21 @@
       <div class="painel-grid">
         <div class="painel-col">
           <div class="card">
-            <div class="card-hd"><div class="card-title">Tarefas — hoje e atrasadas</div><button class="btn btn-ghost btn-sm" onclick="openModal('modal-task')">+ Nova</button></div>
+            <div class="card-hd">
+              <div class="card-title">Tarefas</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <select class="form-input form-select" id="f-prazo" onchange="renderTasks()"
+                        style="width:auto;padding:5px 10px;font-size:12px">
+                  <option value="padrao">Hoje e atrasadas</option>
+                  <option value="atrasadas">Atrasadas</option>
+                  <option value="hoje">Hoje</option>
+                  <option value="semana">Próximos 7 dias</option>
+                  <option value="sem_prazo">Sem prazo</option>
+                  <option value="">Todas</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" onclick="openModal('modal-task')">+ Nova</button>
+              </div>
+            </div>
             <div id="tasks-list" style="padding:12px"><div class="loading">Carregando...</div></div>
           </div>
           <div class="card">
@@ -157,11 +171,13 @@
 <script src="assets/timer.js"></script>
 <script src="assets/automations.js"></script>
 <script src="assets/gcal.js"></script>
+<script src="assets/kanban-tarefas.js"></script>
 <script>
 const STAGE_LABELS = {novo:'Novo', contato:'Contato', proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido'};
 // Rótulos dos motivos de perda (mesma lista do CRM).
 const LOST_LABEL = {preco:'Preço/orçamento', prazo:'Prazo', concorrente:'Escolheu concorrente', sem_retorno:'Sumiu/sem retorno', fora_perfil:'Fora do perfil', adiou:'Adiou decisão', outro:'Outro', sem_motivo:'Sem motivo'};
 let projMap = {};
+let painelTasks = [];   // as tarefas abertas, guardadas para o filtro de prazo redesenhar
 
 window.addEventListener('DOMContentLoaded', () => { renderSidebar('gestao'); requireAdmin(loadPainel); });
 
@@ -241,15 +257,35 @@ async function loadPainel(){
   if(typeof runDailyChecks === 'function') runDailyChecks().catch(()=>{});
 }
 
+// O filtro de prazo é o mesmo do quadro (assets/kanban-tarefas.js), para
+// "atrasadas" e "próximos 7 dias" quererem dizer a mesma coisa em todas
+// as telas. 'padrao' é o recorte do painel: o que passou, o que é de
+// hoje e uma espiada nas próximas.
 function renderTasks(tasks, today){
-  const hoje = tasks.filter(t=>t.due_date===today);
-  const atrasadas = tasks.filter(t=>t.due_date && t.due_date<today);
-  const semData = tasks.filter(t=>!t.due_date || t.due_date>today).slice(0,3);
+  if(tasks) painelTasks = tasks;              // veio da carga; o filtro só redesenha
+  const tudo = painelTasks;
+  today = today || todayISO();
+
+  // Os contadores do topo falam do geral, não do que está filtrado.
+  const hoje = tudo.filter(t=>t.due_date===today);
+  const atrasadas = tudo.filter(t=>t.due_date && t.due_date<today);
   document.getElementById('st-hoje').textContent = hoje.length;
   document.getElementById('st-atrasadas').textContent = atrasadas.length;
+
+  const modo = document.getElementById('f-prazo').value;
+  const show = modo==='padrao'
+    ? [...atrasadas, ...hoje, ...tudo.filter(t=>!t.due_date || t.due_date>today).slice(0,3)]
+    : tudo.filter(t=>filtraPorPrazo(t, modo, today))
+          .sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')))
+          .slice(0,12);
+
   const el = document.getElementById('tasks-list');
-  const show = [...atrasadas, ...hoje, ...semData];
-  if(!show.length){el.innerHTML='<div class="empty">Nenhuma tarefa pendente 🎉</div>';return}
+  if(!show.length){
+    el.innerHTML = '<div class="empty">'+(modo==='padrao'
+      ? 'Nenhuma tarefa pendente 🎉'
+      : 'Nada neste recorte de prazo')+'</div>';
+    return;
+  }
   el.innerHTML = show.map(t=>{
     const late = t.due_date && t.due_date<today;
     const proj = t.project_id && projMap[t.project_id];
