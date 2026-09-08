@@ -50,23 +50,29 @@
         <div class="dtab" data-tab="semana" onclick="switchTab('semana')">Semana</div>
         <div class="dtab" data-tab="todas" onclick="switchTab('todas')">Todas</div>
         <div class="dtab" data-tab="concluidas" onclick="switchTab('concluidas')">Concluídas</div>
+        <div class="dtab" data-tab="kanban" onclick="switchTab('kanban')">Kanban</div>
       </div>
 
       <div class="filters-row">
-        <select class="form-input form-select" id="f-project" onchange="renderList()"><option value="">Todos os projetos</option></select>
-        <select class="form-input form-select" id="f-priority" onchange="renderList()">
+        <select class="form-input form-select" id="f-project" onchange="renderAtual()"><option value="">Todos os projetos</option></select>
+        <select class="form-input form-select" id="f-priority" onchange="renderAtual()">
           <option value="">Todas as prioridades</option>
           <option value="alta">Alta</option>
           <option value="media">Média</option>
           <option value="baixa">Baixa</option>
         </select>
-        <input class="form-input" id="f-month" type="month" onchange="renderList()" title="Ver um mês específico" style="width:auto">
+        <input class="form-input" id="f-month" type="month" onchange="renderAtual()" title="Ver um mês específico" style="width:auto">
         <button class="btn btn-ghost btn-sm" id="f-month-clear" onclick="clearMonth()" style="display:none">Limpar mês</button>
+        <label id="f-subs-wrap" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="f-subs" onchange="renderAtual()"> Incluir subtarefas
+        </label>
       </div>
 
       <div class="card" style="padding:16px" id="tasks-container">
         <div class="loading">Carregando...</div>
       </div>
+
+      <div class="kanban" id="kanban-container" style="display:none"></div>
 
     </div>
   </div>
@@ -121,8 +127,10 @@
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
 <script src="assets/automations.js"></script>
+<script src="assets/kanban-tarefas.js"></script>
 <script>
 let allTasks = [];       // só as tarefas PRINCIPAIS (parent_task_id nulo)
+let allSubs = [];        // as subtarefas, à parte (ver loadAll)
 let subMap = {};         // {idDaTarefaPai: [subtarefas]}
 let taskById = {};       // índice de todas (pais + subtarefas)
 let expandedTasks = new Set();
@@ -146,16 +154,18 @@ async function loadAll(){
   const [tasksRes, subsRes, projRes] = await Promise.all([
     sb.from('tasks').select('*').is('parent_task_id', null).order('due_date',{ascending:true,nullsFirst:false}).order('priority'),
     sb.from('tasks').select('*').not('parent_task_id','is',null).order('order_num').order('due_date',{ascending:true,nullsFirst:false}),
-    sb.from('projects').select('id,name').order('name'),
+    // O status vem junto porque o cartão do kanban pinta a bolinha do projeto.
+    sb.from('projects').select('id,name,status').order('name'),
   ]);
   if(tasksRes.error){
     document.getElementById('tasks-container').innerHTML = isMissingTable(tasksRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(tasksRes.error.message)+'</div>';
     return;
   }
   allTasks = tasksRes.data||[];
+  allSubs  = subsRes.data||[];
   subMap = {}; taskById = {};
   allTasks.forEach(t=>taskById[t.id]=t);
-  (subsRes.data||[]).forEach(s=>{
+  allSubs.forEach(s=>{
     (subMap[s.parent_task_id] = subMap[s.parent_task_id] || []).push(s);
     taskById[s.id] = s;
   });
@@ -163,7 +173,7 @@ async function loadAll(){
   (projRes.data||[]).forEach(p=>projMap[p.id]=p);
   fillProjectSelects();
   updateStats();
-  renderList();
+  renderAtual();
 }
 
 function fillProjectSelects(){
@@ -189,7 +199,7 @@ function updateStats(){
 
 function clearMonth(){
   document.getElementById('f-month').value = '';
-  renderList();
+  renderAtual();
 }
 
 function switchTab(name){
@@ -197,7 +207,47 @@ function switchTab(name){
   document.getElementById('f-month').value = ''; // abas e mês não se misturam
   document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('active'));
   document.querySelector(`.dtab[data-tab="${name}"]`)?.classList.add('active');
-  renderList();
+
+  // O kanban é a única aba que troca o formato da tela: sai a lista,
+  // entra o quadro. O filtro de mês não faz sentido lá.
+  const quadro = name==='kanban';
+  document.getElementById('tasks-container').style.display  = quadro ? 'none' : '';
+  document.getElementById('kanban-container').style.display = quadro ? 'flex' : 'none';
+  document.getElementById('f-month').style.display          = quadro ? 'none' : '';
+  document.getElementById('f-month-clear').style.display    = 'none';
+  document.getElementById('f-subs-wrap').style.display      = quadro ? 'flex' : 'none';
+  renderAtual();
+}
+
+function renderAtual(){
+  currentTab==='kanban' ? renderKanban() : renderList();
+}
+
+// ──────────── KANBAN: A fazer / Fazendo / Concluído ────────────
+// Mesmo quadro da tela de Projetos (assets/kanban-tarefas.js). Aqui ele
+// mostra TUDO: tarefas de projeto e avulsas, sem recorte de prazo.
+function renderKanban(){
+  updateStats();
+  const fp = document.getElementById('f-project').value;
+  const fr = document.getElementById('f-priority').value;
+  const comSubs = document.getElementById('f-subs').checked;
+  const base = comSubs ? allTasks.concat(allSubs) : allTasks;
+
+  renderTaskKanban({
+    container : document.getElementById('kanban-container'),
+    tasks     : base.filter(t=>{
+                  if(t.status==='cancelada') return false;
+                  if(fp && t.project_id!==fp) return false;
+                  if(fr && (t.priority||'media')!==fr) return false;
+                  return true;
+                }),
+    projectOf : id => projMap[id] || null,
+    subsOf    : id => subMap[id] || [],
+    taskOf    : id => taskById[id],
+    onEdit    : id => openEditTask(id),
+    onNew     : status => openNewTask(status),
+    onChanged : () => loadAll(),
+  });
 }
 
 function filtered(){
@@ -331,7 +381,8 @@ function toggleSubs(id){
   renderList();
 }
 
-function openNewTask(){
+// status: a coluna de onde a tarefa nasceu, quando vem do kanban.
+function openNewTask(status){
   editingTaskId = null;
   newTaskParentId = null;
   document.getElementById('modal-task-title').textContent = 'Nova tarefa';
@@ -343,9 +394,10 @@ function openNewTask(){
   document.getElementById('t-due').value = '';
   document.getElementById('t-estimate').value = '';
   document.getElementById('t-priority').value = 'media';
-  document.getElementById('t-project').value = '';
+  // Se a tela está filtrada por um projeto, a tarefa nova já nasce nele.
+  document.getElementById('t-project').value = document.getElementById('f-project').value || '';
   document.getElementById('t-project').disabled = false;
-  document.getElementById('t-status').value = 'pendente';
+  document.getElementById('t-status').value = status || 'pendente';
   openModal('modal-task');
 }
 

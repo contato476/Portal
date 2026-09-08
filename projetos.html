@@ -24,6 +24,15 @@
 .pd-stat-v{font-size:17px;font-weight:600;color:var(--text);margin-top:3px}
 .rev-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--dark3);border-radius:8px;margin-bottom:6px}
 .rev-num{font-size:11px;font-weight:700;color:var(--text3);background:var(--dark2);border-radius:6px;padding:3px 7px;flex-shrink:0}
+/* Chave Tarefas/Projetos do kanban e da timeline */
+.seg{display:inline-flex;background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px}
+.seg-btn{background:none;border:none;color:var(--text2);font-size:12.5px;font-family:inherit;padding:6px 13px;border-radius:6px;cursor:pointer}
+.seg-btn:hover{color:var(--text)}
+.seg-btn.active{background:var(--dark2);color:var(--text);font-weight:500}
+/* O cartão de tarefa do kanban mora no shared.css — tarefas.html usa o mesmo */
+.tl-group{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--dark3);border-bottom:1px solid var(--border);font-size:11.5px;font-weight:600;color:var(--text2);position:sticky;left:0}
+.tl-group b{color:var(--text);font-weight:600;cursor:pointer}
+.tl-group span{font-weight:400;color:var(--text3)}
 @media(max-width:768px){.pd-stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -74,8 +83,16 @@
       </div>
 
       <div class="filters-row">
+        <!-- Kanban e timeline mostram TAREFAS por padrão; a chave troca para projetos. -->
+        <div class="seg" id="mode-switch" style="display:none">
+          <button class="seg-btn active" data-mode="tarefas"  onclick="setBoardMode('tarefas')">Tarefas</button>
+          <button class="seg-btn"        data-mode="projetos" onclick="setBoardMode('projetos')">Projetos</button>
+        </div>
         <select class="form-input form-select" id="f-status" onchange="renderAll()">
           <option value="">Todos os status</option>
+        </select>
+        <select class="form-input form-select" id="f-projeto" onchange="renderAll()" style="display:none">
+          <option value="">Todos os projetos</option>
         </select>
         <select class="form-input form-select" id="f-priority" onchange="renderAll()">
           <option value="">Todas as prioridades</option>
@@ -83,9 +100,14 @@
           <option value="media">Média</option>
           <option value="baixa">Baixa</option>
         </select>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
-          <input type="checkbox" id="f-arquivados" onchange="renderAll()"> Mostrar arquivados
+        <label id="f-subs-wrap" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="f-subs" onchange="renderAll()"> Incluir subtarefas
         </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="f-arquivados" onchange="renderAll()"> <span id="f-arq-label">Mostrar arquivados</span>
+        </label>
+        <button class="btn btn-ghost btn-sm" id="btn-nova-tarefa" style="display:none;margin-left:auto"
+                onclick="openNewTask('', null, 'pendente')">+ Nova tarefa</button>
       </div>
 
       <div class="dtab-view active" id="tab-lista">
@@ -355,6 +377,7 @@
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
 <script src="assets/automations.js"></script>
+<script src="assets/kanban-tarefas.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PROJETOS — visão geral (lista / kanban / timeline), subtarefas,
@@ -364,14 +387,15 @@
    ════════════════════════════════════════════════════════════════════ */
 
 // Status reais já usados no sistema (mesmo conjunto do admin.html)
+// As cores vêm do helpers.js, para o cartão de tarefa pintar a mesma bolinha.
 const PROJ_STATUS = [
-  {id:'pre_inicio',         label:'Pré-início',         color:'#E3B341', badge:'bg-amber'},
-  {id:'em_andamento',       label:'Em andamento',       color:'#22A060', badge:'bg-green'},
-  {id:'testes_cliente',     label:'Testes cliente',     color:'#2188FF', badge:'bg-blue'},
-  {id:'ajustes_pos_testes', label:'Ajustes pós testes', color:'#E3B341', badge:'bg-amber'},
-  {id:'aguardando',         label:'Aguardando',         color:'#8B949E', badge:'bg-gray'},
-  {id:'pausado',            label:'Pausado',            color:'#F85149', badge:'bg-red'},
-  {id:'concluido',          label:'Concluído',          color:'#60A5FA', badge:'bg-blue'},
+  {id:'pre_inicio',         label:'Pré-início',         color:PROJ_STATUS_COLOR.pre_inicio,         badge:'bg-amber'},
+  {id:'em_andamento',       label:'Em andamento',       color:PROJ_STATUS_COLOR.em_andamento,       badge:'bg-green'},
+  {id:'testes_cliente',     label:'Testes cliente',     color:PROJ_STATUS_COLOR.testes_cliente,     badge:'bg-blue'},
+  {id:'ajustes_pos_testes', label:'Ajustes pós testes', color:PROJ_STATUS_COLOR.ajustes_pos_testes, badge:'bg-amber'},
+  {id:'aguardando',         label:'Aguardando',         color:PROJ_STATUS_COLOR.aguardando,         badge:'bg-gray'},
+  {id:'pausado',            label:'Pausado',            color:PROJ_STATUS_COLOR.pausado,            badge:'bg-red'},
+  {id:'concluido',          label:'Concluído',          color:PROJ_STATUS_COLOR.concluido,          badge:'bg-blue'},
 ];
 const ST = {}; PROJ_STATUS.forEach(s=>ST[s.id]=s);
 const statusLabel = s => ST[s]?.label || s || '—';
@@ -399,6 +423,10 @@ let newTaskParentId = null;   // preenchido quando se cria uma SUBTAREFA
 let expandedTasks = new Set();// tarefas com as subtarefas abertas na tela
 let draggedProjectId = null;
 let tlOffset = 0;             // deslocamento da timeline, em meses
+// Kanban e timeline mostram tarefas ou projetos. O padrão é TAREFAS —
+// é o que se olha para tocar o dia; o modo fica salvo entre as visitas.
+let boardMode = 'tarefas';
+try{ if(localStorage.getItem('proj_board_mode')==='projetos') boardMode = 'projetos' }catch(e){}
 
 window.addEventListener('DOMContentLoaded', () => {
   renderSidebar('projetos');
@@ -410,6 +438,37 @@ function fillStatusSelects(){
   const opts = PROJ_STATUS.map(s=>`<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('');
   document.getElementById('p-status').innerHTML = opts;
   document.getElementById('f-status').innerHTML = '<option value="">Todos os status</option>'+opts;
+  syncFilterUI();
+}
+
+// O filtro de status muda de conteúdo conforme o quadro: status de projeto
+// na visão de projetos, status de tarefa na visão de tarefas.
+function syncFilterUI(){
+  const board = currentTab !== 'lista';          // kanban e timeline têm os dois modos
+  const tarefas = board && boardMode === 'tarefas';
+  document.getElementById('mode-switch').style.display = board ? 'inline-flex' : 'none';
+  document.getElementById('f-projeto').style.display   = tarefas ? '' : 'none';
+  document.getElementById('f-subs-wrap').style.display = tarefas ? 'flex' : 'none';
+  document.getElementById('btn-nova-tarefa').style.display = tarefas ? 'inline-flex' : 'none';
+  document.getElementById('f-arq-label').textContent =
+    tarefas ? 'Incluir projetos arquivados' : 'Mostrar arquivados';
+  document.querySelectorAll('#mode-switch .seg-btn')
+    .forEach(b=>b.classList.toggle('active', b.dataset.mode===boardMode));
+
+  const fonte = tarefas ? TASK_STATUS : PROJ_STATUS;
+  const sel = document.getElementById('f-status');
+  const querido = sel.dataset.mode === (tarefas?'t':'p') ? sel.value : '';
+  sel.dataset.mode = tarefas ? 't' : 'p';
+  sel.innerHTML = '<option value="">Todos os status</option>' +
+    fonte.map(s=>`<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('');
+  sel.value = querido;
+}
+
+function setBoardMode(mode){
+  boardMode = mode;
+  try{ localStorage.setItem('proj_board_mode', mode) }catch(e){}
+  syncFilterUI();
+  renderAll();
 }
 
 // ──────────── CARGA ────────────
@@ -471,6 +530,13 @@ function fillProjectSelects(){
     allProjects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
   sel.value = keep;
 
+  const fsel = document.getElementById('f-projeto');
+  const fkeep = fsel.value;
+  fsel.innerHTML = '<option value="">Todos os projetos</option>' +
+    '<option value="__avulsas">Só tarefas avulsas</option>' +
+    allProjects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}${p.archived?' (arquivado)':''}</option>`).join('');
+  fsel.value = fkeep;
+
   const csel = document.getElementById('p-contact');
   const ckeep = csel.value;
   csel.innerHTML = '<option value="">— sem contato —</option>' +
@@ -513,6 +579,7 @@ function switchTab(name){
   document.querySelectorAll('.tabs-row .dtab[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('#tab-lista,#tab-kanban,#tab-timeline').forEach(v=>v.classList.remove('active'));
   document.getElementById('tab-'+name)?.classList.add('active');
+  syncFilterUI();
   renderAll();
 }
 
@@ -528,10 +595,32 @@ function filtered(){
   });
 }
 
+// Tarefas que entram no kanban e na timeline: as dos projetos (respeitando
+// o filtro de projeto) e as avulsas, que não pertencem a projeto nenhum.
+function filteredTasks(){
+  const st   = document.getElementById('f-status').value;
+  const pr   = document.getElementById('f-priority').value;
+  const proj = document.getElementById('f-projeto').value;
+  const arq  = document.getElementById('f-arquivados').checked;
+  const subs = document.getElementById('f-subs').checked;
+  const projMap = {}; allProjects.forEach(p=>projMap[p.id]=p);
+
+  return allTasks.filter(t=>{
+    if(t.status==='cancelada') return false;
+    if(!subs && t.parent_task_id) return false;
+    if(proj==='__avulsas'){ if(t.project_id) return false }
+    else if(proj){ if(t.project_id!==proj) return false }
+    else if(!arq && t.project_id && projMap[t.project_id]?.archived) return false;
+    if(st && t.status!==st) return false;
+    if(pr && (t.priority||'media')!==pr) return false;
+    return true;
+  });
+}
+
 function renderAll(){
   if(currentTab==='lista') renderList();
-  else if(currentTab==='kanban') renderKanban();
-  else renderTimeline();
+  else if(currentTab==='kanban') (boardMode==='tarefas' ? renderKanbanTarefas : renderKanban)();
+  else (boardMode==='tarefas' ? renderTimelineTarefas : renderTimeline)();
 }
 
 // ──────────── VISÃO: LISTA ────────────
@@ -597,7 +686,9 @@ function projRow(p){
 // Arrastar e soltar nativo, mesmo padrão do crm.html
 function renderKanban(){
   const list = filtered();
-  document.getElementById('kanban-container').innerHTML = PROJ_STATUS.map(s=>{
+  const cont = document.getElementById('kanban-container');
+  cont.className = 'kanban';
+  cont.innerHTML = PROJ_STATUS.map(s=>{
     const ps = list.filter(p=>p.status===s.id);
     return `
       <div class="kb-col">
@@ -627,6 +718,22 @@ function projCard(p){
         <div class="prog-pct">${prog.total?prog.pct+'%':'—'}</div>
       </div>
     </div>`;
+}
+
+// ──────────── VISÃO: KANBAN DE TAREFAS ────────────
+// O quadro em si mora no assets/kanban-tarefas.js — aqui só entram os
+// dados desta tela e o que fazer quando algo muda.
+function renderKanbanTarefas(){
+  renderTaskKanban({
+    container : document.getElementById('kanban-container'),
+    tasks     : filteredTasks(),
+    projectOf : id => allProjects.find(p=>p.id===id) || null,
+    subsOf    : id => subMap[id] || [],
+    taskOf    : id => taskMap[id],
+    onEdit    : id => openEditTask(id),
+    onNew     : status => openNewTask('', null, status),
+    onChanged : () => loadAll(),
+  });
 }
 
 function dragStart(e,id){ draggedProjectId = id; e.dataTransfer.effectAllowed='move' }
@@ -659,30 +766,96 @@ function timelineWindow(){
 }
 function shiftTimeline(delta){
   tlOffset = delta===0 ? 0 : tlOffset+delta;
-  renderTimeline();
+  renderAll();
 }
 
-function renderTimeline(){
+// Cabeçalho de meses + linha do "hoje": igual nas duas timelines.
+function tlMoldura(meses, hojePct, linhas, rotulo){
+  return `
+    <div class="tl-inner">
+      <div class="tl-head">
+        <div class="tl-label">${rotulo}</div>
+        <div class="tl-months">${meses.map(d=>`<div class="tl-month">${d.toLocaleDateString('pt-BR',{month:'short'})}</div>`).join('')}</div>
+      </div>
+      <div style="position:relative">
+        <div class="tl-today" style="left:calc(200px + (100% - 200px) * ${hojePct/100})"></div>
+        ${linhas}
+      </div>
+    </div>`;
+}
+
+// Prepara a janela de meses e devolve o que as duas timelines precisam.
+function tlContexto(){
   const {start, end} = timelineWindow();
   const total = end - start;
   const pos = d => Math.max(0, Math.min(100, (new Date(String(d).length<=10?d+'T00:00:00':d) - start)/total*100));
-
   const meses = [];
   const m = new Date(start);
   while(m < end){ meses.push(new Date(m)); m.setMonth(m.getMonth()+1) }
-
   document.getElementById('tl-range').textContent =
     meses[0].toLocaleDateString('pt-BR',{month:'long',year:'numeric'}) + ' → ' +
     meses[meses.length-1].toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  return {pos, meses, hoje: todayISO()};
+}
+
+// ──────────── TIMELINE DE TAREFAS ────────────
+// As tarefas aparecem agrupadas pelo projeto a que pertencem, e as avulsas
+// no fim, num grupo só delas.
+function renderTimelineTarefas(){
+  const {pos, meses, hoje} = tlContexto();
+  const list = filteredTasks();
+  const el = document.getElementById('timeline-container');
+  if(!list.length){
+    el.innerHTML = '<div class="empty">Nenhuma tarefa com esses filtros.</div>';
+    return;
+  }
+
+  // Ordem dos grupos: a mesma da lista de projetos (por prazo), avulsas por último.
+  const grupos = [];
+  allProjects.forEach(p=>{
+    const ts = list.filter(t=>t.project_id===p.id);
+    if(ts.length) grupos.push({proj:p, tasks:ts});
+  });
+  const avulsas = list.filter(t=>!t.project_id);
+  if(avulsas.length) grupos.push({proj:null, tasks:avulsas});
+
+  const linhas = grupos.map(g=>{
+    const feitas = g.tasks.filter(t=>t.status==='concluida').length;
+    const cab = g.proj
+      ? `<div class="tl-group">
+           <i class="kb-dot" style="background:${ST[g.proj.status]?.color||'#8B949E'}"></i>
+           <b onclick="openProject('${g.proj.id}')">${escapeHtml(g.proj.name)}</b>
+           <span>${feitas}/${g.tasks.length} concluídas${g.proj.end_date?' · entrega '+fmtDateShort(g.proj.end_date):''}</span>
+         </div>`
+      : `<div class="tl-group"><i class="kb-dot" style="background:#3F4652"></i>
+           <b style="cursor:default">Tarefas avulsas</b>
+           <span>${feitas}/${g.tasks.length} concluídas</span>
+         </div>`;
+
+    const rows = g.tasks.slice().sort(ordenaPorPrazo).map(t=>`
+      <div class="tl-row sub">
+        <div class="tl-label" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+        <div class="tl-track">${barraDe(t.start_date, t.due_date, {
+          late: t.due_date && t.due_date<hoje && t.status!=='concluida',
+          done: t.status==='concluida',
+          texto: t.title + (t.due_date ? ' — prazo '+fmtDateShort(t.due_date) : ''),
+          click: `openEditTask('${t.id}')`, pos, sub:false,
+        })}</div>
+      </div>`).join('');
+    return cab + rows;
+  }).join('');
+
+  el.innerHTML = tlMoldura(meses, pos(hoje), linhas, 'Tarefa');
+}
+
+function renderTimeline(){
+  const {pos, meses, hoje} = tlContexto();
 
   const list = filtered();
   if(!list.length){
     document.getElementById('timeline-container').innerHTML = '<div class="empty">Nenhum projeto para mostrar.</div>';
     return;
   }
-
-  const hojePct = pos(todayISO());
-  const hoje = todayISO();
 
   const linhas = list.map(p=>{
     const barra = barraDe(p.start_date, p.end_date, {
@@ -709,17 +882,8 @@ function renderTimeline(){
       </div>${subs}`;
   }).join('');
 
-  document.getElementById('timeline-container').innerHTML = `
-    <div class="tl-inner">
-      <div class="tl-head">
-        <div class="tl-label">Projeto / tarefa</div>
-        <div class="tl-months">${meses.map(d=>`<div class="tl-month">${d.toLocaleDateString('pt-BR',{month:'short'})}</div>`).join('')}</div>
-      </div>
-      <div style="position:relative">
-        <div class="tl-today" style="left:calc(200px + (100% - 200px) * ${hojePct/100})"></div>
-        ${linhas}
-      </div>
-    </div>`;
+  document.getElementById('timeline-container').innerHTML =
+    tlMoldura(meses, pos(hoje), linhas, 'Projeto / tarefa');
 }
 
 // Desenha uma barra na faixa. Sem datas, mostra um aviso discreto.
@@ -727,7 +891,8 @@ function barraDe(ini, fim, o){
   if(!ini && !fim) return '<div class="tl-nodate">sem datas</div>';
   const a = ini || fim, b = fim || ini;
   const left = o.pos(a), right = o.pos(b);
-  const width = Math.max(1.2, right-left);
+  // Tarefa com uma data só vira um pontinho: o mínimo garante que dê para ver.
+  const width = Math.max(2.2, right-left);
   const cls = 'tl-bar'+(o.sub?' sub':'')+(o.done?' done':(o.late?' late':''));
   return `<div class="${cls}" style="left:${left}%;width:${width}%" title="${escapeHtml(o.texto)}"
             onclick="${o.click}">${o.sub?'':escapeHtml(o.texto)}</div>`;
@@ -1166,7 +1331,8 @@ async function deleteProject(){
 }
 
 // ──────────── CRUD: TAREFA / SUBTAREFA ────────────
-function openNewTask(projectId, parentId){
+// status: coluna de onde a tarefa nasceu, quando vem do kanban de tarefas.
+function openNewTask(projectId, parentId, status){
   editingTaskId = null;
   newTaskParentId = parentId || null;
   document.getElementById('modal-task-title').textContent = parentId ? 'Nova subtarefa' : 'Nova tarefa';
@@ -1174,8 +1340,13 @@ function openNewTask(projectId, parentId){
   document.getElementById('t-sub-note').style.display = parentId ? 'block' : 'none';
   ['t-title','t-desc','t-start','t-due','t-estimate'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('t-priority').value = 'media';
-  document.getElementById('t-status').value = 'pendente';
-  document.getElementById('t-project').value = projectId || detailProjectId || '';
+  document.getElementById('t-status').value = status || 'pendente';
+  // Fora do detalhe do projeto (kanban, por exemplo) vale o projeto do filtro,
+  // se houver um escolhido — nunca o último projeto que esteve aberto.
+  const doFiltro = document.getElementById('f-projeto').value;
+  const aberto = document.getElementById('modal-detail').classList.contains('open');
+  document.getElementById('t-project').value =
+    projectId || (aberto ? detailProjectId : '') || (doFiltro && doFiltro!=='__avulsas' ? doFiltro : '');
   document.getElementById('t-project').disabled = !!parentId;
   openModal('modal-task');
 }

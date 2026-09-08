@@ -106,3 +106,13 @@ function isMissingTable(error){
   return error && /relation .* does not exist|Could not find the table|schema cache/i.test(error.message||'');
 }
 const SQL_HINT = '<div class="empty">Tabelas de gestão ainda não criadas.<br>Rode o arquivo <b>sql/01_gestao_schema.sql</b> no SQL Editor do Supabase.</div>';
+
+// ──────────── STATUS DE PROJETO ────────────
+// A cor de cada status, num lugar só: o quadro de projetos e os cartões de
+// tarefa (em projetos.html e tarefas.html) pintam a mesma bolinha.
+const PROJ_STATUS_COLOR = {
+  pre_inicio:'#E3B341', em_andamento:'#22A060', testes_cliente:'#2188FF',
+  ajustes_pos_testes:'#E3B341', aguardando:'#8B949E', pausado:'#F85149',
+  concluido:'#60A5FA',
+};
+const PROJ_SEM_STATUS_COLOR = '#3F4652';   // tarefa avulsa, sem projeto

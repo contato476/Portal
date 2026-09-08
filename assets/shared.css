@@ -174,6 +174,23 @@ textarea.form-input{resize:vertical;min-height:80px}
 .kb-card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px}
 .kb-card-meta{font-size:11px;color:var(--text3)}
 
+/* Cartao de TAREFA no kanban (projetos.html e tarefas.html) */
+.kanban.tarefas .kb-col{width:288px;min-width:288px}
+.kanban.tarefas .kb-hd{gap:6px}
+.kb-add{margin-left:6px;background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;line-height:1;padding:0 2px}
+.kb-add:hover{color:var(--text)}
+.kb-more{font-size:11px;color:var(--text3);text-align:center;padding:6px 0}
+.tk-card{display:flex;gap:9px;align-items:flex-start}
+.tk-card .task-check{margin-top:1px;flex-shrink:0}
+.tk-title{font-size:13px;font-weight:500;color:var(--text);line-height:1.35}
+.tk-title.done{text-decoration:line-through;color:var(--text3)}
+.tk-proj{font-size:10.5px;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:5px}
+.tk-proj i{width:7px;height:7px;border-radius:50%;flex-shrink:0;font-style:normal}
+.tk-meta{font-size:11px;color:var(--text3);margin-top:3px}
+.tk-meta.late{color:var(--red)}
+.tk-foot{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap}
+.tk-sub{font-size:10.5px;color:var(--text3);background:var(--dark2);border-radius:20px;padding:2px 7px}
+
 /* ─────────── TIMELINE (projetos) ─────────── */
 .timeline{overflow-x:auto;padding-bottom:8px}
 .tl-inner{min-width:760px}
