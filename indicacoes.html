@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicações — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.ind-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--dark3);border-radius:9px;margin-bottom:7px;cursor:pointer;border-left:3px solid transparent}
+.ind-row:hover{background:rgba(255,255,255,.05)}
+.ind-row.pagar{border-left-color:var(--amber)}
+.ind-name{font-size:13.5px;font-weight:500;color:var(--text)}
+.ind-meta{font-size:11px;color:var(--text3);margin-top:3px}
+.ind-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.ind-money{font-size:13px;font-weight:600;text-align:right;min-width:92px}
+.ind-money small{display:block;font-size:10px;font-weight:400;color:var(--text3)}
+.regra-box{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.regra-box .form-group{margin-bottom:0}
+.regra-tag{font-size:11.5px;color:var(--text2);background:var(--dark3);border-radius:20px;padding:3px 10px;white-space:nowrap}
+.regra-tag.padrao{color:var(--text3)}
+.num-cell{text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:768px){.ind-right{gap:8px}.ind-money{min-width:78px}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Indicações</div>
+      <button class="btn btn-primary" onclick="openNewIndicacao()">+ Nova indicação</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Indicações no mês</div><div class="stat-val" id="st-mes">—</div><div class="stat-sub">chegaram por indicação</div></div>
+        <div class="stat"><div class="stat-label">Viraram cliente</div><div class="stat-val" id="st-fechou" style="color:#4ADE80">—</div><div class="stat-sub">de <span id="st-total">0</span> indicações</div></div>
+        <div class="stat"><div class="stat-label">Cashback a pagar</div><div class="stat-val" id="st-apagar" style="color:var(--amber)">—</div><div class="stat-sub">já apurado</div></div>
+        <div class="stat"><div class="stat-label">Pago no ano</div><div class="stat-val" id="st-pago">—</div><div class="stat-sub" id="st-ano">—</div></div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="dtab active" data-tab="indicacoes" onclick="switchTab('indicacoes')">Indicações</div>
+        <div class="dtab" data-tab="quem" onclick="switchTab('quem')">Quem indica</div>
+      </div>
+
+      <!-- ════════ ABA: INDICAÇÕES ════════ -->
+      <div class="dtab-view active" id="tab-indicacoes">
+        <div class="filters-row">
+          <select class="form-input form-select" id="f-status" onchange="renderIndicacoes()">
+            <option value="">Todas as situações</option>
+            <option value="indicado">Indicado</option>
+            <option value="em_conversa">Em conversa</option>
+            <option value="fechou">Fechou</option>
+            <option value="nao_fechou">Não fechou</option>
+          </select>
+          <select class="form-input form-select" id="f-cashback" onchange="renderIndicacoes()">
+            <option value="">Todo o cashback</option>
+            <option value="a_liberar">A liberar</option>
+            <option value="a_pagar">A pagar</option>
+            <option value="pago">Pago</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <select class="form-input form-select" id="f-quem" onchange="renderIndicacoes()">
+            <option value="">Todos que indicaram</option>
+          </select>
+        </div>
+        <div id="ind-container"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- ════════ ABA: QUEM INDICA ════════ -->
+      <div class="dtab-view" id="tab-quem">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-hd"><span class="card-title">Regra padrão do programa</span></div>
+          <div style="padding:14px 17px 17px">
+            <p style="font-size:12.5px;color:var(--text3);margin-bottom:12px">
+              Vale para quem não tem uma regra própria. Mudar aqui não mexe no que já foi prometido:
+              cada indicação guarda a regra do dia em que foi registrada.
+            </p>
+            <div class="regra-box">
+              <div class="form-group" style="width:190px">
+                <label class="form-label">Tipo</label>
+                <select class="form-input form-select" id="pd-tipo" onchange="atualizarDicaPadrao()">
+                  <option value="valor">Valor fixo (R$)</option>
+                  <option value="percent">% do negócio fechado</option>
+                </select>
+              </div>
+              <div class="form-group" style="width:150px">
+                <label class="form-label" id="pd-label">Valor por indicação</label>
+                <input type="number" min="0" step="0.01" class="form-input" id="pd-valor" placeholder="0">
+              </div>
+              <button class="btn btn-primary" id="btn-save-padrao" onclick="salvarPadrao()">Salvar padrão</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="filters-row">
+          <input class="form-input" id="f-busca" placeholder="Buscar cliente..." oninput="renderQuemIndica()" style="min-width:220px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
+            <input type="checkbox" id="f-todos" onchange="renderQuemIndica()"> Incluir leads e inativos
+          </label>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div id="quem-container"><div class="loading">Carregando...</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════ MODAL: INDICAÇÃO ════════ -->
+<div class="overlay" id="modal-ind">
+  <div class="modal" style="width:620px">
+    <div class="modal-title" id="modal-ind-title">Nova indicação</div>
+
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Quem indicou *</label>
+        <select class="form-input form-select" id="i-quem" onchange="aoTrocarQuemIndicou()"></select>
+      </div>
+      <div class="form-group"><label class="form-label">Data da indicação</label>
+        <input type="date" class="form-input" id="i-data">
+      </div>
+    </div>
+
+    <div class="form-section">Quem foi indicado</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Nome *</label><input class="form-input" id="i-nome" placeholder="Nome de quem foi indicado"></div>
+      <div class="form-group"><label class="form-label">Empresa</label><input class="form-input" id="i-empresa"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="i-email" type="email"></div>
+      <div class="form-group"><label class="form-label">Telefone</label><input class="form-input" id="i-fone"></div>
+    </div>
+    <label id="i-lead-wrap" style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);cursor:pointer;margin-bottom:14px">
+      <input type="checkbox" id="i-lead" checked> Criar também como lead no CRM (origem: indicação)
+    </label>
+
+    <div class="form-section">Cashback</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-input form-select" id="i-tipo" onchange="atualizarDicaCashback()">
+          <option value="valor">Valor fixo (R$)</option>
+          <option value="percent">% do negócio fechado</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label" id="i-valor-label">Valor</label>
+        <input type="number" min="0" step="0.01" class="form-input" id="i-valor" oninput="atualizarDicaCashback()">
+      </div>
+    </div>
+    <div id="i-dica" style="font-size:11.5px;color:var(--text3);margin:-6px 0 14px"></div>
+
+    <!-- Só na edição: onde a indicação parou e o que fazer com o cashback -->
+    <div id="i-acomp" style="display:none">
+      <div class="form-section">Acompanhamento</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Situação</label>
+          <select class="form-input form-select" id="i-status" onchange="aoTrocarStatus()">
+            <option value="indicado">Indicado</option>
+            <option value="em_conversa">Em conversa</option>
+            <option value="fechou">Fechou</option>
+            <option value="nao_fechou">Não fechou</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Está no CRM como</label>
+          <select class="form-input form-select" id="i-contato" onchange="aoTrocarContatoIndicado()">
+            <option value="">— ainda não está —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Negócio no CRM</label>
+        <select class="form-input form-select" id="i-deal"><option value="">— nenhum —</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Cashback apurado (R$)</label>
+          <input type="number" min="0" step="0.01" class="form-input" id="i-apurado" placeholder="calculado ao fechar">
+        </div>
+        <div class="form-group"><label class="form-label">Situação do cashback</label>
+          <select class="form-input form-select" id="i-cashback">
+            <option value="a_liberar">A liberar</option>
+            <option value="a_pagar">A pagar</option>
+            <option value="pago">Pago</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group"><label class="form-label">Observações</label><textarea class="form-input" id="i-notas" rows="2"></textarea></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-del-ind" style="margin-right:auto;display:none" onclick="excluirIndicacao()">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-ind')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-ind" onclick="salvarIndicacao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: REGRA DE UM CLIENTE ════════ -->
+<div class="overlay" id="modal-regra">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">Quanto <span id="r-nome">este cliente</span> ganha ao indicar</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-input form-select" id="r-tipo" onchange="atualizarDicaRegra()">
+          <option value="">Usar o padrão do programa</option>
+          <option value="valor">Valor fixo (R$)</option>
+          <option value="percent">% do negócio fechado</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label" id="r-label">Valor</label>
+        <input type="number" min="0" step="0.01" class="form-input" id="r-valor" oninput="atualizarDicaRegra()">
+      </div>
+    </div>
+    <div id="r-dica" class="note-box" style="margin-bottom:14px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-regra')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-regra" onclick="salvarRegra()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   INDICAÇÕES — programa de cashback de quem indica.
+
+   Duas perguntas, duas abas:
+     · Indicações  — quem indicou quem, em que pé está, quanto se deve.
+     · Quem indica — a regra de cada cliente e o histórico dele.
+
+   O cashback é apurado quando a indicação FECHA, e só então entra na
+   fila de pagamento. Pagar gera uma despesa no Financeiro, na categoria
+   "Indicações" — assim o custo de trazer cliente por indicação aparece
+   no relatório em vez de sumir no meio das outras despesas.
+   ════════════════════════════════════════════════════════════════════ */
+
+const IND_STATUS = {
+  indicado:    {label:'Indicado',    badge:'bg-gray'},
+  em_conversa: {label:'Em conversa', badge:'bg-blue'},
+  fechou:      {label:'Fechou',      badge:'bg-green'},
+  nao_fechou:  {label:'Não fechou',  badge:'bg-red'},
+};
+const CASH_STATUS = {
+  a_liberar: {label:'A liberar', badge:'bg-gray',   cor:'var(--text2)'},
+  a_pagar:   {label:'A pagar',   badge:'bg-amber',  cor:'var(--amber)'},
+  pago:      {label:'Pago',      badge:'bg-green',  cor:'#4ADE80'},
+  cancelado: {label:'Cancelado', badge:'bg-gray',   cor:'var(--text3)'},
+};
+const SQL_HINT_IND = '<div class="empty">O programa de indicação ainda não foi criado no banco.<br>' +
+  'Rode o arquivo <b>sql/16_indicacoes.sql</b> no SQL Editor do Supabase.</div>';
+
+// ──────────── ESTADO ────────────
+let indicacoes = [], contatos = [], deals = [];
+let contatoMap = {}, dealMap = {};
+let padrao = {tipo:'valor', valor:0};      // regra padrão do programa
+let currentTab = 'indicacoes';
+let editandoId = null, editandoRegraId = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('indicacoes');
+  requireAdmin(loadAll);
+});
+
+// ──────────── CARGA ────────────
+async function loadAll(){
+  const [refRes, cRes, dRes] = await Promise.all([
+    sb.from('referrals').select('*').order('referred_at',{ascending:false}),
+    sb.from('crm_contacts').select('*').order('name'),
+    sb.from('crm_deals').select('id,contact_id,title,value,stage').order('created_at',{ascending:false}),
+  ]);
+
+  if(refRes.error){
+    document.getElementById('ind-container').innerHTML =
+      isMissingTable(refRes.error) ? SQL_HINT_IND : '<div class="empty">Erro: '+escapeHtml(refRes.error.message)+'</div>';
+    document.getElementById('quem-container').innerHTML = isMissingTable(refRes.error) ? SQL_HINT_IND : '';
+    return;
+  }
+
+  indicacoes = refRes.data || [];
+  contatos   = cRes.data || [];
+  deals      = dRes.data || [];
+  contatoMap = {}; contatos.forEach(c=>contatoMap[c.id]=c);
+  dealMap    = {}; deals.forEach(d=>dealMap[d.id]=d);
+
+  // A regra padrão do programa mora no app_settings (editável na tela).
+  padrao = {
+    tipo:  (await getSetting('indicacao_padrao_tipo'))  || 'valor',
+    valor: Number(await getSetting('indicacao_padrao_valor')) || 0,
+  };
+  document.getElementById('pd-tipo').value  = padrao.tipo;
+  document.getElementById('pd-valor').value = padrao.valor || '';
+  atualizarDicaPadrao();
+
+  preencherSelects();
+  updateStats();
+  renderAtual();
+}
+
+function preencherSelects(){
+  const opts = contatos.map(c=>
+    `<option value="${c.id}">${escapeHtml(c.name)}${c.company?' — '+escapeHtml(c.company):''}</option>`).join('');
+  const quem = document.getElementById('i-quem');
+  const keep = quem.value;
+  quem.innerHTML = opts;
+  quem.value = keep;
+
+  const ind = document.getElementById('i-contato');
+  const ikeep = ind.value;
+  ind.innerHTML = '<option value="">— ainda não está —</option>' + opts;
+  ind.value = ikeep;
+
+  const f = document.getElementById('f-quem');
+  const fkeep = f.value;
+  // No filtro só entra quem realmente indicou alguém.
+  const indicaram = [...new Set(indicacoes.map(r=>r.referrer_contact_id))];
+  f.innerHTML = '<option value="">Todos que indicaram</option>' +
+    indicaram.map(id=>`<option value="${id}">${escapeHtml(contatoMap[id]?.name||'—')}</option>`).join('');
+  f.value = fkeep;
+}
+
+// ──────────── REGRAS E CÁLCULO ────────────
+// A regra que vale para um contato: a dele, ou o padrão do programa.
+function regraDe(contatoId){
+  const c = contatoMap[contatoId];
+  if(c && c.referral_reward_type)
+    return {tipo:c.referral_reward_type, valor:Number(c.referral_reward_value)||0, propria:true};
+  return {tipo:padrao.tipo, valor:padrao.valor, propria:false};
+}
+
+function textoRegra(tipo, valor){
+  return tipo==='percent' ? (Number(valor)||0)+'% do negócio' : fmtMoney(valor)+' por indicação';
+}
+
+// Quanto vale uma indicação. Em % precisa do negócio vinculado para
+// virar dinheiro — sem ele, não há o que apurar.
+function calcularCashback(r){
+  if(r.reward_type==='percent'){
+    const d = r.deal_id && dealMap[r.deal_id];
+    return d ? Number(d.value||0) * (Number(r.reward_value)||0)/100 : null;
+  }
+  return Number(r.reward_value)||0;
+}
+
+// O que a indicação vale hoje: o apurado, ou a previsão pela regra.
+function valorDe(r){
+  return r.reward_amount != null ? Number(r.reward_amount) : calcularCashback(r);
+}
+
+// ──────────── ESTATÍSTICAS ────────────
+function updateStats(){
+  const hoje = todayISO();
+  const mes = hoje.slice(0,7), ano = hoje.slice(0,4);
+  const noMes = indicacoes.filter(r=>(r.referred_at||'').slice(0,7)===mes).length;
+  const fechou = indicacoes.filter(r=>r.status==='fechou').length;
+  const aPagar = indicacoes.filter(r=>r.reward_status==='a_pagar')
+                           .reduce((s,r)=>s+(valorDe(r)||0), 0);
+  const pagoAno = indicacoes.filter(r=>r.reward_status==='pago' && (r.paid_at||'').slice(0,4)===ano)
+                            .reduce((s,r)=>s+(Number(r.reward_amount)||0), 0);
+  document.getElementById('st-mes').textContent    = noMes;
+  document.getElementById('st-fechou').textContent = fechou;
+  document.getElementById('st-total').textContent  = indicacoes.length;
+  document.getElementById('st-apagar').textContent = fmtMoney(aPagar);
+  document.getElementById('st-pago').textContent   = fmtMoney(pagoAno);
+  document.getElementById('st-ano').textContent    = 'em '+ano;
+}
+
+// ──────────── ABAS ────────────
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.dtab[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  ['indicacoes','quem'].forEach(n=>document.getElementById('tab-'+n).classList.toggle('active', n===name));
+  renderAtual();
+}
+function renderAtual(){
+  currentTab==='indicacoes' ? renderIndicacoes() : renderQuemIndica();
+}
+
+// ──────────── LISTA DE INDICAÇÕES ────────────
+function renderIndicacoes(){
+  const el = document.getElementById('ind-container');
+  const fs = document.getElementById('f-status').value;
+  const fc = document.getElementById('f-cashback').value;
+  const fq = document.getElementById('f-quem').value;
+
+  const list = indicacoes.filter(r=>{
+    if(fs && r.status!==fs) return false;
+    if(fc && r.reward_status!==fc) return false;
+    if(fq && r.referrer_contact_id!==fq) return false;
+    return true;
+  });
+
+  if(!list.length){
+    el.innerHTML = indicacoes.length
+      ? '<div class="empty">Nenhuma indicação com esses filtros.</div>'
+      : '<div class="empty">Nenhuma indicação registrada.<br>Clique em <b>+ Nova indicação</b> quando alguém indicar você.</div>';
+    return;
+  }
+
+  // Quem está esperando dinheiro aparece primeiro — é o que não pode atrasar.
+  const ordem = {a_pagar:0, a_liberar:1, pago:2, cancelado:3};
+  const ordenada = list.slice().sort((a,b)=>
+    (ordem[a.reward_status]??9)-(ordem[b.reward_status]??9) ||
+    String(b.referred_at||'').localeCompare(String(a.referred_at||'')));
+
+  el.innerHTML = ordenada.map(linhaIndicacao).join('');
+}
+
+function linhaIndicacao(r){
+  const quem = contatoMap[r.referrer_contact_id];
+  const st = IND_STATUS[r.status] || IND_STATUS.indicado;
+  const cs = CASH_STATUS[r.reward_status] || CASH_STATUS.a_liberar;
+  const valor = valorDe(r);
+  const apurado = r.reward_amount != null;
+
+  const meta = ['indicado por '+escapeHtml(quem?.name || '—')];
+  if(r.referred_company) meta.push(escapeHtml(r.referred_company));
+  meta.push(fmtDateShort(r.referred_at));
+  if(r.deal_id && dealMap[r.deal_id]) meta.push(escapeHtml(dealMap[r.deal_id].title));
+  if(r.reward_status==='pago' && r.paid_at) meta.push('pago em '+fmtDateShort(r.paid_at));
+
+  return `
+    <div class="ind-row${r.reward_status==='a_pagar'?' pagar':''}" onclick="openEditIndicacao('${r.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="ind-name">${escapeHtml(r.referred_name)}</div>
+        <div class="ind-meta">${meta.join(' · ')}</div>
+      </div>
+      <div class="ind-right">
+        <div class="ind-money" style="color:${cs.cor}">
+          ${valor==null ? '—' : fmtMoney(valor)}
+          <small>${apurado ? cs.label.toLowerCase() : 'previsto · '+textoRegra(r.reward_type, r.reward_value)}</small>
+        </div>
+        <span class="badge ${st.badge}">${st.label}</span>
+        ${r.reward_status==='a_pagar'
+          ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();pagarCashback('${r.id}')">Pagar</button>`
+          : ''}
+      </div>
+    </div>`;
+}
+
+// ──────────── QUEM INDICA ────────────
+function renderQuemIndica(){
+  const el = document.getElementById('quem-container');
+  const busca = document.getElementById('f-busca').value.trim().toLowerCase();
+  const todos = document.getElementById('f-todos').checked;
+
+  // Por padrão a lista é de clientes ativos — mais quem já indicou
+  // alguma vez, mesmo que hoje esteja inativo.
+  const jaIndicou = new Set(indicacoes.map(r=>r.referrer_contact_id));
+  let list = contatos.filter(c=>todos || c.status==='ativo' || jaIndicou.has(c.id));
+  if(busca) list = list.filter(c=>
+    (c.name||'').toLowerCase().includes(busca) || (c.company||'').toLowerCase().includes(busca));
+
+  if(!list.length){ el.innerHTML = '<div class="empty">Nenhum cliente por aqui.</div>'; return }
+
+  const dados = list.map(c=>{
+    const rs = indicacoes.filter(r=>r.referrer_contact_id===c.id);
+    return {
+      c,
+      total:   rs.length,
+      fechou:  rs.filter(r=>r.status==='fechou').length,
+      aPagar:  rs.filter(r=>r.reward_status==='a_pagar').reduce((s,r)=>s+(valorDe(r)||0),0),
+      pago:    rs.filter(r=>r.reward_status==='pago').reduce((s,r)=>s+(Number(r.reward_amount)||0),0),
+    };
+  }).sort((a,b)=> b.total-a.total || (a.c.name||'').localeCompare(b.c.name||''));
+
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Cliente</th><th>Ganha ao indicar</th>
+        <th class="num-cell">Indicações</th><th class="num-cell">Fecharam</th>
+        <th class="num-cell">A pagar</th><th class="num-cell">Já pago</th>
+      </tr></thead>
+      <tbody>
+        ${dados.map(({c,total,fechou,aPagar,pago})=>{
+          const reg = regraDe(c.id);
+          return `
+          <tr class="clickable" onclick="openRegra('${c.id}')" title="Clique para definir quanto este cliente ganha">
+            <td>
+              <div style="font-size:13px;color:var(--text)">${escapeHtml(c.name)}</div>
+              <div style="font-size:11px;color:var(--text3)">${escapeHtml(c.company||'')}</div>
+            </td>
+            <td><span class="regra-tag${reg.propria?'':' padrao'}">${escapeHtml(textoRegra(reg.tipo, reg.valor))}${reg.propria?'':' · padrão'}</span></td>
+            <td class="num-cell">${total||'—'}</td>
+            <td class="num-cell">${fechou||'—'}</td>
+            <td class="num-cell" style="color:${aPagar?'var(--amber)':'var(--text3)'}">${aPagar?fmtMoney(aPagar):'—'}</td>
+            <td class="num-cell">${pago?fmtMoney(pago):'—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ──────────── REGRA PADRÃO DO PROGRAMA ────────────
+function atualizarDicaPadrao(){
+  const tipo = document.getElementById('pd-tipo').value;
+  document.getElementById('pd-label').textContent =
+    tipo==='percent' ? '% do negócio fechado' : 'Valor por indicação';
+}
+
+async function salvarPadrao(){
+  const tipo = document.getElementById('pd-tipo').value;
+  const valor = Number(document.getElementById('pd-valor').value)||0;
+  const btn = document.getElementById('btn-save-padrao');
+  btn.disabled = true;
+  const a = await setSetting('indicacao_padrao_tipo', tipo);
+  const b = await setSetting('indicacao_padrao_valor', String(valor));
+  btn.disabled = false;
+  if(a.error || b.error){ showToast('Erro: '+(a.error||b.error).message, true); return }
+  padrao = {tipo, valor};
+  showToast('Regra padrão salva ✓');
+  renderQuemIndica();
+}
+
+// ──────────── REGRA DE UM CLIENTE ────────────
+function openRegra(contatoId){
+  const c = contatoMap[contatoId];
+  if(!c) return;
+  editandoRegraId = contatoId;
+  document.getElementById('r-nome').textContent = c.name;
+  document.getElementById('r-tipo').value  = c.referral_reward_type || '';
+  document.getElementById('r-valor').value = c.referral_reward_type ? (c.referral_reward_value ?? '') : '';
+  atualizarDicaRegra();
+  openModal('modal-regra');
+}
+
+function atualizarDicaRegra(){
+  const tipo = document.getElementById('r-tipo').value;
+  const valor = document.getElementById('r-valor').value;
+  const campo = document.getElementById('r-valor');
+  campo.disabled = !tipo;
+  document.getElementById('r-label').textContent = tipo==='percent' ? '% do negócio' : 'Valor';
+  document.getElementById('r-dica').innerHTML = tipo
+    ? `Cada indicação deste cliente que fechar vale <b>${escapeHtml(textoRegra(tipo, valor))}</b>.`
+    : `Sem regra própria, vale o padrão do programa: <b>${escapeHtml(textoRegra(padrao.tipo, padrao.valor))}</b>.`;
+}
+
+async function salvarRegra(){
+  if(!editandoRegraId) return;
+  const tipo = document.getElementById('r-tipo').value || null;
+  const valor = tipo ? (Number(document.getElementById('r-valor').value)||0) : null;
+  const btn = document.getElementById('btn-save-regra');
+  btn.disabled = true;
+  const {error} = await sb.from('crm_contacts')
+    .update({referral_reward_type:tipo, referral_reward_value:valor})
+    .eq('id', editandoRegraId);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-regra');
+  showToast('Regra salva ✓');
+  loadAll();
+}
+
+// ──────────── NOVA / EDITAR INDICAÇÃO ────────────
+function openNewIndicacao(){
+  if(!contatos.length){ showToast('Cadastre um contato no CRM antes', true); return }
+  editandoId = null;
+  document.getElementById('modal-ind-title').textContent = 'Nova indicação';
+  document.getElementById('btn-del-ind').style.display = 'none';
+  document.getElementById('i-acomp').style.display = 'none';
+  document.getElementById('i-lead-wrap').style.display = 'flex';
+  ['i-nome','i-empresa','i-email','i-fone','i-notas','i-apurado'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('i-lead').checked = true;
+  document.getElementById('i-data').value = todayISO();
+  document.getElementById('i-quem').selectedIndex = 0;
+  aoTrocarQuemIndicou();          // já traz a regra de quem indicou
+  openModal('modal-ind');
+}
+
+function openEditIndicacao(id){
+  const r = indicacoes.find(x=>x.id===id);
+  if(!r) return;
+  editandoId = id;
+  document.getElementById('modal-ind-title').textContent = 'Indicação';
+  document.getElementById('btn-del-ind').style.display = 'inline-flex';
+  document.getElementById('i-acomp').style.display = 'block';
+  document.getElementById('i-lead-wrap').style.display = 'none';
+
+  document.getElementById('i-quem').value    = r.referrer_contact_id;
+  document.getElementById('i-data').value    = r.referred_at || '';
+  document.getElementById('i-nome').value    = r.referred_name || '';
+  document.getElementById('i-empresa').value = r.referred_company || '';
+  document.getElementById('i-email').value   = r.referred_email || '';
+  document.getElementById('i-fone').value    = r.referred_phone || '';
+  document.getElementById('i-tipo').value    = r.reward_type || 'valor';
+  document.getElementById('i-valor').value   = r.reward_value ?? '';
+  document.getElementById('i-status').value  = r.status || 'indicado';
+  document.getElementById('i-cashback').value= r.reward_status || 'a_liberar';
+  document.getElementById('i-apurado').value = r.reward_amount ?? '';
+  document.getElementById('i-notas').value   = r.notes || '';
+
+  document.getElementById('i-contato').value = r.referred_contact_id || '';
+  preencherDeals(r.referred_contact_id, r.deal_id);
+
+  atualizarDicaCashback();
+  openModal('modal-ind');
+}
+
+// Os negócios que dá para vincular são os do contato indicado. Sem
+// contato no CRM não há negócio — e o cashback em % precisa dele para
+// virar dinheiro.
+function preencherDeals(contatoId, escolhido){
+  const sel = document.getElementById('i-deal');
+  const doContato = contatoId ? deals.filter(d=>d.contact_id===contatoId) : [];
+  sel.innerHTML = (doContato.length
+      ? '<option value="">— nenhum —</option>'
+      : `<option value="">${contatoId ? '— este contato não tem negócio no CRM —' : '— vincule o contato do CRM acima —'}</option>`) +
+    doContato.map(d=>`<option value="${d.id}">${escapeHtml(d.title)} — ${fmtMoney(d.value)}</option>`).join('');
+  sel.value = escolhido || '';
+  sel.disabled = !doContato.length;
+}
+
+function aoTrocarContatoIndicado(){
+  preencherDeals(document.getElementById('i-contato').value || null, null);
+}
+
+function aoTrocarQuemIndicou(){
+  if(editandoId) return;                       // na edição a regra já está congelada
+  const reg = regraDe(document.getElementById('i-quem').value);
+  document.getElementById('i-tipo').value  = reg.tipo;
+  document.getElementById('i-valor').value = reg.valor || '';
+  atualizarDicaCashback();
+}
+
+function atualizarDicaCashback(){
+  const tipo = document.getElementById('i-tipo').value;
+  const valor = document.getElementById('i-valor').value;
+  document.getElementById('i-valor-label').textContent = tipo==='percent' ? '% do negócio' : 'Valor (R$)';
+  const reg = regraDe(document.getElementById('i-quem').value);
+  const igual = tipo===reg.tipo && Number(valor||0)===Number(reg.valor||0);
+  document.getElementById('i-dica').innerHTML =
+    `Esta indicação vale <b>${escapeHtml(textoRegra(tipo, valor))}</b>` +
+    (igual ? (reg.propria ? ' — a regra deste cliente.' : ' — o padrão do programa.')
+           : ' — diferente da regra atual, vale só para esta indicação.');
+}
+
+// Fechou → apura o cashback e põe na fila de pagamento.
+function aoTrocarStatus(){
+  const status = document.getElementById('i-status').value;
+  if(status!=='fechou') return;
+  const campo = document.getElementById('i-apurado');
+  if(campo.value) return;                       // já apurado à mão, não mexe
+  const previsto = calcularCashback({
+    reward_type:  document.getElementById('i-tipo').value,
+    reward_value: document.getElementById('i-valor').value,
+    deal_id:      document.getElementById('i-deal').value || null,
+  });
+  if(previsto == null){
+    showToast('Vincule o negócio para calcular a porcentagem', true);
+    return;
+  }
+  campo.value = previsto.toFixed(2);
+  if(document.getElementById('i-cashback').value==='a_liberar')
+    document.getElementById('i-cashback').value = 'a_pagar';
+}
+
+async function salvarIndicacao(){
+  const quem = document.getElementById('i-quem').value;
+  const nome = document.getElementById('i-nome').value.trim();
+  if(!quem){ showToast('Escolha quem indicou', true); return }
+  if(!nome){ showToast('Informe quem foi indicado', true); return }
+
+  const apurado = document.getElementById('i-apurado').value;
+  const payload = {
+    referrer_contact_id: quem,
+    referred_name:       nome,
+    referred_company:    document.getElementById('i-empresa').value.trim() || null,
+    referred_email:      document.getElementById('i-email').value.trim() || null,
+    referred_phone:      document.getElementById('i-fone').value.trim() || null,
+    referred_at:         document.getElementById('i-data').value || todayISO(),
+    reward_type:         document.getElementById('i-tipo').value,
+    reward_value:        Number(document.getElementById('i-valor').value)||0,
+    notes:               document.getElementById('i-notas').value.trim() || null,
+  };
+  if(editandoId){
+    payload.status              = document.getElementById('i-status').value;
+    payload.referred_contact_id = document.getElementById('i-contato').value || null;
+    payload.deal_id             = document.getElementById('i-deal').value || null;
+    payload.reward_amount       = apurado==='' ? null : Number(apurado);
+    payload.reward_status       = document.getElementById('i-cashback').value;
+    if(payload.referred_contact_id === quem){
+      showToast('O indicado não pode ser a mesma pessoa que indicou', true);
+      return;
+    }
+  }
+
+  const btn = document.getElementById('btn-save-ind');
+  btn.disabled = true;
+
+  // Sem edição e com a caixa marcada: o indicado também nasce como lead
+  // no CRM, com a origem certa — é lá que o acompanhamento acontece.
+  if(!editandoId && document.getElementById('i-lead').checked){
+    const {data, error} = await sb.from('crm_contacts').insert({
+      name:    nome,
+      company: payload.referred_company,
+      email:   payload.referred_email,
+      phone:   payload.referred_phone,
+      origin:  'indicação',
+      status:  'lead',
+      notes:   'Indicado por '+(contatoMap[quem]?.name||'—'),
+    }).select('id').single();
+    if(error){ btn.disabled=false; showToast('Erro ao criar o lead: '+error.message, true); return }
+    payload.referred_contact_id = data.id;
+  }
+
+  const {error} = editandoId
+    ? await sb.from('referrals').update(payload).eq('id', editandoId)
+    : await sb.from('referrals').insert(payload);
+  btn.disabled = false;
+  if(error){ showToast('Erro: '+error.message, true); return }
+
+  closeModal('modal-ind');
+  showToast(editandoId ? 'Indicação atualizada ✓' : 'Indicação registrada ✓');
+  loadAll();
+}
+
+async function excluirIndicacao(){
+  if(!editandoId) return;
+  const r = indicacoes.find(x=>x.id===editandoId);
+  if(r?.reward_status==='pago' &&
+     !confirm('Este cashback já foi pago. Excluir some com o registro, mas a despesa continua no Financeiro. Excluir mesmo assim?')) return;
+  if(r?.reward_status!=='pago' && !confirm('Excluir esta indicação?')) return;
+  const {error} = await sb.from('referrals').delete().eq('id', editandoId);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  closeModal('modal-ind');
+  showToast('Indicação excluída');
+  loadAll();
+}
+
+// ──────────── PAGAMENTO DO CASHBACK ────────────
+// Marcar como pago aqui gera a despesa no Financeiro. É de propósito:
+// dinheiro que sai sem aparecer no financeiro é dinheiro que você não
+// vê quando olha o mês.
+async function pagarCashback(id){
+  const r = indicacoes.find(x=>x.id===id);
+  if(!r) return;
+  const valor = valorDe(r);
+  if(!valor){ showToast('Apure o valor do cashback antes de pagar', true); return }
+  const quem = contatoMap[r.referrer_contact_id];
+  if(!confirm(`Pagar ${fmtMoney(valor)} de cashback para ${quem?.name||'este cliente'}?\n\n` +
+              'Vai entrar como despesa paga hoje no Financeiro, na categoria "Indicações".')) return;
+
+  const hoje = todayISO();
+  // A categoria vem do sql/16. Se alguém apagou, o lançamento entra sem
+  // categoria em vez de falhar — o pagamento é o que importa.
+  const {data:cat} = await sb.from('fin_categories')
+    .select('id').eq('name','Indicações').eq('kind','despesa').maybeSingle();
+
+  const {data:tx, error:txErr} = await sb.from('fin_transactions').insert({
+    kind:        'despesa',
+    description: `Cashback de indicação — ${quem?.name||'—'} indicou ${r.referred_name}`,
+    amount:      valor,
+    category_id: cat?.id || null,
+    contact_id:  r.referrer_contact_id,
+    due_date:    hoje,
+    paid_at:     hoje,
+    status:      'pago',
+  }).select('id').single();
+  if(txErr){ showToast('Erro ao lançar no financeiro: '+txErr.message, true); return }
+
+  const {error} = await sb.from('referrals').update({
+    reward_amount:  valor,
+    reward_status:  'pago',
+    paid_at:        hoje,
+    transaction_id: tx.id,
+  }).eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+
+  showToast('Cashback pago e lançado no Financeiro ✓');
+  loadAll();
+}
+</script>
+</body>
+</html>
