@@ -100,6 +100,7 @@
           <option value="media">Média</option>
           <option value="baixa">Baixa</option>
         </select>
+        <select class="form-input form-select" id="f-prazo" onchange="renderAll()" style="display:none"></select>
         <label id="f-subs-wrap" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
           <input type="checkbox" id="f-subs" onchange="renderAll()"> Incluir subtarefas
         </label>
@@ -430,6 +431,7 @@ try{ if(localStorage.getItem('proj_board_mode')==='projetos') boardMode = 'proje
 
 window.addEventListener('DOMContentLoaded', () => {
   renderSidebar('projetos');
+  document.getElementById('f-prazo').innerHTML = kbOpcoesPrazo();
   fillStatusSelects();
   requireAdmin(loadAll);
 });
@@ -449,6 +451,7 @@ function syncFilterUI(){
   document.getElementById('mode-switch').style.display = board ? 'inline-flex' : 'none';
   document.getElementById('f-projeto').style.display   = tarefas ? '' : 'none';
   document.getElementById('f-subs-wrap').style.display = tarefas ? 'flex' : 'none';
+  document.getElementById('f-prazo').style.display     = tarefas ? '' : 'none';
   document.getElementById('btn-nova-tarefa').style.display = tarefas ? 'inline-flex' : 'none';
   document.getElementById('f-arq-label').textContent =
     tarefas ? 'Incluir projetos arquivados' : 'Mostrar arquivados';
@@ -603,6 +606,8 @@ function filteredTasks(){
   const proj = document.getElementById('f-projeto').value;
   const arq  = document.getElementById('f-arquivados').checked;
   const subs = document.getElementById('f-subs').checked;
+  const prazo = document.getElementById('f-prazo').value;
+  const hoje = todayISO();
   const projMap = {}; allProjects.forEach(p=>projMap[p.id]=p);
 
   return allTasks.filter(t=>{
@@ -613,6 +618,7 @@ function filteredTasks(){
     else if(!arq && t.project_id && projMap[t.project_id]?.archived) return false;
     if(st && t.status!==st) return false;
     if(pr && (t.priority||'media')!==pr) return false;
+    if(!filtraPorPrazo(t, prazo, hoje)) return false;
     return true;
   });
 }

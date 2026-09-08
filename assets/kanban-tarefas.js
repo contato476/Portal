@@ -18,6 +18,50 @@ const TASK_STATUS = [
 ];
 const KB_MAX_CONCLUIDAS = 40;   // teto da coluna Concluído, para não virar arquivo morto
 
+// ──────────── FILTRO DE PRAZO ────────────
+// O quadro responde "o que eu faço agora?". Estes recortes são as três
+// formas de perguntar isso: o que passou, o que é de hoje, o que vem na
+// semana. Nas colunas abertas o que vale é o PRAZO; na coluna Concluído
+// vale a data em que foi concluída — senão ela ficaria sempre vazia.
+const KB_PRAZOS = [
+  {id:'',          label:'Todos os prazos'},
+  {id:'atrasadas', label:'Atrasadas'},
+  {id:'hoje',      label:'Hoje'},
+  {id:'semana',    label:'Próximos 7 dias'},
+  {id:'sem_prazo', label:'Sem prazo'},
+];
+
+function kbOpcoesPrazo(){
+  return KB_PRAZOS.map(p=>`<option value="${p.id}">${p.label}</option>`).join('');
+}
+
+function filtraPorPrazo(t, modo, hoje){
+  if(!modo) return true;
+  const maisSete  = kbSomaDias(hoje, 7);
+  const menosSete = kbSomaDias(hoje, -7);
+
+  if(t.status==='concluida'){
+    const feitaEm = String(t.completed_at||'').slice(0,10);
+    if(modo==='atrasadas') return false;                       // feita não está atrasada
+    if(modo==='hoje')      return feitaEm===hoje;
+    if(modo==='semana')    return !!feitaEm && feitaEm>=menosSete;   // concluídas na semana
+    if(modo==='sem_prazo') return !t.due_date;
+    return true;
+  }
+  if(modo==='sem_prazo') return !t.due_date;
+  if(!t.due_date) return false;
+  if(modo==='atrasadas') return t.due_date <  hoje;
+  if(modo==='hoje')      return t.due_date === hoje;
+  if(modo==='semana')    return t.due_date >= hoje && t.due_date <= maisSete;
+  return true;
+}
+
+function kbSomaDias(iso, n){
+  const d = new Date(iso+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
 // Prazo primeiro, sem prazo por último; empate desempata pela prioridade.
 const PESO_PRIO = {alta:0, media:1, baixa:2};
 function ordenaPorPrazo(a,b){

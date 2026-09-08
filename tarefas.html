@@ -63,6 +63,7 @@
         </select>
         <input class="form-input" id="f-month" type="month" onchange="renderAtual()" title="Ver um mês específico" style="width:auto">
         <button class="btn btn-ghost btn-sm" id="f-month-clear" onclick="clearMonth()" style="display:none">Limpar mês</button>
+        <select class="form-input form-select" id="f-prazo" onchange="renderAtual()" style="display:none"></select>
         <label id="f-subs-wrap" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);cursor:pointer">
           <input type="checkbox" id="f-subs" onchange="renderAtual()"> Incluir subtarefas
         </label>
@@ -145,7 +146,11 @@ const PRIORITY_BADGE = {
   baixa:'<span class="badge bg-gray">Baixa</span>',
 };
 
-window.addEventListener('DOMContentLoaded', () => { renderSidebar('tarefas'); requireAdmin(loadAll); });
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('tarefas');
+  document.getElementById('f-prazo').innerHTML = kbOpcoesPrazo();
+  requireAdmin(loadAll);
+});
 
 async function loadAll(){
   // allTasks guarda só as tarefas PRINCIPAIS. As subtarefas vêm à parte
@@ -216,6 +221,7 @@ function switchTab(name){
   document.getElementById('f-month').style.display          = quadro ? 'none' : '';
   document.getElementById('f-month-clear').style.display    = 'none';
   document.getElementById('f-subs-wrap').style.display      = quadro ? 'flex' : 'none';
+  document.getElementById('f-prazo').style.display          = quadro ? '' : 'none';
   renderAtual();
 }
 
@@ -231,6 +237,8 @@ function renderKanban(){
   const fp = document.getElementById('f-project').value;
   const fr = document.getElementById('f-priority').value;
   const comSubs = document.getElementById('f-subs').checked;
+  const prazo = document.getElementById('f-prazo').value;
+  const hoje = todayISO();
   const base = comSubs ? allTasks.concat(allSubs) : allTasks;
 
   renderTaskKanban({
@@ -239,6 +247,7 @@ function renderKanban(){
                   if(t.status==='cancelada') return false;
                   if(fp && t.project_id!==fp) return false;
                   if(fr && (t.priority||'media')!==fr) return false;
+                  if(!filtraPorPrazo(t, prazo, hoje)) return false;
                   return true;
                 }),
     projectOf : id => projMap[id] || null,
