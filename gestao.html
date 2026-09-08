@@ -194,8 +194,11 @@ async function loadPainel(){
     // Nomes de TODOS os projetos: os cards de tempo e de ajustes precisam
     // nomear projetos que não estão "em andamento".
     sb.from('projects').select('id,name'),
-    // Indicações em aberto e cashback a pagar (tabela do sql/16).
-    sb.from('referrals').select('*').in('reward_status',['a_liberar','a_pagar'])
+    // Indicações em aberto, o cashback a pagar e o que já foi pago no
+    // mês (tabela do sql/16). O pago fica limitado ao mês porque o card
+    // é sobre o mês corrente — o histórico inteiro está na tela dela.
+    sb.from('referrals').select('*')
+      .or(`reward_status.in.(a_liberar,a_pagar),and(reward_status.eq.pago,paid_at.gte.${monthStart})`)
       .order('referred_at',{ascending:false}),
     // Nomes de quem indicou, para o card de indicações.
     sb.from('crm_contacts').select('id,name'),
@@ -382,8 +385,8 @@ function renderAjustes(res){
     </div>`).join('');
 }
 
-// Indicações: o que ainda não fechou e, principalmente, o cashback que
-// você deve. Quem indicou e está esperando o dinheiro vem primeiro —
+// Indicações: o que ainda não fechou, o cashback que você deve e quem
+// já recebeu neste mês. Quem está esperando o dinheiro vem primeiro —
 // é a única parte deste card que tem hora marcada.
 function renderIndicacoes(res, contatosRes){
   const el = document.getElementById('ind-list');
@@ -403,38 +406,69 @@ function renderIndicacoes(res, contatosRes){
 
   const nomes = {};
   (contatosRes?.data||[]).forEach(c=>nomes[c.id]=c.name);
+  const nomeDe = id => escapeHtml(nomes[id] || '—');
 
-  const aPagar = rows.filter(r=>r.reward_status==='a_pagar');
-  const total = aPagar.reduce((s,r)=>s+(Number(r.reward_amount)||0), 0);
-  const emAberto = rows.length - aPagar.length;
+  // O mês é conferido aqui também: o rótulo diz "pagos em setembro", e
+  // ele precisa ser verdade mesmo se a consulta trouxer algo a mais.
+  const mesAtual = todayISO().slice(0,7);
+  const abertas = rows.filter(r=>r.reward_status!=='pago');
+  const pagas   = rows.filter(r=>r.reward_status==='pago' && String(r.paid_at||'').slice(0,7)===mesAtual)
+                      .sort((a,b)=>String(b.paid_at||'').localeCompare(String(a.paid_at||'')));
+
+  const aPagar   = abertas.filter(r=>r.reward_status==='a_pagar');
+  const total    = aPagar.reduce((s,r)=>s+(Number(r.reward_amount)||0), 0);
+  const emAberto = abertas.length - aPagar.length;
+  const totalPago = pagas.reduce((s,r)=>s+(Number(r.reward_amount)||0), 0);
 
   const resumo = [];
-  if(total)     resumo.push(`<b class="money-neg">${fmtMoney(total)}</b> de cashback a pagar`);
-  if(emAberto)  resumo.push(`${emAberto} indicaç${emAberto===1?'ão':'ões'} em andamento`);
+  if(total)    resumo.push(`<b class="money-neg">${fmtMoney(total)}</b> de cashback a pagar`);
+  if(emAberto) resumo.push(`${emAberto} indicaç${emAberto===1?'ão':'ões'} em andamento`);
 
   // A pagar primeiro; depois as mais recentes.
   const ordem = {a_pagar:0, a_liberar:1};
-  const lista = rows.slice()
+  const lista = abertas.slice()
     .sort((a,b)=>(ordem[a.reward_status]??9)-(ordem[b.reward_status]??9) ||
                  String(b.referred_at||'').localeCompare(String(a.referred_at||'')))
     .slice(0,5);
 
+  const linhaAberta = r => {
+    const pagar = r.reward_status==='a_pagar';
+    const valor = Number(r.reward_amount)||0;
+    return `<div class="list-item" style="cursor:pointer" onclick="location.href='indicacoes.html'">
+      <div class="li-dot" style="background:${pagar?'var(--amber)':'var(--text3)'}"></div>
+      <div class="li-info">
+        <div class="li-title">${escapeHtml(r.referred_name)}</div>
+        <div class="li-sub">indicado por ${nomeDe(r.referrer_contact_id)} · ${fmtDateShort(r.referred_at)}</div>
+      </div>
+      ${pagar && valor
+        ? `<div class="money-neg" style="font-weight:600;font-size:13px">${fmtMoney(valor)}</div>`
+        : '<span class="badge bg-gray">em aberto</span>'}
+    </div>`;
+  };
+
+  // Quem já recebeu no mês. Aqui o nome que importa é o de QUEM INDICOU
+  // — é ele que recebeu o dinheiro.
+  const linhaPaga = r => `
+    <div class="list-item" style="cursor:pointer" onclick="location.href='indicacoes.html'">
+      <div class="li-dot" style="background:#4ADE80"></div>
+      <div class="li-info">
+        <div class="li-title">${nomeDe(r.referrer_contact_id)}</div>
+        <div class="li-sub">indicou ${escapeHtml(r.referred_name)} · pago ${fmtDateShort(r.paid_at)}</div>
+      </div>
+      <div class="money-pos" style="font-weight:600;font-size:13px">${fmtMoney(Number(r.reward_amount)||0)}</div>
+    </div>`;
+
+  const mes = new Date().toLocaleDateString('pt-BR',{month:'long'});
+
   el.innerHTML =
     (resumo.length ? `<div class="li-sub" style="padding:0 2px 10px">${resumo.join(' · ')}</div>` : '') +
-    lista.map(r=>{
-      const pagar = r.reward_status==='a_pagar';
-      const valor = Number(r.reward_amount)||0;
-      return `<div class="list-item" style="cursor:pointer" onclick="location.href='indicacoes.html'">
-        <div class="li-dot" style="background:${pagar?'var(--amber)':'var(--text3)'}"></div>
-        <div class="li-info">
-          <div class="li-title">${escapeHtml(r.referred_name)}</div>
-          <div class="li-sub">indicado por ${escapeHtml(nomes[r.referrer_contact_id]||'—')} · ${fmtDateShort(r.referred_at)}</div>
-        </div>
-        ${pagar && valor
-          ? `<div class="money-neg" style="font-weight:600;font-size:13px">${fmtMoney(valor)}</div>`
-          : '<span class="badge bg-gray">em aberto</span>'}
-      </div>`;
-    }).join('');
+    (lista.length ? lista.map(linhaAberta).join('')
+                  : '<div class="empty" style="padding:14px">Nenhuma indicação em aberto 🎉</div>') +
+    (pagas.length
+      ? `<div class="task-group">Pagos em ${escapeHtml(mes)} · ${fmtMoney(totalPago)}</div>` +
+        pagas.slice(0,3).map(linhaPaga).join('') +
+        (pagas.length>3 ? `<div class="li-sub" style="padding:8px 2px 0">+ ${pagas.length-3} pagos neste mês</div>` : '')
+      : '');
 }
 
 function renderContracts(contracts){
