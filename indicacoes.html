@@ -11,8 +11,14 @@
 .ind-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--dark3);border-radius:9px;margin-bottom:7px;cursor:pointer;border-left:3px solid transparent}
 .ind-row:hover{background:rgba(255,255,255,.05)}
 .ind-row.pagar{border-left-color:var(--amber)}
-.ind-name{font-size:13.5px;font-weight:500;color:var(--text)}
-.ind-meta{font-size:11px;color:var(--text3);margin-top:3px}
+.ind-name{font-size:15.5px;font-weight:600;color:var(--text);line-height:1.25}
+.ind-meta{font-size:11.5px;color:var(--text3);margin-top:4px}
+.ind-meta b{color:var(--text2);font-weight:500}
+.ind-neg{font-size:11.5px;color:var(--text2);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ind-neg .li-dot{width:6px;height:6px;border-radius:50%;background:var(--green2);flex-shrink:0}
+.ind-neg .proj{color:var(--text3)}
+.ind-neg.falta{color:var(--amber)}
+.ind-neg.falta .li-dot{background:var(--amber)}
 .ind-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .ind-money{font-size:13px;font-weight:600;text-align:right;min-width:92px}
 .ind-money small{display:block;font-size:10px;font-weight:400;color:var(--text3)}
@@ -280,7 +286,7 @@ const SQL_HINT_IND = '<div class="empty">O programa de indicação ainda não fo
 
 // ──────────── ESTADO ────────────
 let indicacoes = [], contatos = [], deals = [];
-let contatoMap = {}, dealMap = {};
+let contatoMap = {}, dealMap = {}, projetoMap = {};
 let padrao = {tipo:'valor', valor:0};      // regra padrão do programa
 let currentTab = 'indicacoes';
 let editandoId = null, editandoRegraId = null;
@@ -292,10 +298,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ──────────── CARGA ────────────
 async function loadAll(){
-  const [refRes, cRes, dRes] = await Promise.all([
+  const [refRes, cRes, dRes, pRes] = await Promise.all([
     sb.from('referrals').select('*').order('referred_at',{ascending:false}),
     sb.from('crm_contacts').select('*').order('name'),
-    sb.from('crm_deals').select('id,contact_id,title,value,stage').order('created_at',{ascending:false}),
+    sb.from('crm_deals').select('id,contact_id,title,value,stage,project_id').order('created_at',{ascending:false}),
+    // Nomes dos projetos: a linha mostra de qual projeto veio o negócio.
+    sb.from('projects').select('id,name'),
   ]);
 
   if(refRes.error){
@@ -310,6 +318,7 @@ async function loadAll(){
   deals      = dRes.data || [];
   contatoMap = {}; contatos.forEach(c=>contatoMap[c.id]=c);
   dealMap    = {}; deals.forEach(d=>dealMap[d.id]=d);
+  projetoMap = {}; (pRes.data||[]).forEach(p=>projetoMap[p.id]=p);
 
   // A regra padrão do programa mora no app_settings (editável na tela).
   padrao = {
@@ -434,6 +443,10 @@ function renderIndicacoes(){
   el.innerHTML = ordenada.map(linhaIndicacao).join('');
 }
 
+// Quem aparece em destaque é QUEM INDICOU: é a pessoa que tem direito ao
+// cashback, e é dela que você precisa lembrar na hora de pagar. Embaixo,
+// quem foi indicado e — quando fechou — o negócio e o projeto que
+// nasceram dali.
 function linhaIndicacao(r){
   const quem = contatoMap[r.referrer_contact_id];
   const st = IND_STATUS[r.status] || IND_STATUS.indicado;
@@ -441,17 +454,17 @@ function linhaIndicacao(r){
   const valor = valorDe(r);
   const apurado = r.reward_amount != null;
 
-  const meta = ['indicado por '+escapeHtml(quem?.name || '—')];
+  const meta = ['indicou <b>'+escapeHtml(r.referred_name)+'</b>'];
   if(r.referred_company) meta.push(escapeHtml(r.referred_company));
   meta.push(fmtDateShort(r.referred_at));
-  if(r.deal_id && dealMap[r.deal_id]) meta.push(escapeHtml(dealMap[r.deal_id].title));
   if(r.reward_status==='pago' && r.paid_at) meta.push('pago em '+fmtDateShort(r.paid_at));
 
   return `
     <div class="ind-row${r.reward_status==='a_pagar'?' pagar':''}" onclick="openEditIndicacao('${r.id}')">
       <div style="flex:1;min-width:0">
-        <div class="ind-name">${escapeHtml(r.referred_name)}</div>
+        <div class="ind-name">${escapeHtml(quem?.name || '—')}</div>
         <div class="ind-meta">${meta.join(' · ')}</div>
+        ${linhaDoNegocio(r)}
       </div>
       <div class="ind-right">
         <div class="ind-money" style="color:${cs.cor}">
@@ -464,6 +477,28 @@ function linhaIndicacao(r){
           : ''}
       </div>
     </div>`;
+}
+
+// De qual negócio fechado veio o cashback, e de qual projeto. Sem
+// negócio vinculado a linha cobra o vínculo em vez de ficar muda: é
+// dele que sai a porcentagem, e é ele que justifica o pagamento.
+function linhaDoNegocio(r){
+  const d = r.deal_id && dealMap[r.deal_id];
+  if(d){
+    const proj = d.project_id && projetoMap[d.project_id];
+    return `<div class="ind-neg">
+      <i class="li-dot"></i>
+      <span>fechou <b>${escapeHtml(d.title)}</b> · ${fmtMoney(d.value)}</span>
+      ${proj ? `<span class="proj">· projeto ${escapeHtml(proj.name)}</span>`
+             : '<span class="proj">· sem projeto ligado ao negócio</span>'}
+    </div>`;
+  }
+  if(r.status==='fechou'){
+    return `<div class="ind-neg falta">
+      <i class="li-dot"></i><span>fechou, mas o negócio não está vinculado</span>
+    </div>`;
+  }
+  return '';
 }
 
 // ──────────── QUEM INDICA ────────────
