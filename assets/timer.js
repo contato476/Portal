@@ -22,6 +22,7 @@ const LONGO_DEMAIS_MIN = 90;          // avisa se o cronômetro passa disso
 let _timer   = null;   // linha de time_entries em execução (ou null)
 let _tick    = null;   // setInterval que redesenha o relógio
 let _nudger  = null;   // setInterval do lembrete
+let _recentes = null;  // ultimos alvos cronometrados (cache da sessao)
 
 // ──────────── ESTADO ────────────
 
@@ -63,6 +64,7 @@ async function startTimer(opts = {}){
   if(error){ showToast('Erro ao iniciar: '+error.message, true); return null }
 
   _timer = {...data, _label: label || descreverTimer(data)};
+  _recentes = null;            // o alvo novo vira o primeiro da lista
   cacheTimer(_timer);
   renderTimerBar();
   showToast('Cronômetro iniciado ⏱');
@@ -78,6 +80,7 @@ async function stopTimer({silent=false}={}){
 
   const seg = Math.max(0, Math.round((Date.now() - new Date(run.started_at))/1000));
   _timer = null;
+  _recentes = null;
   cacheTimer(null);
   renderTimerBar();
   if(!silent) showToast('Cronômetro parado — '+fmtDuration(seg)+' registrados ✓');
@@ -126,7 +129,7 @@ function renderTimerBar(){
 
   if(!t){
     bar.className = 'timer-bar';
-    bar.innerHTML = `<button class="timer-btn" onclick="abrirSeletorTimer()" title="Escolher no que você vai trabalhar">⏱ Iniciar</button>`;
+    bar.innerHTML = `<button class="timer-btn" onclick="abrirTrocaTimer(event)" title="Retomar algo recente ou escolher outro">⏱ Iniciar</button>`;
     if(_tick){ clearInterval(_tick); _tick = null }
     return;
   }
@@ -141,11 +144,122 @@ function renderTimerBar(){
     <span class="timer-dot"></span>
     <span class="timer-clock" id="timer-clock">00:00:00</span>
     <span class="timer-label">${escapeHtml(t._label || descreverTimer(t))}</span>
+    <button class="timer-btn" onclick="abrirTrocaTimer(event)" title="Trocar de alvo — o tempo até agora fica gravado">⇄</button>
     <button class="timer-btn stop" onclick="stopTimer()" title="Parar cronômetro">■</button>`;
   desenhar();
   if(_tick) clearInterval(_tick);
   _tick = setInterval(desenhar, 1000);
 }
+
+// ──────────── TROCA EM 1 CLIQUE ────────────
+// Só pode existir um cronômetro rodando (índice uniq_timer_em_execucao no
+// banco). Como na prática você pula entre tarefas em vez de fazer duas no
+// mesmo segundo, o que resolve não é rodar dois — é trocar rápido.
+// O ⇄ abre os últimos alvos: um clique fecha o atual (o tempo já contado
+// fica gravado) e abre o novo, sem passar pelo modal de 3 campos.
+
+function chaveAlvo(o){
+  return [o.revision_id||'', o.task_id||'', o.project_id||'', o.area||''].join('|');
+}
+
+// Os últimos alvos distintos, com o nome de cada um. Cache da sessão:
+// zerado sempre que um cronômetro inicia ou para.
+async function carregarRecentes(){
+  if(_recentes) return _recentes;
+
+  const {data} = await sb.from('time_entries')
+    .select('project_id,task_id,revision_id,area,kind,description,started_at')
+    .order('started_at',{ascending:false}).limit(80);
+  const linhas = data || [];
+
+  // Os nomes não estão em time_entries: uma consulta por tipo, só dos ids que apareceram.
+  const ids = k => [...new Set(linhas.map(l=>l[k]).filter(Boolean))];
+  const [pr, ta, re] = await Promise.all([
+    ids('project_id').length  ? sb.from('projects').select('id,name').in('id', ids('project_id'))                : {data:[]},
+    ids('task_id').length     ? sb.from('tasks').select('id,title').in('id', ids('task_id'))                     : {data:[]},
+    ids('revision_id').length ? sb.from('revision_requests').select('id,number,title').in('id', ids('revision_id')) : {data:[]},
+  ]);
+  const nomeProj = Object.fromEntries((pr.data||[]).map(p=>[p.id, p.name]));
+  const nomeTask = Object.fromEntries((ta.data||[]).map(t=>[t.id, t.title]));
+  const nomeRev  = Object.fromEntries((re.data||[]).map(r=>[r.id, 'Ajuste #'+(r.number||'')+' — '+r.title]));
+
+  const vistos = new Set(), out = [];
+  for(const l of linhas){
+    const chave = chaveAlvo(l);
+    if(vistos.has(chave)) continue;
+
+    let label = '', sub = '';
+    if(l.revision_id)     { label = nomeRev[l.revision_id];  sub = nomeProj[l.project_id] || '' }
+    else if(l.task_id)    { label = nomeTask[l.task_id];     sub = nomeProj[l.project_id] || '' }
+    else if(l.project_id) { label = nomeProj[l.project_id];  sub = l.description || '' }
+    else if(l.area)       { label = l.description || l.area; sub = l.description ? l.area : '' }
+    // Sem nome = projeto/tarefa apagado depois, ou tempo solto sem alvo.
+    // Não volta pro menu: ninguém saberia no que estaria clicando.
+    if(!label) continue;
+
+    vistos.add(chave);
+    out.push({chave, label, sub, opts:{
+      project_id: l.project_id, task_id: l.task_id, revision_id: l.revision_id,
+      area: l.area, kind: l.kind, description: l.description, label,
+    }});
+    if(out.length >= 6) break;   // 6 pra sobrar um depois de tirar o alvo atual
+  }
+  _recentes = out;
+  return out;
+}
+
+let _menuItens = [];
+
+function _fecharMenuFora(e){
+  // Sem menu na tela (a pílula foi redesenhada por baixo) também cai aqui:
+  // o fechar solta os listeners e não deixa nada pendurado no document.
+  const m = document.getElementById('timer-menu');
+  if(!m || !m.contains(e.target)) fecharTrocaTimer();
+}
+function _fecharMenuEsc(e){ if(e.key === 'Escape') fecharTrocaTimer() }
+
+function fecharTrocaTimer(){
+  document.getElementById('timer-menu')?.remove();
+  document.removeEventListener('click', _fecharMenuFora);
+  document.removeEventListener('keydown', _fecharMenuEsc);
+}
+
+async function abrirTrocaTimer(ev){
+  ev?.stopPropagation();                                   // senão o próprio clique fecha o menu
+  if(document.getElementById('timer-menu')) return fecharTrocaTimer();
+  const bar = document.getElementById('timer-bar');
+  if(!bar) return;
+
+  const menu = document.createElement('div');
+  menu.id = 'timer-menu';
+  menu.className = 'timer-menu';
+  menu.innerHTML = '<div class="tm-empty">carregando…</div>';
+  bar.appendChild(menu);
+  document.addEventListener('click', _fecharMenuFora);
+  document.addEventListener('keydown', _fecharMenuEsc);
+
+  const atual = _timer ? chaveAlvo(_timer) : '';
+  _menuItens = (await carregarRecentes()).filter(r => r.chave !== atual).slice(0,5);
+  if(!document.getElementById('timer-menu')) return;       // fechou enquanto carregava
+
+  menu.innerHTML =
+    (_menuItens.length
+      ? `<div class="tm-head">${_timer ? 'Trocar para' : 'Retomar'}</div>` +
+        _menuItens.map((r,i)=>`
+          <button class="tm-item" onclick="trocarTimerPara(${i})">${escapeHtml(r.label)}${
+            r.sub ? `<span class="tm-sub">${escapeHtml(r.sub)}</span>` : ''}</button>`).join('') +
+        '<div class="tm-sep"></div>'
+      : '') +
+    `<button class="tm-item" onclick="fecharTrocaTimer();abrirSeletorTimer()">${
+      _menuItens.length ? 'Outro…' : 'Escolher no que trabalhar…'}</button>`;
+}
+
+async function trocarTimerPara(i){
+  const alvo = _menuItens[i];
+  fecharTrocaTimer();
+  if(alvo) await startTimer(alvo.opts);   // startTimer já fecha o cronômetro anterior
+}
+
 
 // ──────────── SELETOR: no que você vai trabalhar? ────────────
 // Antes, "Iniciar" ligava um cronômetro solto e todo tempo fora de
