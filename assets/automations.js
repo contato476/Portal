@@ -57,6 +57,10 @@ const EVENTOS = [
   {id:'deal.lost',                   label:'Perdi um negócio no CRM',         grupo:'CRM',       campos:['title','value','contact_id','lost_reason']},
   {id:'deal.created',                label:'Criei um negócio no CRM',         grupo:'CRM',       campos:['title','value','contact_id','stage']},
   {id:'contract.signed',             label:'Um contrato foi assinado',        grupo:'Contratos', campos:['title','value','contact_id','project_id']},
+  // Só RECEITA. Pagar uma despesa não é "o cliente me pagou" — se o
+  // mesmo evento servisse para as duas, uma regra de nota fiscal
+  // dispararia ao pagar o contador.
+  {id:'finance.received',            label:'Recebi um pagamento de cliente',  grupo:'Financeiro',campos:['description','amount','contact_id','project_id','category_id','due_date']},
   {id:'project.status_changed',      label:'Mudei o status de um projeto',    grupo:'Projetos',  campos:['name','status','end_date','contact_id','priority']},
   {id:'task.completed',              label:'Concluí uma tarefa',              grupo:'Projetos',  campos:['title','project_id','priority']},
   {id:'revision.created',            label:'Registrei um pedido de ajuste',   grupo:'Projetos',  campos:['title','project_id','is_billable','charged_amount','priority']},
@@ -251,10 +255,16 @@ const EXECUTORES = {
   },
 
   async create_reminder_task(p, ctx, res){
-    const alvo = ctx.row?.name || ctx.row?.title || ctx.row?.description || '';
+    // contact_name vem primeiro porque num lembrete o que identifica o
+    // trabalho é o cliente, não a descrição do lançamento: "Emitir nota
+    // fiscal — Gabriella" diz mais que "— Mensalidade setembro".
+    // Quem dispara é que resolve o nome; sem ele, cai no que tiver.
+    const alvo = ctx.row?.contact_name || ctx.row?.name || ctx.row?.title || ctx.row?.description || '';
     const {error} = await escrever('tasks','insert',{
       title: (p.title || 'Lembrete') + (alvo ? ' — '+alvo : ''),
-      description: p.description || null,
+      // Sem texto próprio, a tarefa carrega a descrição do que a
+      // disparou — é o que diz QUAL recebimento gerou este lembrete.
+      description: p.description || ctx.row?.description || null,
       project_id: ctx.table==='projects' ? ctx.id : (ctx.row?.project_id || null),
       priority: p.priority || 'media',
       due_date: somarDias(p.offset_days ?? 0),

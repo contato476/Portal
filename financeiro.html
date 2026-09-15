@@ -216,6 +216,7 @@
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
+<script src="assets/automations.js"></script>
 <script>
 let allTx = [], categories = [], projects = [], contatos = [];
 let catMap = {}, projMap = {}, contatoMap = {};
@@ -647,10 +648,15 @@ async function saveTx(){
   const repeat = editingTxId ? 'nao' : document.getElementById('x-repeat').value;
   const btn = document.getElementById('btn-save-tx');
   btn.disabled = true;
-  let error, msg;
+  // Como estava ANTES de salvar: é a diferença entre "recebi agora" e
+  // "já estava recebido e só mexi na descrição".
+  const antes = editingTxId ? allTx.find(x=>x.id===editingTxId) : null;
+  let error, msg, recebido = null;
   if(editingTxId){
     ({error} = await sb.from('fin_transactions').update(p).eq('id',editingTxId));
     msg = 'Lançamento atualizado ✓';
+    if(!error && antes?.status!=='pago' && p.status==='pago')
+      recebido = {...antes, ...p, id: editingTxId};
   } else if(repeat==='parcelado' || repeat==='mensal'){
     if(!p.due_date){ btn.disabled=false; showToast(repeat==='parcelado'?'Informe o vencimento da 1ª parcela':'Informe o vencimento do 1º mês',true); return; }
     const n = parseInt(document.getElementById(repeat==='parcelado'?'x-installments':'x-recur-months').value)||0;
@@ -658,22 +664,55 @@ async function saveTx(){
     const rows = buildSeries(p, repeat, n);
     ({error} = await sb.from('fin_transactions').insert(rows));
     msg = repeat==='parcelado' ? `${n} parcelas criadas ✓` : `${n} meses lançados ✓`;
+    // Série não dispara: parcelas nascem pendentes, e disparar em lote
+    // encheria a lista de tarefas de uma vez só.
   } else {
-    ({error} = await sb.from('fin_transactions').insert(p));
+    // Pega o id de volta: sem ele a automação não tem como travar a
+    // repetição, que é por lançamento.
+    const res = await sb.from('fin_transactions').insert(p).select('id').single();
+    error = res.error;
     msg = 'Lançamento criado ✓';
+    if(!error && p.status==='pago') recebido = {...p, id: res.data.id};
   }
   btn.disabled = false;
   if(error){showToast('Erro: '+error.message,true);return}
   closeModal('modal-tx');
   showToast(msg);
+  if(recebido) await dispararRecebimento(recebido);
   loadAll();
 }
 
 async function markPaid(id){
+  const t = allTx.find(x=>x.id===id);
   const {error} = await sb.from('fin_transactions').update({status:'pago',paid_at:todayISO()}).eq('id',id);
   if(error){showToast('Erro: '+error.message,true);return}
   showToast('Marcado como pago ✓');
+  await dispararRecebimento(t);
   loadAll();
+}
+
+// Avisa o motor de automações que um recebimento entrou.
+//
+// Só RECEITA: pagar uma despesa não é "o cliente me pagou", e uma
+// regra de nota fiscal disparando aí criaria tarefa para o fornecedor.
+//
+// O cliente vai resolvido junto (clienteDe cai no contato do projeto
+// quando o lançamento não tem um próprio), porque é ele que dá nome à
+// tarefa — "Emitir nota fiscal — Gabriella" em vez de um lembrete solto.
+//
+// Rodar duas vezes não duplica nada: a trava de automation_runs é no
+// banco, por regra e por lançamento.
+async function dispararRecebimento(t){
+  if(!t || t.kind!=='receita') return;
+  if(typeof fireAutomation !== 'function') return;
+  const cli = clienteDe(t);
+  await fireAutomation('finance.received', {
+    table: 'fin_transactions',
+    id: t.id,
+    row: {...t, status:'pago', paid_at: t.paid_at || todayISO(),
+          contact_id: cli || null,
+          contact_name: cli ? (contatoMap[cli]?.name || '') : ''},
+  });
 }
 
 async function duplicateNextMonth(){
