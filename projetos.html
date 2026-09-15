@@ -252,6 +252,7 @@
       <div class="form-group"><label class="form-label">Estimativa (minutos)</label><input type="number" min="0" step="15" class="form-input" id="t-estimate" placeholder="120"></div>
     </div>
     <div id="t-sub-note" class="note-box" style="display:none;margin-bottom:14px">Esta é uma <b>subtarefa</b>. O projeto acompanha a tarefa principal.</div>
+    <div id="t-rev-note" class="note-box warn" style="display:none;margin-bottom:14px"></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-task" style="margin-right:auto;display:none" onclick="deleteTask()">Excluir</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancelar</button>
@@ -416,7 +417,7 @@ const REV_BADGE = {
 // ──────────── ESTADO ────────────
 let allProjects = [], allTasks = [], allRevisions = [], allMilestones = [], timeRows = [];
 let clientRequests = [];   // pedidos vindos do portal do cliente
-let contactMap = {}, subMap = {}, taskMap = {};
+let contactMap = {}, subMap = {}, taskMap = {}, revByTask = {};
 let currentTab = 'lista';
 let detailProjectId = null, currentPTab = 'tarefas';
 let editingProjectId = null, editingTaskId = null, editingMileId = null, editingRevId = null;
@@ -515,6 +516,11 @@ async function loadAll(){
     taskMap[t.id] = t;
     if(t.parent_task_id) (subMap[t.parent_task_id] = subMap[t.parent_task_id] || []).push(t);
   });
+  // Caminho inverso do sql/17: dada a tarefa, de qual ajuste ela é o
+  // cartão. É o que faz o quadro dizer "isto é o ajuste #3" e mandar o
+  // cronômetro para o ajuste, não para o projeto.
+  revByTask = {};
+  allRevisions.forEach(r=>{ if(r.task_id) revByTask[r.task_id] = r });
 
   fillProjectSelects();
   updateStats();
@@ -736,6 +742,7 @@ function renderKanbanTarefas(){
     projectOf : id => allProjects.find(p=>p.id===id) || null,
     subsOf    : id => subMap[id] || [],
     taskOf    : id => taskMap[id],
+    revisionOf: id => revByTask[id] || null,
     onEdit    : id => openEditTask(id),
     onNew     : status => openNewTask('', null, status),
     onChanged : () => loadAll(),
@@ -967,6 +974,7 @@ function renderProjTasks(){
 function taskBlock(t){
   const subs = subMap[t.id] || [];
   const feitas = subs.filter(s=>s.status==='concluida').length;
+  const rev = revByTask[t.id];
   const hoje = todayISO();
   const atrasada = t.due_date && t.due_date < hoje && t.status!=='concluida';
   const aberto = expandedTasks.has(t.id);
@@ -981,10 +989,11 @@ function taskBlock(t){
         <div class="li-sub">${subLinha(t, hoje)}</div>
       </div>
       ${subs.length?`<span class="sub-count">${feitas}/${subs.length}</span>`:''}
+      ${rev?`<span class="badge bg-amber" title="Pedido de ajuste — abre na aba Ajustes">Ajuste #${rev.number||'?'}</span>`:''}
       ${PRIORITY_BADGE[t.priority]||''}
       <div class="li-actions">
-        <button class="play-btn" title="Cronometrar"
-          onclick="event.stopPropagation();toggleTimer({task_id:'${t.id}',project_id:${JSON.stringify(t.project_id||null)},kind:'projeto',label:${JSON.stringify(t.title)}})">▶</button>
+        <button class="play-btn" title="${rev?'Cronometrar este ajuste':'Cronometrar'}"
+          onclick="event.stopPropagation();toggleTimer(${escapeHtml(JSON.stringify(alvoDoCronometro(t)))})">▶</button>
         <button class="icon-btn" title="Adicionar subtarefa" onclick="event.stopPropagation();openNewTask('${t.project_id||''}','${t.id}')">＋</button>
       </div>
     </div>
@@ -1006,11 +1015,26 @@ function subRow(s, hoje){
     </div>`;
 }
 
+// Para onde vai a hora ao apertar ▶. Se a tarefa é o cartão de um
+// ajuste, o tempo cai no ajuste — é assim que o relatório continua
+// sabendo quanto os ajustes deste projeto custaram.
+function alvoDoCronometro(t){
+  const rev = revByTask[t.id];
+  if(rev) return {revision_id:rev.id, project_id:t.project_id||rev.project_id, kind:'ajuste',
+                  label:'Ajuste #'+(rev.number||'')+' — '+t.title};
+  return {task_id:t.id, project_id:t.project_id||null, kind:'projeto', label:t.title};
+}
+
 function subLinha(t, hoje){
   const partes = [];
   if(t.due_date) partes.push(t.due_date < hoje && t.status!=='concluida' ? 'venceu '+fmtDateShort(t.due_date) : 'prazo '+fmtDateShort(t.due_date));
   if(t.estimate_minutes) partes.push('previsto '+fmtDuration(t.estimate_minutes*60));
-  const seg = timeRows.filter(x=>x.task_id===t.id).reduce((s,x)=>s+(x.duration_seconds||0),0);
+  // Num cartão de ajuste a hora foi cronometrada no ajuste, não na
+  // tarefa: somar só por task_id daria sempre zero.
+  const rev = revByTask[t.id];
+  const seg = timeRows
+    .filter(x => rev ? x.revision_id===rev.id : x.task_id===t.id)
+    .reduce((s,x)=>s+(x.duration_seconds||0),0);
   if(seg) partes.push('gasto '+fmtDuration(seg));
   if(t.status==='em_andamento') partes.push('em andamento');
   return escapeHtml(partes.join(' · ')) || '&nbsp;';
@@ -1070,11 +1094,31 @@ function renderProjRevisions(){
             ].filter(Boolean).join(' · '))}</div>
           </div>
           ${r.is_billable && r.charged_amount ? `<span class="badge bg-green">${fmtMoney(r.charged_amount)}</span>` : ''}
+          ${r.task_id
+            ? `<a class="badge bg-blue" href="tarefas.html" title="Este ajuste tem cartão no quadro de tarefas" style="text-decoration:none" onclick="event.stopPropagation()">no quadro</a>`
+            : `<button class="btn btn-ghost btn-sm" title="Criar o cartão deste ajuste no quadro de tarefas"
+                 onclick="event.stopPropagation();levarAoQuadro('${r.id}')">Levar ao quadro</button>`}
           ${REV_BADGE[r.status]||''}
           <button class="play-btn" title="Cronometrar este ajuste"
             onclick="event.stopPropagation();toggleTimer({revision_id:'${r.id}',project_id:'${r.project_id}',kind:'ajuste',label:${JSON.stringify('Ajuste #'+(r.number||'')+' — '+r.title)}})">▶</button>
         </div>`;
     }).join('');
+}
+
+// Cria o cartão de um ajuste que está sem ele: os ajustes anteriores
+// ao sql/17, e os que perderam o cartão porque você o apagou. Quem
+// cria é a função no banco — ela é a mesma que o gatilho usa, então
+// não há duas receitas de "como nasce a tarefa de um ajuste".
+async function levarAoQuadro(revId){
+  const {error} = await sb.rpc('ajuste_garantir_tarefa', {p_revision: revId});
+  if(error){
+    showToast(isMissingTable(error)
+      ? 'Rode o arquivo sql/17_ajustes_viram_tarefas.sql no Supabase'
+      : 'Erro: '+error.message, true);
+    return;
+  }
+  showToast('Ajuste no quadro de tarefas ✓');
+  await loadAll(); switchPTab('ajustes');
 }
 
 // ──────────── AJUSTES DA REUNIÃO (registro em lote) ────────────
@@ -1344,6 +1388,7 @@ function openNewTask(projectId, parentId, status){
   document.getElementById('modal-task-title').textContent = parentId ? 'Nova subtarefa' : 'Nova tarefa';
   document.getElementById('btn-del-task').style.display = 'none';
   document.getElementById('t-sub-note').style.display = parentId ? 'block' : 'none';
+  document.getElementById('t-rev-note').style.display = 'none';
   ['t-title','t-desc','t-start','t-due','t-estimate'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('t-priority').value = 'media';
   document.getElementById('t-status').value = status || 'pendente';
@@ -1360,11 +1405,22 @@ function openNewTask(projectId, parentId, status){
 function openEditTask(id){
   const t = taskMap[id];
   if(!t) return;
+  const rev = revByTask[id];
   editingTaskId = id;
   newTaskParentId = t.parent_task_id || null;
-  document.getElementById('modal-task-title').textContent = t.parent_task_id ? 'Editar subtarefa' : 'Editar tarefa';
+  document.getElementById('modal-task-title').textContent =
+    rev ? 'Ajuste #'+(rev.number||'?') : (t.parent_task_id ? 'Editar subtarefa' : 'Editar tarefa');
   document.getElementById('btn-del-task').style.display = 'inline-flex';
   document.getElementById('t-sub-note').style.display = t.parent_task_id ? 'block' : 'none';
+  // Título, prioridade e status são os mesmos do pedido na aba Ajustes.
+  // O projeto fica travado: o ajuste é o "#3 deste projeto", e trocar o
+  // projeto aqui deixaria a numeração dele mentindo.
+  const rn = document.getElementById('t-rev-note');
+  rn.style.display = rev ? 'block' : 'none';
+  if(rev) rn.innerHTML = 'Este é o <b>pedido de ajuste #'+(rev.number||'?')+'</b>'+
+    (rev.is_billable?' (<b>fora do escopo</b>)':'')+
+    '. O que você mudar aqui muda lá na aba <b>Ajustes</b>, e vice-versa. ' +
+    'O escopo e o valor cobrado se editam por lá.';
   document.getElementById('t-title').value    = t.title||'';
   document.getElementById('t-desc').value     = t.description||'';
   document.getElementById('t-start').value    = t.start_date||'';
@@ -1372,7 +1428,7 @@ function openEditTask(id){
   document.getElementById('t-priority').value = t.priority||'media';
   document.getElementById('t-status').value   = t.status||'pendente';
   document.getElementById('t-project').value  = t.project_id||'';
-  document.getElementById('t-project').disabled = !!t.parent_task_id;
+  document.getElementById('t-project').disabled = !!t.parent_task_id || !!rev;
   document.getElementById('t-estimate').value = t.estimate_minutes??'';
   openModal('modal-task');
 }
@@ -1431,11 +1487,17 @@ async function toggleTaskDone(id){
 async function deleteTask(){
   if(!editingTaskId) return;
   const subs = (subMap[editingTaskId]||[]).length;
-  if(!confirm(subs ? `Excluir esta tarefa e suas ${subs} subtarefas?` : 'Excluir esta tarefa de vez?')) return;
+  const rev = revByTask[editingTaskId];
+  // Apagar o cartão não apaga o pedido: o escopo, o valor cobrado e as
+  // horas dele continuam na aba Ajustes. Só o cartão sai do quadro.
+  const aviso = rev
+    ? `Tirar o ajuste #${rev.number||'?'} do quadro de tarefas?\n\nO pedido continua na aba Ajustes, com o tempo e o valor cobrado. Dá para trazer o cartão de volta por lá.`
+    : (subs ? `Excluir esta tarefa e suas ${subs} subtarefas?` : 'Excluir esta tarefa de vez?');
+  if(!confirm(aviso)) return;
   const {error} = await sb.from('tasks').delete().eq('id', editingTaskId);
   if(error){ showToast('Erro: '+error.message, true); return }
   closeModal('modal-task');
-  showToast('Tarefa excluída');
+  showToast(rev ? 'Ajuste tirado do quadro' : 'Tarefa excluída');
   await loadAll();
   if(detailProjectId) switchPTab('tarefas');
 }

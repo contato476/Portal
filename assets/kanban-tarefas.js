@@ -81,6 +81,7 @@ let _kbDragId = null;
      projectOf : (project_id) => {name, status} | null
      subsOf    : (task_id) => [subtarefas]
      taskOf    : (task_id) => tarefa
+     revisionOf: (task_id) => ajuste | null   (opcional)
      onEdit    : (task_id) => abre o modal de edição da tela
      onNew     : (status)  => abre o modal de nova tarefa naquela coluna
      onChanged : ()        => recarrega os dados da tela
@@ -123,6 +124,15 @@ function kbTaskCard(t, hoje){
   const subs = _kb.subsOf(t.id) || [];
   const feitas = subs.filter(s=>s.status==='concluida').length;
   const pai = t.parent_task_id && _kb.taskOf(t.parent_task_id);
+  // Quando o cartão é o retrato de um pedido de ajuste, o cronômetro
+  // tem que marcar no AJUSTE — senão a hora cai como tempo de projeto
+  // e o relatório volta a não saber quanto os ajustes custaram.
+  const rev = _kb.revisionOf ? _kb.revisionOf(t.id) : null;
+  const alvo = rev
+    ? {revision_id:rev.id, project_id:t.project_id||rev.project_id, kind:'ajuste',
+       label:'Ajuste #'+(rev.number||'')+' — '+t.title}
+    : {task_id:t.id, project_id:t.project_id||null,
+       kind:t.project_id?'projeto':'geral', label:t.title};
 
   const datas = [];
   if(t.start_date && !feita) datas.push('início '+fmtDateShort(t.start_date));
@@ -144,9 +154,11 @@ function kbTaskCard(t, hoje){
           <div class="tk-meta${atrasada?' late':''}">${escapeHtml(datas.join(' · '))}</div>
           <div class="tk-foot">
             ${PRIORITY_BADGE[t.priority||'media']||''}
+            ${rev?`<span class="badge bg-amber" title="Pedido de ajuste do cliente">Ajuste #${rev.number||'?'}</span>`:''}
+            ${rev&&rev.is_billable?'<span class="badge bg-red" title="Fora do escopo — é cobrável">fora do escopo</span>':''}
             ${subs.length?`<span class="tk-sub">${feitas}/${subs.length} subtarefas</span>`:''}
-            <button class="play-btn" title="Cronometrar esta tarefa" style="margin-left:auto"
-              onclick="event.stopPropagation();toggleTimer({task_id:'${t.id}',project_id:${JSON.stringify(t.project_id||null)},kind:${JSON.stringify(t.project_id?'projeto':'geral')},label:${JSON.stringify(t.title)}})">▶</button>
+            <button class="play-btn" title="${rev?'Cronometrar este ajuste':'Cronometrar esta tarefa'}" style="margin-left:auto"
+              onclick="event.stopPropagation();toggleTimer(${escapeHtml(JSON.stringify(alvo))})">▶</button>
           </div>
         </div>
       </div>
@@ -166,16 +178,25 @@ async function kbDrop(e){
   if(!id) return;
   const t = _kb.taskOf(id);
   if(!t || t.status===status) return;
+  const o = kbNome(id);
   await kbSalvarStatus(id, status,
-    status==='concluida' ? 'Tarefa concluída ✓'
-                         : 'Tarefa movida para '+(TASK_STATUS.find(s=>s.id===status)?.label||status));
+    status==='concluida' ? o+' concluíd'+(o==='Ajuste'?'o':'a')+' ✓'
+                         : o+' movid'+(o==='Ajuste'?'o':'a')+' para '+(TASK_STATUS.find(s=>s.id===status)?.label||status));
 }
 
 function kbAlternarFeita(id){
   const t = _kb.taskOf(id);
   if(!t) return;
   const feita = t.status==='concluida';
-  return kbSalvarStatus(id, feita?'pendente':'concluida', feita?'Tarefa reaberta':'Tarefa concluída ✓');
+  const o = kbNome(id), a = o==='Ajuste' ? 'o' : 'a';
+  return kbSalvarStatus(id, feita?'pendente':'concluida',
+    feita ? o+' reabert'+a : o+' concluíd'+a+' ✓');
+}
+
+// O cartão de um ajuste é o mesmo trabalho da aba Ajustes; chamá-lo de
+// "tarefa" no aviso faria parecer que são duas coisas diferentes.
+function kbNome(id){
+  return (_kb.revisionOf && _kb.revisionOf(id)) ? 'Ajuste' : 'Tarefa';
 }
 
 async function kbSalvarStatus(id, status, aviso){
