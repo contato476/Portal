@@ -38,6 +38,15 @@
 .res-sub{font-size:10.5px;color:var(--text3);margin-top:2px}
 @media(max-width:768px){.res-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.chart-month{max-width:60px}.chart-bar{width:11px}}
+/* Fluxo projetado */
+.proj-tbl td,.proj-tbl th{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.proj-tbl td:first-child,.proj-tbl th:first-child{text-align:left}
+.proj-tbl tbody tr{cursor:pointer}
+.proj-tbl tbody tr:hover td{background:rgba(255,255,255,.03)}
+.proj-tbl tr.proj-late td{color:var(--amber)}
+.proj-tbl tfoot td{border-top:1px solid var(--border);font-weight:600;color:var(--text)}
+.proj-cnt{font-size:10.5px;color:var(--text3);margin-left:5px}
+.proj-scroll{overflow-x:auto}
 </style>
 </head>
 <body>
@@ -90,6 +99,18 @@
           <div class="card-hd"><div class="card-title">Despesas por categoria (mês)</div></div>
           <div id="cat-chart" style="padding:10px 0 14px"></div>
         </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-hd">
+          <div class="card-title">Fluxo projetado — o que falta pagar e receber</div>
+          <select class="form-input form-select" id="proj-meses" style="width:auto;padding:4px 10px;font-size:12px" onchange="renderProjecao()">
+            <option value="3">3 meses</option>
+            <option value="6" selected>6 meses</option>
+            <option value="12">12 meses</option>
+          </select>
+        </div>
+        <div class="proj-scroll" id="proj-box"></div>
       </div>
 
       <div class="page-hd" style="margin-bottom:14px">
@@ -251,7 +272,94 @@ async function loadAll(){
   updateStats();
   renderChart();
   renderCatChart();
+  renderProjecao();
   renderTable();
+}
+
+// ──────────── FLUXO PROJETADO ────────────
+// Olha para a frente, a partir do mês de HOJE (não do mês das setas):
+// tudo que está pendente, mês a mês, e quanto sobra somando os meses.
+//  • Mês atual = o que já entrou/saiu nele + o que ainda falta. Assim o
+//    saldo do mês é o resultado final esperado, não só o pendente.
+//  • Pendentes vencidos de meses anteriores ficam numa linha própria no
+//    topo: ainda são dinheiro esperado, então entram no acumulado.
+//  • Não inclui saldo bancário — o acumulado é o que os lançamentos
+//    dizem que vai sobrar (ou faltar) no período.
+function renderProjecao(){
+  const box = document.getElementById('proj-box');
+  const n = Number(document.getElementById('proj-meses').value)||6;
+  const hoje = todayISO();
+  const mesAtual = hoje.slice(0,7);
+  const soma = arr => arr.reduce((s,t)=>s+Number(t.amount),0);
+  const pend = allTx.filter(t=>t.status==='pendente' && t.due_date);
+
+  const linhas = [];
+  const atrasados = pend.filter(t=>t.due_date.slice(0,7)<mesAtual);
+  if(atrasados.length){
+    const r=atrasados.filter(t=>t.kind==='receita'), d=atrasados.filter(t=>t.kind==='despesa');
+    linhas.push({late:true, label:'Vencidos (meses anteriores)', m:null,
+      rec:soma(r), nRec:r.length, pag:soma(d), nPag:d.length, real:0});
+  }
+  for(let i=0;i<n;i++){
+    const dt = new Date(Number(mesAtual.slice(0,4)), Number(mesAtual.slice(5,7))-1+i, 1);
+    const m = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
+    const pm = pend.filter(t=>t.due_date.slice(0,7)===m);
+    const r=pm.filter(t=>t.kind==='receita'), d=pm.filter(t=>t.kind==='despesa');
+    // Só no mês atual: o que já foi realizado nele.
+    let real = 0;
+    if(i===0){
+      const pagos = allTx.filter(t=>t.status==='pago' && t.paid_at && t.paid_at.slice(0,7)===m);
+      real = soma(pagos.filter(t=>t.kind==='receita')) - soma(pagos.filter(t=>t.kind==='despesa'));
+    }
+    const label = dt.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    linhas.push({m, label:label.charAt(0).toUpperCase()+label.slice(1), rec:soma(r), nRec:r.length, pag:soma(d), nPag:d.length, real, atual:i===0});
+  }
+
+  let acum = 0, totRec = 0, totPag = 0;
+  const cls = v => v>0?'money-pos':v<0?'money-neg':'';
+  const sinal = v => (v>0?'+':'')+fmtMoney(v);
+  const rows = linhas.map(l=>{
+    const saldo = l.real + l.rec - l.pag;
+    acum += saldo; totRec += l.rec; totPag += l.pag;
+    const click = l.m ? `verMesPendente('${l.m}')` : `verVencidos()`;
+    return `<tr class="${l.late?'proj-late':''}" onclick="${click}" title="Ver lançamentos pendentes">
+      <td>${l.late?'⚠ ':''}${escapeHtml(l.label)}${l.atual?'<span class="proj-cnt">mês atual</span>':''}</td>
+      <td class="${l.rec?'money-pos':''}">${l.rec?fmtMoney(l.rec):'—'}${l.nRec?`<span class="proj-cnt">${l.nRec}</span>`:''}</td>
+      <td class="${l.pag?'money-neg':''}">${l.pag?fmtMoney(l.pag):'—'}${l.nPag?`<span class="proj-cnt">${l.nPag}</span>`:''}</td>
+      <td>${l.atual?(l.real?sinal(l.real):'—'):''}</td>
+      <td class="${cls(saldo)}">${sinal(saldo)}</td>
+      <td class="${cls(acum)}" style="font-weight:600">${sinal(acum)}</td>
+    </tr>`;
+  }).join('');
+
+  box.innerHTML = `<table class="proj-tbl">
+    <thead><tr><th>Mês</th><th>A receber</th><th>A pagar</th><th>Já realizado</th><th>Saldo do mês</th><th>Saldo projetado</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr>
+      <td>Total no período</td>
+      <td class="money-pos">${fmtMoney(totRec)}</td>
+      <td class="money-neg">${fmtMoney(totPag)}</td>
+      <td></td><td></td>
+      <td class="${cls(acum)}">${sinal(acum)}</td>
+    </tr></tfoot>
+  </table>`;
+}
+
+// Clicar numa linha da projeção abre a lista de pendentes daquele mês.
+function verMesPendente(m){
+  viewMonth = m;
+  document.getElementById('f-period').value = 'mes';
+  document.getElementById('f-status').value = 'pendente';
+  document.getElementById('f-kind').value = '';
+  changeMonth(0);
+  document.getElementById('month-nav').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function verVencidos(){
+  document.getElementById('f-period').value = 'tudo';
+  document.getElementById('f-status').value = 'pendente';
+  document.getElementById('f-kind').value = '';
+  renderTable();
+  document.getElementById('month-nav').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ──────────── CLIENTE E PROJETO ────────────
