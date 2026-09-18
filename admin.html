@@ -813,13 +813,16 @@ async function removeAllowedEmail(id){
 async function loadClientChecklist(){
   const list=document.getElementById('checklist-admin-list');
   list.innerHTML='<div class="loading">Carregando...</div>';
-  const [itRes,stRes]=await Promise.all([
+  const [itRes,stRes,docRes]=await Promise.all([
     sb.from('checklist_items').select('*').eq('project_id',currentProjectId).order('order_num'),
     sb.from('checklist_states').select('*').eq('project_id',currentProjectId),
+    sb.from('documents').select('id,name,path,size,checklist_item_id').eq('project_id',currentProjectId).not('checklist_item_id','is',null).order('created_at'),
   ]);
   const items=itRes.data||[];
   const states=stRes.data||[];
   const stateMap={};states.forEach(s=>{stateMap[s.item_id]=s});
+  // Arquivos que o cliente anexou direto no item (sql/18). Sem a coluna, segue sem eles.
+  const filesMap={};(docRes.error?[]:docRes.data||[]).forEach(d=>{(filesMap[d.checklist_item_id]=filesMap[d.checklist_item_id]||[]).push(d)});
 
   // Status do item:
   // - done=true → APROVADO ✅
@@ -880,6 +883,8 @@ async function loadClientChecklist(){
           <div class="check-admin-title" style="${isApproved?'text-decoration:line-through;color:var(--text3)':''};margin-bottom:4px">${escapeHtml(it.title)}</div>
           ${it.description?`<div class="check-admin-cat">${escapeHtml(it.description)}</div>`:''}
           ${rejectionNote}
+          ${(filesMap[it.id]||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${filesMap[it.id].map(f=>`
+            <button class="btn btn-ghost btn-sm" onclick="downloadDoc('${escapeHtml(f.path)}','${escapeHtml(f.name)}')" title="Baixar" style="max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${escapeHtml(f.name)}${f.size?` · ${fmtSize(f.size)}`:''}</button>`).join('')}</div>`:''}
         </div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
           ${statusBadgeHtml}

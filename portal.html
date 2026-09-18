@@ -140,6 +140,23 @@ textarea.form-input{resize:vertical;min-height:80px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--dark2);border:1px solid var(--green);color:var(--text);padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(60px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:300;max-width:90vw}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.err{border-color:var(--red)}
+/* Modal genérico (openModal/closeModal do helpers.js alternam .open) */
+.overlay{display:none;position:fixed;inset:0;background:rgba(13,17,23,.8);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px);padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--dark2);border:1px solid var(--border);border-radius:16px;padding:26px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:18px}
+.modal-footer{display:flex;gap:9px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.btn-danger{background:var(--red-l);border:1px solid var(--red);color:var(--red)}
+.btn-danger:hover{background:var(--red);color:white}
+/* Arquivos anexados a um item do checklist */
+.check-files{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.check-file{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);background:var(--dark2);border:1px solid var(--border);border-radius:6px;padding:5px 9px;max-width:100%}
+.check-file-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.check-file-name:hover{color:var(--text);text-decoration:underline}
+.check-file button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px}
+.check-file button:hover{color:var(--red)}
+.check-item.drag{outline:2px dashed var(--green);outline-offset:-2px}
+.doc-tag{display:inline-block;font-size:10.5px;color:#4ADE80;background:rgba(26,122,74,.15);border-radius:10px;padding:1px 7px;margin-left:4px}
 .empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
 .loading{text-align:center;padding:32px;color:var(--text2);font-size:13px}
 .no-project{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:50px 30px;text-align:center}
@@ -277,7 +294,8 @@ textarea.form-input{resize:vertical;min-height:80px}
 
       <!-- CHECKLIST -->
       <div class="view" id="view-checklist">
-        <div class="page-hd"><h2>Checklist</h2><p>Marque os itens conforme você for enviando o material</p></div>
+        <div class="page-hd"><h2>Checklist</h2><p>Envie o arquivo direto no item. Se mandou por outro canal (e-mail, WhatsApp), é só marcar como enviado.</p></div>
+        <input type="file" id="check-file-input" style="display:none" multiple onchange="uploadCheckFiles(event)">
         <div id="checklist-content"><div class="loading">Carregando...</div></div>
       </div>
 
@@ -300,7 +318,7 @@ textarea.form-input{resize:vertical;min-height:80px}
 
       <!-- DOCUMENTOS -->
       <div class="view" id="view-documentos">
-        <div class="page-hd"><h2>Documentos</h2><p>Envie e visualize arquivos do seu projeto</p></div>
+        <div class="page-hd"><h2>Documentos</h2><p>Envie aqui o que estiver fora do checklist. Os arquivos enviados pelo checklist também aparecem nesta lista.</p></div>
         <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
           <input type="file" id="file-input" style="display:none" onchange="uploadDoc(event)" multiple>
           <div class="upload-icon">📤</div>
@@ -981,12 +999,15 @@ async function loadHome(){
 async function loadChecklist(){
   const el=document.getElementById('checklist-content');
   if(!currentProject){el.innerHTML='<div class="no-project"><p>Seu projeto ainda não foi configurado.</p></div>';return}
-  const [itRes,stRes]=await Promise.all([
+  const [itRes,stRes,docRes]=await Promise.all([
     sb.from('checklist_items').select('*').eq('project_id',currentProject.id).order('order_num'),
     sb.from('checklist_states').select('*').eq('project_id',currentProject.id),
+    sb.from('documents').select('id,name,path,size,uploaded_by,checklist_item_id,created_at').eq('project_id',currentProject.id).not('checklist_item_id','is',null).order('created_at'),
   ]);
   const items=itRes.data||[];
   const stateMap={};(stRes.data||[]).forEach(s=>{stateMap[s.item_id]=s});
+  // Se o sql/18 ainda não rodou, a consulta falha e o checklist segue sem os arquivos.
+  const filesMap={};(docRes.error?[]:docRes.data||[]).forEach(d=>{(filesMap[d.checklist_item_id]=filesMap[d.checklist_item_id]||[]).push(d)});
   if(!items.length){el.innerHTML='<div class="empty">Nenhum item no checklist ainda. A Jenneffer adicionará em breve!</div>';return}
 
   const cats={};items.forEach(it=>{(cats[it.category]=cats[it.category]||[]).push(it)});
@@ -1021,14 +1042,27 @@ async function loadChecklist(){
 
       const rejectionNote=isRejected&&s?.rejection_note?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;background:rgba(248,81,73,.08);padding:6px 9px;border-radius:6px;border-left:2px solid var(--red);line-height:1.45"><strong>Motivo da rejeição:</strong> ${escapeHtml(s.rejection_note)}</div>`:'';
 
-      return `<div class="check-item" style="background:${bgColor};border-color:${borderColor};flex-wrap:wrap;align-items:flex-start">
+      const files=filesMap[it.id]||[];
+      const filesHtml=files.length?`<div class="check-files">${files.map(f=>`
+        <div class="check-file">
+          <span>📎</span>
+          <span class="check-file-name" title="Baixar" onclick="downloadDoc('${escapeHtml(f.path)}','${escapeHtml(f.name)}')">${escapeHtml(f.name)}</span>
+          ${f.size?`<span style="color:var(--text3);flex-shrink:0">${fmtSize(f.size)}</span>`:''}
+          ${f.uploaded_by===currentUser.id&&!isApproved?`<button title="Remover arquivo" onclick="deleteCheckFile('${f.id}','${escapeHtml(f.path)}')">✕</button>`:''}
+        </div>`).join('')}</div>`:'';
+      // Depois de aprovado não precisa mais anexar nada.
+      const attachBtn=isApproved?'':`<button class="btn btn-ghost btn-sm" onclick="pickCheckFiles('${it.id}')">📎 ${files.length?'Adicionar arquivo':'Enviar arquivo'}</button>`;
+
+      return `<div class="check-item" data-item="${it.id}" data-approved="${isApproved?1:0}" style="background:${bgColor};border-color:${borderColor};flex-wrap:wrap;align-items:flex-start">
         <div class="check-info" style="flex:1;min-width:200px">
           <div class="check-title ${isApproved?'done':''}" style="${isApproved?'text-decoration:line-through':''}">${escapeHtml(it.title)}</div>
           ${it.description?`<div class="check-desc">${escapeHtml(it.description)}</div>`:''}
           ${rejectionNote}
+          ${filesHtml}
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
           ${it.urgent&&!isApproved?'<span class="badge bg-red" style="font-size:10px">Urgente</span>':''}
+          ${attachBtn}
           ${statusBox}
         </div>
       </div>`;
@@ -1051,9 +1085,57 @@ async function loadChecklist(){
   </div>`;
 
   el.innerHTML=summaryHtml+html;
+
+  // Arrastar o arquivo em cima da linha também envia para aquele item.
+  el.querySelectorAll('.check-item[data-approved="0"]').forEach(row=>{
+    ['dragenter','dragover'].forEach(ev=>row.addEventListener(ev,e=>{e.preventDefault();row.classList.add('drag')}));
+    ['dragleave','drop'].forEach(ev=>row.addEventListener(ev,e=>{e.preventDefault();row.classList.remove('drag')}));
+    row.addEventListener('drop',e=>{
+      if(e.dataTransfer.files.length)sendCheckFiles(row.dataset.item,e.dataTransfer.files);
+    });
+  });
 }
 
-async function markAsSent(itemId){
+// ──────────── ARQUIVOS DO CHECKLIST ────────────
+// Um único input escondido serve todas as linhas; guardamos qual item pediu.
+let checkUploadItemId=null;
+function pickCheckFiles(itemId){
+  checkUploadItemId=itemId;
+  document.getElementById('check-file-input').click();
+}
+async function uploadCheckFiles(ev){
+  const files=ev.target.files;
+  const itemId=checkUploadItemId;
+  checkUploadItemId=null;
+  if(files?.length&&itemId)await sendCheckFiles(itemId,files);
+  ev.target.value='';
+}
+// Sobe os arquivos vinculados ao item e já marca o item como enviado —
+// quem anexou o material não precisa lembrar de clicar no botão depois.
+async function sendCheckFiles(itemId,files){
+  let ok=0;
+  for(const file of files){
+    if(await enviarArquivo(file,itemId))ok++;
+  }
+  if(!ok){loadChecklist();return}
+  const {data:st}=await sb.from('checklist_states').select('done,sent_by_client,rejected_at').eq('project_id',currentProject.id).eq('item_id',itemId).maybeSingle();
+  const jaEmValidacao=st&&st.sent_by_client&&!st.rejected_at;
+  if(!st?.done&&!jaEmValidacao){
+    await markAsSent(itemId,`✓ ${ok} arquivo${ok>1?'s':''} enviado${ok>1?'s':''}! Aguardando validação.`);
+  } else {
+    showToast(`✓ ${ok} arquivo${ok>1?'s':''} enviado${ok>1?'s':''}!`);
+    loadChecklist();
+  }
+}
+async function deleteCheckFile(id,path){
+  if(!confirm('Remover este arquivo?'))return;
+  await sb.storage.from('client-documents').remove([path]);
+  await sb.from('documents').delete().eq('id',id);
+  showToast('Arquivo removido');
+  loadChecklist();
+}
+
+async function markAsSent(itemId,msg){
   const {data:existing}=await sb.from('checklist_states').select('id').eq('project_id',currentProject.id).eq('item_id',itemId).maybeSingle();
   const payload={
     sent_by_client:true,
@@ -1067,7 +1149,7 @@ async function markAsSent(itemId){
   } else {
     await sb.from('checklist_states').insert({user_id:currentUser.id,project_id:currentProject.id,item_id:itemId,...payload});
   }
-  showToast('✓ Marcado como enviado! Aguardando validação.');
+  showToast(msg||'✓ Marcado como enviado! Aguardando validação.');
   loadChecklist();
 }
 
@@ -1235,8 +1317,12 @@ function renderManuaisCliente(manuais){
 async function loadDocumentos(){
   const el=document.getElementById('docs-content');
   if(!currentProject){el.innerHTML='<div class="empty">Projeto não configurado</div>';return}
-  const {data}=await sb.from('documents').select('*').eq('project_id',currentProject.id).order('created_at',{ascending:false});
+  const [{data},{data:itens}]=await Promise.all([
+    sb.from('documents').select('*').eq('project_id',currentProject.id).order('created_at',{ascending:false}),
+    sb.from('checklist_items').select('id,title').eq('project_id',currentProject.id),
+  ]);
   const all=data||[];
+  const itemTitle={};(itens||[]).forEach(i=>{itemTitle[i.id]=i.title});
   // Separa os manuais (kind específico) dos documentos comuns.
   const manuais=all.filter(d=>d.kind==='manual_uso'||d.kind==='manual_ferramentas');
   const docs=all.filter(d=>!d.kind||d.kind==='documento');
@@ -1256,7 +1342,7 @@ async function loadDocumentos(){
       <div class="doc-icon" style="background:${bg}">${icon}</div>
       <div class="doc-info">
         <div class="doc-name">${escapeHtml(d.name)}</div>
-        <div class="doc-meta">${fmtDate(d.created_at)}${d.size?' · '+fmtSize(d.size):''} · ${own?'Enviado por você':'Enviado pela Jenneffer'}</div>
+        <div class="doc-meta">${fmtDate(d.created_at)}${d.size?' · '+fmtSize(d.size):''} · ${own?'Enviado por você':'Enviado pela Jenneffer'}${itemTitle[d.checklist_item_id]?`<span class="doc-tag">✓ Checklist: ${escapeHtml(itemTitle[d.checklist_item_id])}</span>`:''}</div>
       </div>
       <div class="doc-actions">
         <button class="btn btn-ghost btn-sm" onclick="downloadDoc('${escapeHtml(d.path)}','${escapeHtml(d.name)}')">⬇ Baixar</button>
@@ -1273,17 +1359,27 @@ async function uploadDoc(ev){
   if(!files||!files.length)return;
   if(!currentProject){showToast('Projeto não configurado',true);return}
   for(const file of files){
-    if(file.size>52428800){showToast(`${file.name}: muito grande (máx 50MB)`,true);continue}
-    const safeName=sanitizeFileName(file.name);
-    const path=`${currentProject.id}/${Date.now()}-${safeName}`;
-    const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
-    if(upErr){showToast('Erro upload: '+upErr.message,true);continue}
-    const {error:dbErr}=await sb.from('documents').insert({user_id:currentUser.id,project_id:currentProject.id,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type});
-    if(dbErr){showToast('Erro: '+dbErr.message,true);continue}
-    showToast(`✓ ${file.name} enviado!`);
+    if(await enviarArquivo(file))showToast(`✓ ${file.name} enviado!`);
   }
   document.getElementById('file-input').value='';
   loadDocumentos();
+}
+// Upload único usado pela aba Documentos (envio livre) e pelo checklist
+// (checklistItemId preenchido). Devolve true se deu certo.
+async function enviarArquivo(file,checklistItemId=null){
+  if(file.size>52428800){showToast(`${file.name}: muito grande (máx 50MB)`,true);return false}
+  const safeName=sanitizeFileName(file.name);
+  const path=`${currentProject.id}/${Date.now()}-${safeName}`;
+  const {error:upErr}=await sb.storage.from('client-documents').upload(path,file);
+  if(upErr){showToast('Erro upload: '+upErr.message,true);return false}
+  const row={user_id:currentUser.id,project_id:currentProject.id,uploaded_by:currentUser.id,name:file.name,path,size:file.size,type:file.type};
+  if(checklistItemId)row.checklist_item_id=checklistItemId;
+  const {error:dbErr}=await sb.from('documents').insert(row);
+  if(dbErr){
+    await sb.storage.from('client-documents').remove([path]);
+    showToast('Erro: '+dbErr.message,true);return false;
+  }
+  return true;
 }
 async function downloadDoc(path,name){
   const {data,error}=await sb.storage.from('client-documents').createSignedUrl(path,60);
