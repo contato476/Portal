@@ -113,6 +113,9 @@ const SQL_HINT = '<div class="empty">Tabelas de gestão ainda não criadas.<br>R
 const PROJ_STATUS_COLOR = {
   pre_inicio:'#E3B341', em_andamento:'#22A060', testes_cliente:'#A78BFA',
   ajustes_pos_testes:'#E3B341', aguardando:'#8B949E', pausado:'#F85149',
-  concluido:'#60A5FA',
+  concluido:'#60A5FA', finalizado:'#6E7681',
 };
+// Projeto encerrado: entregue (concluido) ou sem mais vínculo, suporte
+// terminado (finalizado). Nenhum dos dois conta como ativo nem atrasa.
+function projetoEncerrado(s){ return s==='concluido' || s==='finalizado' }
 const PROJ_SEM_STATUS_COLOR = '#3F4652';   // tarefa avulsa, sem projeto

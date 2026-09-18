@@ -412,7 +412,7 @@ async function runDailyChecks({forcar=false} = {}){
 
   if(eventos.has('daily.project_deadline_near')){
     const {data} = await sb.from('projects').select('*')
-      .neq('status','concluido').eq('archived', false)
+      .not('status','in','(concluido,finalizado)').eq('archived', false)
       .gte('end_date', hoje).lte('end_date', em(7));
     for(const p of (data||[])) await fireAutomation('daily.project_deadline_near', {table:'projects', id:p.id, row:p});
   }

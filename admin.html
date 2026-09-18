@@ -78,6 +78,8 @@ textarea.form-input{resize:vertical;min-height:80px}
 .bg-amber{background:rgba(227,179,65,.2);color:var(--amber)}
 .bg-blue{background:rgba(33,136,255,.15);color:#60A5FA}
 .bg-gray{background:var(--dark3);color:var(--text2)}
+.bg-purple{background:rgba(139,92,246,.15);color:#A78BFA}
+.bg-final{background:transparent;color:var(--text3);border:1px solid var(--border)}
 .bg-red{background:rgba(248,81,73,.15);color:var(--red)}
 .btn{padding:7px 16px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
 .btn-primary{background:var(--green);color:white}
@@ -411,6 +413,7 @@ td{padding:11px 14px;font-size:13px;color:var(--text2);vertical-align:middle}
           <option value="ajustes_pos_testes">Ajustes pós testes</option>
           <option value="pausado">Pausado</option>
           <option value="concluido">Concluído</option>
+          <option value="finalizado">Finalizado (suporte encerrado)</option>
         </select>
       </div>
       <div class="form-group">
@@ -564,7 +567,7 @@ let allClients = [];
 let editingProjectId = null;
 
 // ──────────── HELPERS ────────────
-function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
+function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',finalizado:'Finalizado',aguardando:'Aguardando'}[s]||s}
 // Texto do período de suporte, com indicação de ativo/encerrado pela data de fim.
 function supportLabel(start,end){
   if(!start&&!end)return 'Não definido';
@@ -578,7 +581,7 @@ function supportLabel(start,end){
   }
   return txt;
 }
-function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-purple',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
+function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-purple',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',finalizado:'bg-final',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
 
 // ──────────── AUTH ────────────
 async function doLogin(){
@@ -730,10 +733,13 @@ async function loadClients(){
     return {...p, contact:ct||null, profiles:profMap[p.client_id]||(ct?{name:ct.name,company:ct.company||''}:{name:'—',company:''})};
   });
   if(!allClients.length){tbl.innerHTML='<div class="empty">Nenhum cliente cadastrado ainda</div>';return}
+  // Finalizado = sem vínculo: desce para o fim e fica apagado, para não
+  // disputar atenção com quem ainda está em andamento.
+  const lista=[...allClients].sort((a,b)=>(a.status==='finalizado')-(b.status==='finalizado'));
   tbl.innerHTML=`<table>
     <thead><tr><th>Cliente</th><th>Projeto</th><th>Início</th><th>Entrega</th><th>Status</th><th></th></tr></thead>
-    <tbody>${allClients.map(p=>`
-      <tr class="clickable" onclick="openClient('${p.client_id}','${p.id}')">
+    <tbody>${lista.map(p=>`
+      <tr class="clickable" onclick="openClient('${p.client_id}','${p.id}')"${p.status==='finalizado'?' style="opacity:.5"':''}>
         <td><div class="td-main">${escapeHtml(p.profiles?.name||'—')}${!p.client_id?' <span class="badge bg-blue" style="font-size:10px">⏳ aguardando cadastro</span>':''}</div><div class="td-sub">${escapeHtml(p.profiles?.company||'')}</div></td>
         <td style="font-size:12.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name)}</td>
         <td style="font-size:12px;color:var(--text3)">${p.start_date?fmtDateShort(p.start_date):'—'}</td>

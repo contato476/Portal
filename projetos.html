@@ -398,6 +398,7 @@ const PROJ_STATUS = [
   {id:'aguardando',         label:'Aguardando',         color:PROJ_STATUS_COLOR.aguardando,         badge:'bg-gray'},
   {id:'pausado',            label:'Pausado',            color:PROJ_STATUS_COLOR.pausado,            badge:'bg-red'},
   {id:'concluido',          label:'Concluído',          color:PROJ_STATUS_COLOR.concluido,          badge:'bg-blue'},
+  {id:'finalizado',         label:'Finalizado',         color:PROJ_STATUS_COLOR.finalizado,         badge:'bg-final'},
 ];
 const ST = {}; PROJ_STATUS.forEach(s=>ST[s.id]=s);
 const statusLabel = s => ST[s]?.label || s || '—';
@@ -569,8 +570,8 @@ function openRevisions(pid){
 
 function updateStats(){
   const hoje = todayISO();
-  const ativos = allProjects.filter(p=>!p.archived && p.status!=='concluido').length;
-  const em7 = allProjects.filter(p=>!p.archived && p.status!=='concluido' && p.end_date
+  const ativos = allProjects.filter(p=>!p.archived && !projetoEncerrado(p.status)).length;
+  const em7 = allProjects.filter(p=>!p.archived && !projetoEncerrado(p.status) && p.end_date
                                     && p.end_date>=hoje && daysBetween(hoje,p.end_date)<=7).length;
   const ajustes = allRevisions.filter(r=>r.status==='aberto'||r.status==='em_andamento').length;
   const mesIni = hoje.slice(0,8)+'01';
@@ -656,7 +657,7 @@ function renderList(){
 
 function projRow(p){
   const hoje = todayISO();
-  const atrasado = p.end_date && p.end_date < hoje && p.status!=='concluido';
+  const atrasado = p.end_date && p.end_date < hoje && !projetoEncerrado(p.status);
   const prog = projectProgress(p.id);
   const seg = secondsByProject(p.id);
   const prev = p.estimate_hours ? Number(p.estimate_hours)*3600 : 0;
@@ -720,7 +721,7 @@ function renderKanban(){
 function projCard(p){
   const prog = projectProgress(p.id);
   const hoje = todayISO();
-  const atrasado = p.end_date && p.end_date < hoje && p.status!=='concluido';
+  const atrasado = p.end_date && p.end_date < hoje && !projetoEncerrado(p.status);
   return `
     <div class="kb-card" draggable="true" ondragstart="dragStart(event,'${p.id}')" onclick="openProject('${p.id}')">
       <div class="kb-card-title">${escapeHtml(p.name)}</div>
@@ -872,8 +873,8 @@ function renderTimeline(){
 
   const linhas = list.map(p=>{
     const barra = barraDe(p.start_date, p.end_date, {
-      late: p.end_date && p.end_date<hoje && p.status!=='concluido',
-      done: p.status==='concluido',
+      late: p.end_date && p.end_date<hoje && !projetoEncerrado(p.status),
+      done: projetoEncerrado(p.status),
       texto: p.name, click: `openProject('${p.id}')`, pos, sub:false,
     });
     const subs = allTasks
@@ -934,10 +935,10 @@ function openProject(id){
   document.getElementById('pd-revs').textContent = revs.length
     ? `${revs.filter(r=>r.status==='aberto'||r.status==='em_andamento').length} abertos` : '0';
   document.getElementById('pd-prazo').textContent = p.end_date
-    ? (p.end_date<hoje && p.status!=='concluido' ? 'venceu' : daysBetween(hoje,p.end_date)+'d')
+    ? (p.end_date<hoje && !projetoEncerrado(p.status) ? 'venceu' : daysBetween(hoje,p.end_date)+'d')
     : '—';
   document.getElementById('pd-prazo').style.color =
-    (p.end_date && p.end_date<hoje && p.status!=='concluido') ? 'var(--red)' : '';
+    (p.end_date && p.end_date<hoje && !projetoEncerrado(p.status)) ? 'var(--red)' : '';
 
   switchPTab(currentPTab);
   openModal('modal-detail');

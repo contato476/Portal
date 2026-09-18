@@ -60,6 +60,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--text);m
 .bg-blue{background:rgba(33,136,255,.15);color:#60A5FA}
 .bg-purple{background:rgba(139,92,246,.15);color:#A78BFA}
 .bg-gray{background:var(--dark3);color:var(--text2)}
+.bg-final{background:transparent;color:var(--text3);border:1px solid var(--border)}
 .bg-red{background:rgba(248,81,73,.15);color:var(--red)}
 .btn{padding:7px 16px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .btn-primary{background:var(--green);color:white}

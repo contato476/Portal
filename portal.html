@@ -86,6 +86,8 @@ textarea.form-input{resize:vertical;min-height:80px}
 .bg-amber{background:rgba(227,179,65,.2);color:var(--amber)}
 .bg-blue{background:rgba(33,136,255,.15);color:#60A5FA}
 .bg-gray{background:var(--dark3);color:var(--text2)}
+.bg-purple{background:rgba(139,92,246,.15);color:#A78BFA}
+.bg-final{background:transparent;color:var(--text3);border:1px solid var(--border)}
 .bg-red{background:rgba(248,81,73,.15);color:var(--red)}
 .btn{padding:7px 16px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
 .btn-primary{background:var(--green);color:white}
@@ -444,8 +446,8 @@ let currentProject = null;
 let allProjects = [];
 
 // ──────────── HELPERS ────────────
-function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',aguardando:'Aguardando'}[s]||s}
-function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-purple',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
+function statusLabel(s){return {pre_inicio:'Pré-início',em_andamento:'Em andamento',testes_cliente:'Testes cliente',ajustes_pos_testes:'Ajustes pós testes',pausado:'Pausado',concluido:'Concluído',finalizado:'Finalizado',aguardando:'Aguardando'}[s]||s}
+function statusBadge(s){const m={pre_inicio:'bg-amber',em_andamento:'bg-green',testes_cliente:'bg-purple',ajustes_pos_testes:'bg-amber',pausado:'bg-red',concluido:'bg-blue',finalizado:'bg-final',aguardando:'bg-gray'};return `<span class="badge ${m[s]||'bg-gray'}">${statusLabel(s)}</span>`}
 // Texto do período de suporte (sem o status).
 function supportText(start,end){
   if(start&&end)return `${fmtDateShort(start)} até ${fmtDateShort(end)}`;
