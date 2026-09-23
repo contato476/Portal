@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radar IA — Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.rd-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.rd-day-nav{display:flex;align-items:center;gap:8px}
+.rd-day-label{font-size:14px;font-weight:500;min-width:170px;text-align:center}
+.rd-chips{display:flex;gap:6px;flex-wrap:wrap}
+.rd-chip{padding:4px 11px;border-radius:20px;font-size:12px;background:var(--dark3);border:1px solid var(--border);color:var(--text2);cursor:pointer;user-select:none}
+.rd-chip.on{border-color:var(--green);color:#4ADE80;background:rgba(26,122,74,.15)}
+.rd-search{max-width:220px;padding:6px 11px;font-size:12.5px}
+.rd-resumo{background:linear-gradient(135deg,rgba(26,122,74,.18),rgba(26,122,74,.05));border:1px solid rgba(26,122,74,.35);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px}
+.rd-resumo h3{font-family:'Cormorant Garamond',serif;font-size:19px;margin-bottom:6px}
+.rd-resumo p{font-size:13.5px;color:var(--text);line-height:1.55;white-space:pre-line}
+.rd-group{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin:18px 0 8px}
+.rd-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;margin-bottom:10px}
+.rd-card.st-descartado{opacity:.5}
+.rd-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.rd-rel{font-size:11px;color:var(--amber);letter-spacing:1px}
+.rd-date{font-size:11px;color:var(--text3);margin-left:auto}
+.rd-fav{cursor:pointer;font-size:16px;line-height:1;color:var(--text3);user-select:none}
+.rd-fav.on{color:var(--amber)}
+.rd-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.35}
+.rd-sum{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:8px}
+.rd-box{border-left:3px solid var(--border2);padding:6px 10px;margin:6px 0;font-size:12.8px;color:var(--text);line-height:1.5;background:rgba(255,255,255,.02);border-radius:0 6px 6px 0}
+.rd-box b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:2px}
+.rd-box.why{border-left-color:var(--blue)}
+.rd-box.try{border-left-color:var(--green2)}
+.rd-box.post{border-left-color:var(--purple)}
+.rd-copy{float:right;font-size:11px;color:var(--text3);cursor:pointer}
+.rd-copy:hover{color:var(--text)}
+.rd-ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+.rd-src{font-size:12px;color:#60A5FA;text-decoration:none;margin-right:auto;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rd-src:hover{text-decoration:underline}
+.rd-st{padding:3px 9px;border-radius:14px;font-size:11.5px;background:var(--dark3);border:1px solid var(--border);color:var(--text2);cursor:pointer;user-select:none}
+.rd-st:hover{border-color:var(--border2);color:var(--text)}
+.rd-st.on{background:rgba(26,122,74,.2);border-color:var(--green);color:#4ADE80}
+.rd-notes{margin-top:8px;font-size:12.5px;min-height:38px;padding:7px 10px}
+@media (max-width:760px){.stats-row{grid-template-columns:repeat(2,1fr)}.rd-src{max-width:100%;margin-right:0;width:100%}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Radar IA</div>
+      <button class="btn btn-ghost" onclick="loadAll()">↻ Atualizar</button>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Novidades hoje</div><div class="stat-val" id="st-hoje">—</div><div class="stat-sub">no radar de hoje</div></div>
+        <div class="stat"><div class="stat-label">Para ver</div><div class="stat-val" id="st-novo">—</div><div class="stat-sub">ainda sem check</div></div>
+        <div class="stat"><div class="stat-label">Vou postar</div><div class="stat-val" id="st-postar" style="color:#A78BFA">—</div><div class="stat-sub">na fila de conteúdo</div></div>
+        <div class="stat"><div class="stat-label">Viraram produto</div><div class="stat-val" id="st-produto" style="color:#4ADE80">—</div><div class="stat-sub">ideias aproveitadas</div></div>
+      </div>
+
+      <div class="tabs-row" id="tabs">
+        <div class="dtab active" data-tab="dia" onclick="setTab('dia')">📅 Por dia</div>
+        <div class="dtab" data-tab="postar" onclick="setTab('postar')">✍️ Vou postar</div>
+        <div class="dtab" data-tab="favoritos" onclick="setTab('favoritos')">★ Favoritos</div>
+        <div class="dtab" data-tab="dores" onclick="setTab('dores')">💡 Dores e produtos</div>
+        <div class="dtab" data-tab="tudo" onclick="setTab('tudo')">Tudo</div>
+      </div>
+
+      <div class="rd-toolbar">
+        <div class="rd-day-nav" id="day-nav">
+          <button class="btn btn-ghost btn-sm" onclick="shiftDay(-1)">‹</button>
+          <div class="rd-day-label" id="day-label">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="shiftDay(1)">›</button>
+          <button class="btn btn-ghost btn-sm" onclick="goToday()">Hoje</button>
+        </div>
+        <div class="rd-chips" id="cat-chips"></div>
+        <input class="form-input rd-search" id="rd-q" placeholder="Buscar..." oninput="render()">
+      </div>
+
+      <div id="rd-list"><div class="loading">Carregando...</div></div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+const CATS = {
+  resumo:      {label:'Resumo',       cls:'bg-green'},
+  anthropic:   {label:'Anthropic',    cls:'bg-amber'},
+  ia:          {label:'IA',           cls:'bg-blue'},
+  pratica:     {label:'Na prática',   cls:'bg-green'},
+  dor:         {label:'Dor',          cls:'bg-red'},
+  concorrente: {label:'Concorrente',  cls:'bg-purple'},
+  produto:     {label:'Produto',      cls:'bg-green'},
+};
+const CAT_ORDER = ['anthropic','ia','pratica','dor','produto','concorrente'];
+const STATUS = [
+  {id:'testei',        label:'✓ Testei'},
+  {id:'vou_postar',    label:'✍️ Vou postar'},
+  {id:'postado',       label:'📣 Postado'},
+  {id:'virou_produto', label:'💡 Virou produto'},
+  {id:'descartado',    label:'✕'},
+];
+
+let items = [];
+let tab = 'dia';
+let viewDay = todayISO();
+let catFilter = new Set();
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('radar'); requireAdmin(loadAll); });
+
+async function loadAll(){
+  const {data, error} = await sb.from('radar_items').select('*')
+    .order('radar_date', {ascending:false}).order('relevance', {ascending:false}).limit(1000);
+  if(error){
+    document.getElementById('rd-list').innerHTML = isMissingTable(error)
+      ? `<div class="empty">A tabela do radar ainda não existe. Rode o <b>sql/19_radar_ia.sql</b> no SQL Editor do Supabase.</div>`
+      : `<div class="empty">Erro ao carregar: ${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  items = data || [];
+  // Abre no último dia com radar, se hoje ainda não chegou
+  if(tab==='dia' && !items.some(i=>i.radar_date===viewDay) && items.length && viewDay===todayISO()){
+    viewDay = items[0].radar_date;
+  }
+  renderStats(); renderChips(); render();
+}
+
+function renderStats(){
+  const hoje = todayISO();
+  const real = items.filter(i=>i.category!=='resumo');
+  document.getElementById('st-hoje').textContent    = real.filter(i=>i.radar_date===hoje).length;
+  document.getElementById('st-novo').textContent    = real.filter(i=>i.status==='novo').length;
+  document.getElementById('st-postar').textContent  = real.filter(i=>i.status==='vou_postar').length;
+  document.getElementById('st-produto').textContent = real.filter(i=>i.status==='virou_produto').length;
+}
+
+function renderChips(){
+  document.getElementById('cat-chips').innerHTML = CAT_ORDER.map(c=>
+    `<span class="rd-chip${catFilter.has(c)?' on':''}" onclick="toggleCat('${c}')">${CATS[c].label}</span>`).join('');
+}
+function toggleCat(c){ catFilter.has(c) ? catFilter.delete(c) : catFilter.add(c); renderChips(); render(); }
+
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('#tabs .dtab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
+  document.getElementById('day-nav').style.display = t==='dia' ? 'flex' : 'none';
+  render();
+}
+
+// Navega só entre dias que têm radar
+function shiftDay(dir){
+  const days = [...new Set(items.map(i=>i.radar_date))].sort();
+  if(!days.length) return;
+  let idx = days.indexOf(viewDay);
+  if(idx === -1){
+    idx = dir>0 ? days.findIndex(d=>d>viewDay) : days.length-1 - [...days].reverse().findIndex(d=>d<viewDay);
+    if(idx < 0 || idx >= days.length) return;
+  } else {
+    idx += dir;
+    if(idx < 0 || idx >= days.length) return;
+  }
+  viewDay = days[idx]; render();
+}
+function goToday(){ viewDay = todayISO(); render(); }
+
+function filtered(){
+  const q = document.getElementById('rd-q').value.trim().toLowerCase();
+  return items.filter(i=>{
+    if(tab==='dia'       && i.radar_date!==viewDay) return false;
+    if(tab==='postar'    && i.status!=='vou_postar') return false;
+    if(tab==='favoritos' && !i.favorite) return false;
+    if(tab==='dores'     && !['dor','produto'].includes(i.category)) return false;
+    if(tab!=='dia' && i.category==='resumo') return false;
+    if(catFilter.size && i.category!=='resumo' && !catFilter.has(i.category)) return false;
+    if(q && ![i.title,i.summary,i.why_it_matters,i.try_this,i.post_idea,i.notes,i.source_name]
+      .some(s=>(s||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+function render(){
+  const d = new Date(viewDay+'T12:00:00');
+  const lbl = d.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'short'});
+  document.getElementById('day-label').textContent = lbl[0].toUpperCase() + lbl.slice(1);
+
+  const list = filtered();
+  const el = document.getElementById('rd-list');
+  if(!list.length){
+    el.innerHTML = `<div class="empty">${tab==='dia'
+      ? 'Nenhum radar neste dia. A rotina roda de segunda a sexta às 8h.'
+      : 'Nada por aqui ainda.'}</div>`;
+    return;
+  }
+
+  let html = '';
+  if(tab==='dia'){
+    const resumo = list.find(i=>i.category==='resumo');
+    if(resumo) html += `<div class="rd-resumo"><h3>${escapeHtml(resumo.title)}</h3><p>${escapeHtml(resumo.summary||'')}</p></div>`;
+    CAT_ORDER.forEach(c=>{
+      const g = list.filter(i=>i.category===c);
+      if(g.length) html += `<div class="rd-group">${CATS[c].label} · ${g.length}</div>` + g.map(card).join('');
+    });
+  } else {
+    html = list.map(card).join('');
+  }
+  el.innerHTML = html;
+}
+
+function card(i){
+  const cat = CATS[i.category] || {label:i.category, cls:'bg-gray'};
+  const box = (cls, label, txt, copy) => txt ? `<div class="rd-box ${cls}">${copy?`<span class="rd-copy" onclick="copyText('${i.id}','${copy}')">copiar</span>`:''}<b>${label}</b>${escapeHtml(txt)}</div>` : '';
+  return `<div class="rd-card st-${i.status}" id="rd-${i.id}">
+    <div class="rd-hd">
+      <span class="badge ${cat.cls}">${cat.label}</span>
+      ${i.edition==='semanal'?'<span class="badge bg-gray">semanal</span>':''}
+      <span class="rd-rel" title="Relevância">${'★'.repeat(i.relevance)}${'☆'.repeat(5-i.relevance)}</span>
+      ${tab!=='dia'?`<span class="rd-date">${fmtDateShort(i.radar_date)}</span>`:''}
+      <span class="rd-fav${i.favorite?' on':''}" ${tab==='dia'?'style="margin-left:auto"':''} onclick="toggleFav('${i.id}')" title="Favoritar">★</span>
+    </div>
+    <div class="rd-title">${escapeHtml(i.title)}</div>
+    ${i.summary?`<div class="rd-sum">${escapeHtml(i.summary)}</div>`:''}
+    ${box('why','Por que importa', i.why_it_matters)}
+    ${box('try','Teste isso', i.try_this)}
+    ${box('post','Ideia de post', i.post_idea, 'post_idea')}
+    <div class="rd-ft">
+      ${i.source_url?`<a class="rd-src" href="${escapeHtml(i.source_url)}" target="_blank" rel="noopener">↗ ${escapeHtml(i.source_name||i.source_url)}</a>`:'<span style="margin-right:auto"></span>'}
+      ${STATUS.map(s=>`<span class="rd-st${i.status===s.id?' on':''}" onclick="setStatus('${i.id}','${s.id}')" title="${s.id==='descartado'?'Descartar':''}">${s.label}</span>`).join('')}
+    </div>
+    <textarea class="form-input rd-notes" placeholder="Anotações (o que testou, ideia, gancho...)" onblur="saveNotes('${i.id}', this.value)">${escapeHtml(i.notes||'')}</textarea>
+  </div>`;
+}
+
+async function update(id, patch){
+  const {error} = await sb.from('radar_items').update(patch).eq('id', id);
+  if(error){ showToast('Erro ao salvar: '+error.message, true); return false }
+  Object.assign(items.find(x=>x.id===id), patch);
+  return true;
+}
+async function setStatus(id, st){
+  const it = items.find(x=>x.id===id);
+  const novo = it.status===st ? 'novo' : st;   // clicar de novo desmarca
+  if(await update(id, {status:novo})){ renderStats(); render(); }
+}
+async function toggleFav(id){
+  const it = items.find(x=>x.id===id);
+  if(await update(id, {favorite:!it.favorite})) render();
+}
+async function saveNotes(id, v){
+  const it = items.find(x=>x.id===id);
+  if((it.notes||'') === v) return;
+  if(await update(id, {notes:v||null})) showToast('Anotação salva');
+}
+function copyText(id, field){
+  const it = items.find(x=>x.id===id);
+  navigator.clipboard.writeText(it[field]||'').then(()=>showToast('Copiado'));
+}
+</script>
+</body>
+</html>

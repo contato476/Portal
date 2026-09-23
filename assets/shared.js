@@ -54,6 +54,7 @@ const GESTAO_MODULES = [
   {id:'agendamento', href:'agendamento.html', label:'Agendamento', ready:true, icon:'<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.8"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.8"/><polyline points="8.5 15 11 17.5 15.5 13" stroke-width="1.8"/>'},
   {id:'marketing',   href:'marketing.html',   label:'Marketing',   ready:true, icon:'<path d="M3 11l18-5v12L3 13v-2z" stroke-width="1.8"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6" stroke-width="1.8"/>'},
   {id:'automacoes',  href:'automacoes.html',  label:'Automações',  ready:true , icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke-width="1.8"/>'},
+  {id:'radar',       href:'radar.html',       label:'Radar IA',    ready:true, icon:'<circle cx="12" cy="12" r="9" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke-width="1.8"/><line x1="12" y1="12" x2="18.4" y2="5.6" stroke-width="1.8"/>'},
 ];
 
 function renderSidebar(activeId){
