@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Novidades · Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.nv-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.nv-chips{display:flex;gap:6px;flex-wrap:wrap}
+.nv-chip{padding:6px 12px;border-radius:20px;font-size:12px;background:var(--dark3);border:1px solid var(--border);color:var(--text2);cursor:pointer;user-select:none;min-height:32px;display:inline-flex;align-items:center}
+.nv-chip.on{border-color:var(--green);color:#4ADE80;background:rgba(26,122,74,.15)}
+.nv-search{max-width:240px;padding:6px 11px;font-size:12.5px}
+.nv-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;margin-bottom:10px}
+.nv-card.st-novo{border-left:3px solid var(--green)}
+.nv-card.st-arquivado{opacity:.6}
+.nv-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.nv-date{font-size:11.5px;color:var(--text3);margin-left:auto}
+.nv-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;line-height:1.35}
+.nv-sum{font-size:13px;color:var(--text2);line-height:1.55}
+.nv-det{margin-top:8px}
+.nv-det summary{font-size:12.5px;color:var(--text3);cursor:pointer;user-select:none;min-height:28px;display:flex;align-items:center}
+.nv-dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px;margin-top:8px}
+.nv-dl div{min-width:0}
+.nv-dl dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.nv-dl dd{font-size:13px;color:var(--text);line-height:1.45;word-break:break-word;margin:2px 0 0}
+.nv-ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px}
+.nv-ft .btn{min-height:34px}
+.nv-link{font-size:12.5px;color:#60A5FA;text-decoration:none;margin-right:auto}
+.nv-link:hover{text-decoration:underline}
+@media (max-width:760px){.stats-row{grid-template-columns:repeat(2,1fr)}.nv-link{width:100%;margin-right:0}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Novidades</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="marcarTodasVistas()">Marcar todas como vistas</button>
+        <button class="btn btn-ghost" onclick="loadAll()">↻ Atualizar</button>
+      </div>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Novas</div><div class="stat-val" id="st-novas" style="color:#4ADE80">—</div><div class="stat-sub">ainda não vistas</div></div>
+        <div class="stat"><div class="stat-label">Aplicações</div><div class="stat-val" id="st-aplic">—</div><div class="stat-sub">para a mentoria</div></div>
+        <div class="stat"><div class="stat-label">Masterclass</div><div class="stat-val" id="st-master">—</div><div class="stat-sub">respostas do formulário</div></div>
+        <div class="stat"><div class="stat-label">Hoje</div><div class="stat-val" id="st-hoje">—</div><div class="stat-sub">chegaram hoje</div></div>
+      </div>
+
+      <div class="tabs-row" id="tabs">
+        <div class="dtab active" data-tab="novo" onclick="setTab('novo')">Novas</div>
+        <div class="dtab" data-tab="todas" onclick="setTab('todas')">Todas</div>
+        <div class="dtab" data-tab="arquivado" onclick="setTab('arquivado')">Arquivadas</div>
+      </div>
+
+      <div class="nv-toolbar">
+        <div class="nv-chips" id="chips"></div>
+        <label class="sr-only" for="nv-q" style="position:absolute;left:-9999px">Buscar</label>
+        <input class="form-input nv-search" id="nv-q" placeholder="Buscar por nome ou resposta..." oninput="render()">
+      </div>
+
+      <div id="nv-list"><div class="loading">Carregando...</div></div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+const ORIGENS = {
+  aplicacao:   {label:'Aplicação mentoria', cls:'bg-green'},
+  masterclass: {label:'Masterclass',        cls:'bg-blue'},
+};
+// Nomes amigáveis dos campos que vêm do formulário
+const CAMPOS = {
+  whatsapp:'WhatsApp', instagram:'Instagram ou site', negocio:'Negócio', equipe:'Equipe',
+  faturamento:'Faturamento', uso_ia:'Uso de IA', tarefa_nunca_mais:'Tarefa que quer largar',
+  valeu_a_pena:'Para valer a pena', quando_comecar:'Quando quer começar',
+  o_que_tentou:'O que já tentou', onde_travou:'Onde travou',
+};
+
+let itens = [];
+let tab = 'novo';
+let origemFiltro = new Set();
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('novidades'); requireAdmin(loadAll); });
+// Atualiza sozinho a cada minuto e quando você volta para a aba
+setInterval(() => { if(currentUser && !document.hidden) loadAll(true) }, 60000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden && currentUser) loadAll(true) });
+
+async function loadAll(silencioso){
+  const {data, error} = await sb.from('novidades').select('*').order('created_at', {ascending:false}).limit(500);
+  if(error){
+    document.getElementById('nv-list').innerHTML = isMissingTable(error)
+      ? `<div class="empty">A tabela de novidades ainda não existe. Rode o <b>sql/21_novidades.sql</b> no SQL Editor do Supabase.</div>`
+      : `<div class="empty">Não consegui carregar as novidades. Clique em Atualizar para tentar de novo.</div>`;
+    return;
+  }
+  const antes = itens.filter(i=>i.status==='novo').length;
+  itens = data || [];
+  const depois = itens.filter(i=>i.status==='novo').length;
+  if(silencioso && depois > antes) showToast(`${depois-antes} novidade(s) chegaram`);
+  renderStats(); renderChips(); render();
+  atualizarContadorNovidades();
+}
+
+function renderStats(){
+  const hoje = todayISO();
+  document.getElementById('st-novas').textContent  = itens.filter(i=>i.status==='novo').length;
+  document.getElementById('st-aplic').textContent  = itens.filter(i=>i.origem==='aplicacao').length;
+  document.getElementById('st-master').textContent = itens.filter(i=>i.origem==='masterclass').length;
+  document.getElementById('st-hoje').textContent   = itens.filter(i=>isoLocal(i.created_at)===hoje).length;
+}
+function isoLocal(ts){
+  const d = new Date(ts);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function renderChips(){
+  document.getElementById('chips').innerHTML = Object.entries(ORIGENS).map(([id,o]) =>
+    `<span class="nv-chip${origemFiltro.has(id)?' on':''}" role="button" tabindex="0" onclick="toggleOrigem('${id}')" onkeydown="if(event.key==='Enter')toggleOrigem('${id}')">${o.label}</span>`).join('');
+}
+function toggleOrigem(id){ origemFiltro.has(id) ? origemFiltro.delete(id) : origemFiltro.add(id); renderChips(); render(); }
+
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('#tabs .dtab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
+  render();
+}
+
+function filtrados(){
+  const q = document.getElementById('nv-q').value.trim().toLowerCase();
+  return itens.filter(i=>{
+    if(tab==='novo' && i.status!=='novo') return false;
+    if(tab==='arquivado' && i.status!=='arquivado') return false;
+    if(tab==='todas' && i.status==='arquivado') return false;
+    if(origemFiltro.size && !origemFiltro.has(i.origem)) return false;
+    if(q && ![i.titulo, i.resumo, JSON.stringify(i.dados||{})].some(s=>(s||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+function render(){
+  const lista = filtrados();
+  const el = document.getElementById('nv-list');
+  if(!lista.length){
+    el.innerHTML = `<div class="empty">${tab==='novo'
+      ? 'Nenhuma novidade nova. Quando chegar uma aplicação ou resposta da Masterclass, ela aparece aqui.'
+      : 'Nada por aqui.'}</div>`;
+    return;
+  }
+  el.innerHTML = lista.map(card).join('');
+}
+
+function card(i){
+  const o = ORIGENS[i.origem] || {label:i.origem, cls:'bg-gray'};
+  const dados = i.dados || {};
+  const linhas = Object.keys(CAMPOS).filter(k => dados[k] && String(dados[k]).trim())
+    .map(k => `<div><dt>${CAMPOS[k]}</dt><dd>${escapeHtml(dados[k])}</dd></div>`).join('');
+  const acoes = i.status==='novo'
+    ? `<button class="btn btn-ghost btn-sm" onclick="setStatus('${i.id}','visto')">Marcar como vista</button>
+       <button class="btn btn-ghost btn-sm" onclick="setStatus('${i.id}','arquivado')">Arquivar</button>`
+    : i.status==='visto'
+      ? `<button class="btn btn-ghost btn-sm" onclick="setStatus('${i.id}','novo')">Voltar para novas</button>
+         <button class="btn btn-ghost btn-sm" onclick="setStatus('${i.id}','arquivado')">Arquivar</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="setStatus('${i.id}','visto')">Desarquivar</button>`;
+  return `<div class="nv-card st-${i.status}">
+    <div class="nv-hd">
+      <span class="badge ${o.cls}">${o.label}</span>
+      ${i.status==='novo'?'<span class="badge bg-amber">nova</span>':''}
+      <span class="nv-date">${fmtDate(i.created_at)}</span>
+    </div>
+    <div class="nv-title">${escapeHtml(i.titulo)}</div>
+    ${i.resumo?`<div class="nv-sum">${escapeHtml(i.resumo)}</div>`:''}
+    ${linhas?`<details class="nv-det"><summary>Ver respostas</summary><dl class="nv-dl">${linhas}</dl></details>`:''}
+    <div class="nv-ft">
+      ${i.link?`<a class="nv-link" href="${escapeHtml(i.link)}" target="_blank" rel="noopener">↗ Abrir no painel</a>`:'<span style="margin-right:auto"></span>'}
+      ${i.contact_id?`<a class="btn btn-ghost btn-sm" href="crm.html">Ver no CRM</a>`:''}
+      ${acoes}
+    </div>
+  </div>`;
+}
+
+async function setStatus(id, status){
+  const patch = {status, visto_em: status==='novo' ? null : new Date().toISOString()};
+  const {error} = await sb.from('novidades').update(patch).eq('id', id);
+  if(error){ showToast('Não consegui salvar. Tente de novo.', true); return }
+  Object.assign(itens.find(x=>x.id===id), patch);
+  showToast(status==='arquivado' ? 'Arquivada' : status==='visto' ? 'Marcada como vista' : 'Voltou para novas');
+  renderStats(); render(); atualizarContadorNovidades();
+}
+
+async function marcarTodasVistas(){
+  const ids = itens.filter(i=>i.status==='novo').map(i=>i.id);
+  if(!ids.length){ showToast('Nenhuma novidade nova'); return }
+  const agora = new Date().toISOString();
+  const {error} = await sb.from('novidades').update({status:'visto', visto_em:agora}).in('id', ids);
+  if(error){ showToast('Não consegui salvar. Tente de novo.', true); return }
+  itens.forEach(i=>{ if(ids.includes(i.id)){ i.status='visto'; i.visto_em=agora } });
+  showToast(`${ids.length} marcada(s) como vista(s)`);
+  renderStats(); render(); atualizarContadorNovidades();
+}
+</script>
+</body>
+</html>

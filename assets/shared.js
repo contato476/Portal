@@ -32,7 +32,17 @@ async function requireAdmin(onReady){
   if(nameEl) nameEl.textContent = name;
   if(avEl) avEl.textContent = name[0].toUpperCase();
   document.getElementById('app').style.display = 'block';
+  atualizarContadorNovidades();
   if(onReady) onReady();
+}
+
+// Contador vermelho de "Novidades" no menu (respostas novas dos formulários).
+// Se a tabela ainda não existir (sql/21 não rodado), simplesmente não mostra.
+async function atualizarContadorNovidades(){
+  try{
+    const {count, error} = await sb.from('novidades').select('id', {count:'exact', head:true}).eq('status','novo');
+    if(!error) setBadge('nav-novidades-count', count || 0);
+  }catch(e){ /* sem contador */ }
 }
 
 async function doLogout(){
@@ -43,6 +53,7 @@ async function doLogout(){
 // ──────────── SIDEBAR ────────────
 // ready:false → módulo ainda em construção (badge "em breve")
 const GESTAO_MODULES = [
+  {id:'novidades',   href:'novidades.html',   label:'Novidades',   ready:true, badge:true, icon:'<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9" stroke-width="1.8"/><path d="M10.3 21a1.94 1.94 0 003.4 0" stroke-width="1.8"/>'},
   {id:'gestao',      href:'gestao.html',      label:'Painel',      ready:true,  icon:'<rect x="3" y="3" width="7" height="7" rx="1.5" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke-width="1.8"/>'},
   {id:'projetos',    href:'projetos.html',    label:'Projetos',    ready:true, icon:'<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke-width="1.8"/>'},
   {id:'tarefas',     href:'tarefas.html',     label:'Tarefas',     ready:true, icon:'<path d="M9 11l3 3L22 4" stroke-width="1.8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.8"/>'},
@@ -62,7 +73,7 @@ function renderSidebar(activeId){
   if(!nav) return;
   const item = m => m.ready
     ? `<a class="nav-item${m.id===activeId?' active':''}" href="${m.href}">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${m.icon}</svg><span>${m.label}</span></a>`
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${m.icon}</svg><span>${m.label}</span>${m.badge?`<span class="nav-count" id="nav-${m.id}-count" style="display:none"></span>`:''}</a>`
     : `<div class="nav-item soon" title="Em construção">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${m.icon}</svg><span>${m.label}</span><span class="nav-soon">breve</span></div>`;
   nav.innerHTML = `
