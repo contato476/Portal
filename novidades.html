@@ -70,7 +70,7 @@
       <div class="stats-row">
         <div class="stat"><div class="stat-label">Novas</div><div class="stat-val" id="st-novas" style="color:#4ADE80">—</div><div class="stat-sub">ainda não vistas</div></div>
         <div class="stat"><div class="stat-label">Aplicações</div><div class="stat-val" id="st-aplic">—</div><div class="stat-sub">para a mentoria</div></div>
-        <div class="stat"><div class="stat-label">Masterclass</div><div class="stat-val" id="st-master">—</div><div class="stat-sub">respostas do formulário</div></div>
+        <div class="stat"><div class="stat-label">Desafio 21 dias</div><div class="stat-val" id="st-desafio">—</div><div class="stat-sub" id="st-desafio-sub">inscritas</div></div>
         <div class="stat"><div class="stat-label">Hoje</div><div class="stat-val" id="st-hoje">—</div><div class="stat-sub">chegaram hoje</div></div>
       </div>
 
@@ -103,6 +103,7 @@ const ORIGENS = {
   aplicacao:   {label:'Aplicação mentoria', cls:'bg-green'},
   masterclass: {label:'Masterclass',        cls:'bg-blue'},
   teste:       {label:'Teste da bio',       cls:'bg-amber'},
+  desafio:     {label:'Desafio 21 dias',    cls:'bg-purple'},
 };
 // Nomes amigáveis dos campos que vêm do formulário
 const CAMPOS = {
@@ -111,6 +112,8 @@ const CAMPOS = {
   valeu_a_pena:'Para valer a pena', quando_comecar:'Quando quer começar',
   o_que_tentou:'O que já tentou', onde_travou:'Onde travou',
   recomendacao:'Indicação do teste', uso:'IA na rotina', jeito:'Como prefere avançar', tempo:'Tempo por semana',
+  prioridade:'O que mais falta', tarefa_mais_tempo:'Tarefa que mais toma tempo', duvida_claude:'Dúvida sobre o Claude',
+  diagnostico:'Conversa de diagnóstico',
 };
 
 let itens = [];
@@ -142,7 +145,11 @@ function renderStats(){
   const hoje = todayISO();
   document.getElementById('st-novas').textContent  = itens.filter(i=>i.status==='novo').length;
   document.getElementById('st-aplic').textContent  = itens.filter(i=>i.origem==='aplicacao').length;
-  document.getElementById('st-master').textContent = itens.filter(i=>i.origem==='masterclass').length;
+  // Desafio: total de inscritas e quantas pediram a conversa de diagnóstico
+  const desafio = itens.filter(i=>i.origem==='desafio');
+  const conversas = desafio.filter(i=>(i.dados||{}).diagnostico==='Sim, quero a conversa').length;
+  document.getElementById('st-desafio').textContent = desafio.length;
+  document.getElementById('st-desafio-sub').textContent = `inscritas · ${conversas} ${conversas===1?'pediu':'pediram'} a conversa`;
   document.getElementById('st-hoje').textContent   = itens.filter(i=>isoLocal(i.created_at)===hoje).length;
 }
 function isoLocal(ts){
@@ -179,7 +186,7 @@ function render(){
   const el = document.getElementById('nv-list');
   if(!lista.length){
     el.innerHTML = `<div class="empty">${tab==='novo'
-      ? 'Nenhuma novidade nova. Quando chegar uma aplicação ou resposta da Masterclass, ela aparece aqui.'
+      ? 'Nenhuma novidade nova. Quando chegar uma aplicação, um teste da bio ou uma inscrição no desafio, ela aparece aqui.'
       : 'Nada por aqui.'}</div>`;
     return;
   }
