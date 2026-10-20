@@ -73,6 +73,9 @@ function ordenaPorPrazo(a,b){
 // Guarda a última configuração para os handlers inline dos cartões.
 let _kb = null;
 let _kbDragId = null;
+// Cartões com a lista de subtarefas aberta. Fica guardado enquanto a tela
+// está aberta, para a lista não fechar sozinha a cada recarga do quadro.
+const _kbAbertos = new Set();
 
 /* Desenha o quadro.
    cfg = {
@@ -84,6 +87,7 @@ let _kbDragId = null;
      revisionOf: (task_id) => ajuste | null   (opcional)
      onEdit    : (task_id) => abre o modal de edição da tela
      onNew     : (status)  => abre o modal de nova tarefa naquela coluna
+     onNewSub  : (task_id) => abre o modal de nova subtarefa (opcional)
      onChanged : ()        => recarrega os dados da tela
    } */
 function renderTaskKanban(cfg){
@@ -156,13 +160,44 @@ function kbTaskCard(t, hoje){
             ${PRIORITY_BADGE[t.priority||'media']||''}
             ${rev?`<span class="badge bg-amber" title="Pedido de ajuste do cliente">Ajuste #${rev.number||'?'}</span>`:''}
             ${rev&&rev.is_billable?'<span class="badge bg-red" title="Fora do escopo — é cobrável">fora do escopo</span>':''}
-            ${subs.length?`<span class="tk-sub">${feitas}/${subs.length} subtarefas</span>`:''}
+            ${subs.length?`<button type="button" class="tk-sub tk-sub-btn${_kbAbertos.has(t.id)?' open':''}" aria-expanded="${_kbAbertos.has(t.id)}"
+               title="${_kbAbertos.has(t.id)?'Esconder':'Ver'} as subtarefas" onclick="event.stopPropagation();kbAlternarLista('${t.id}')"><span class="seta">▶</span>${feitas}/${subs.length} subtarefas</button>`:''}
             <button class="play-btn" title="${rev?'Cronometrar este ajuste':'Cronometrar esta tarefa'}" style="margin-left:auto"
               onclick="event.stopPropagation();toggleTimer(${escapeHtml(JSON.stringify(alvo))})">▶</button>
           </div>
+          ${subs.length && _kbAbertos.has(t.id) ? kbListaSubs(t.id, subs, hoje) : ''}
         </div>
       </div>
     </div>`;
+}
+
+// Lista das subtarefas dentro do cartão: concluir pelo quadradinho e
+// abrir a subtarefa pelo título, sem sair do quadro.
+function kbListaSubs(paiId, subs, hoje){
+  return `<div class="tk-subs" onclick="event.stopPropagation()" ondragstart="event.stopPropagation()">
+    ${subs.map(s=>kbLinhaSub(s, hoje, 'kbAlternarFeita', 'kbEditar')).join('')}
+    ${_kb.onNewSub?`<button type="button" class="tk-subadd" onclick="kbNovaSub('${paiId}')">+ Adicionar subtarefa</button>`:''}
+  </div>`;
+}
+
+// Uma linha de subtarefa. Serve ao cartão e à janela da tarefa: muda só
+// a função chamada ao concluir e ao abrir.
+function kbLinhaSub(s, hoje, fnConcluir, fnAbrir){
+  const feita = s.status==='concluida';
+  const atrasada = s.due_date && s.due_date<hoje && !feita;
+  return `<div class="tk-subrow">
+    <button type="button" class="task-check${feita?' done':''}" title="${feita?'Reabrir':'Concluir'}"
+      aria-label="${feita?'Reabrir':'Concluir'}: ${escapeHtml(s.title)}" onclick="${fnConcluir}('${s.id}')">${feita?'✓':''}</button>
+    <div class="tk-subinfo">
+      <button type="button" class="tk-subtitle${feita?' done':''}" onclick="${fnAbrir}('${s.id}')">${escapeHtml(s.title)}</button>
+      ${s.due_date?`<span class="tk-subdate${atrasada?' late':''}">${atrasada?'venceu ':'prazo '}${fmtDateShort(s.due_date)}</span>`:''}
+    </div>
+  </div>`;
+}
+
+function kbAlternarLista(id){
+  _kbAbertos.has(id) ? _kbAbertos.delete(id) : _kbAbertos.add(id);
+  renderTaskKanban(_kb);
 }
 
 // ──────────── ARRASTAR E SOLTAR ────────────
@@ -213,3 +248,58 @@ async function kbSalvarStatus(id, status, aviso){
 // ──────────── PONTES PARA A TELA ────────────
 function kbEditar(id){ _kb.onEdit(id) }
 function kbNovaTarefa(status){ _kb.onNew(status) }
+function kbNovaSub(paiId){ _kb.onNewSub && _kb.onNewSub(paiId) }
+
+// ──────────── SUBTAREFAS NA JANELA DA TAREFA ────────────
+// A janela "Editar tarefa" das duas telas mostra as subtarefas da tarefa
+// principal, com o andamento. Concluir aqui grava na hora e não fecha a
+// janela, para quem está revisando a lista seguir marcando.
+/* cfg = {
+     subsOf : (task_id) => [subtarefas]
+     taskOf : (task_id) => tarefa
+     reload : async ()  => recarrega os dados da tela
+     onOpen : (task_id) => abre a subtarefa na mesma janela
+     onAdd  : (task_id) => abre a janela de nova subtarefa
+   }
+   paiId nulo esconde o bloco (tarefa nova, subtarefa ou ajuste). */
+let _kbJanela = null;
+function kbSubsNaJanela(paiId, cfg){
+  const box = document.getElementById('t-subs-box');
+  if(!box) return;
+  if(!paiId){ box.style.display = 'none'; _kbJanela = null; return }
+  _kbJanela = Object.assign({paiId}, cfg || (_kbJanela||{}));
+  const subs = _kbJanela.subsOf(paiId) || [];
+  const feitas = subs.filter(s=>s.status==='concluida').length;
+  const pct = subs.length ? Math.round(feitas/subs.length*100) : 0;
+  const hoje = todayISO();
+  box.style.display = '';
+  box.innerHTML = `
+    <div class="tsubs-hd">
+      <span class="tsubs-title">Subtarefas</span>
+      <span class="tsubs-count">${subs.length ? feitas+' de '+subs.length+' concluídas' : ''}</span>
+    </div>
+    ${subs.length ? `<div class="tsubs-track" role="img" aria-label="${pct}% concluído"><i style="width:${pct}%"></i></div>` : ''}
+    <div class="tsubs-list">
+      ${subs.length ? subs.map(s=>kbLinhaSub(s, hoje, 'kbJanelaConcluir', 'kbJanelaAbrir')).join('')
+                    : '<div class="tsubs-vazio">Nenhuma subtarefa ainda. Divida a tarefa em passos menores.</div>'}
+    </div>
+    <button type="button" class="tk-subadd" onclick="kbJanelaNova()">+ Adicionar subtarefa</button>`;
+}
+
+async function kbJanelaConcluir(id){
+  if(!_kbJanela) return;
+  const t = _kbJanela.taskOf(id);
+  if(!t) return;
+  const feita = t.status==='concluida';
+  const payload = feita ? {status:'pendente', completed_at:null}
+                        : {status:'concluida', completed_at:new Date().toISOString()};
+  const {error} = await sb.from('tasks').update(payload).eq('id', id);
+  if(error){ showToast('Erro: '+error.message, true); return }
+  showToast(feita ? 'Subtarefa reaberta' : 'Subtarefa concluída ✓');
+  if(!feita && typeof fireAutomation === 'function')
+    await fireAutomation('task.completed', {table:'tasks', id, row:{...t, status:'concluida'}});
+  await _kbJanela.reload();
+  kbSubsNaJanela(_kbJanela.paiId);
+}
+function kbJanelaAbrir(id){ _kbJanela && _kbJanela.onOpen(id) }
+function kbJanelaNova(){ _kbJanela && _kbJanela.onAdd(_kbJanela.paiId) }

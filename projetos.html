@@ -252,6 +252,8 @@
       <div class="form-group"><label class="form-label">Estimativa (minutos)</label><input type="number" min="0" step="15" class="form-input" id="t-estimate" placeholder="120"></div>
     </div>
     <div id="t-sub-note" class="note-box" style="display:none;margin-bottom:14px">Esta é uma <b>subtarefa</b>. O projeto acompanha a tarefa principal.</div>
+    <button type="button" class="tsubs-voltar" id="t-sub-back" style="display:none">← Voltar para a tarefa principal</button>
+    <div id="t-subs-box" class="tsubs" style="display:none"></div>
     <div id="t-rev-note" class="note-box warn" style="display:none;margin-bottom:14px"></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-task" style="margin-right:auto;display:none" onclick="deleteTask()">Excluir</button>
@@ -746,6 +748,7 @@ function renderKanbanTarefas(){
     revisionOf: id => revByTask[id] || null,
     onEdit    : id => openEditTask(id),
     onNew     : status => openNewTask('', null, status),
+    onNewSub  : id => openNewTask('', id),
     onChanged : () => loadAll(),
   });
 }
@@ -1400,6 +1403,8 @@ function openNewTask(projectId, parentId, status){
   document.getElementById('t-project').value =
     projectId || (aberto ? detailProjectId : '') || (doFiltro && doFiltro!=='__avulsas' ? doFiltro : '');
   document.getElementById('t-project').disabled = !!parentId;
+  document.getElementById('t-sub-back').style.display = 'none';
+  kbSubsNaJanela(null);
   openModal('modal-task');
 }
 
@@ -1431,6 +1436,17 @@ function openEditTask(id){
   document.getElementById('t-project').value  = t.project_id||'';
   document.getElementById('t-project').disabled = !!t.parent_task_id || !!rev;
   document.getElementById('t-estimate').value = t.estimate_minutes??'';
+  // Subtarefa: atalho de volta para a principal. Principal: a lista dela.
+  const volta = document.getElementById('t-sub-back');
+  volta.style.display = t.parent_task_id ? '' : 'none';
+  volta.onclick = () => openEditTask(t.parent_task_id);
+  kbSubsNaJanela(t.parent_task_id || rev ? null : id, {
+    subsOf: pid => subMap[pid] || [],
+    taskOf: tid => taskMap[tid],
+    reload: async () => { await loadAll(); if(detailProjectId) switchPTab('tarefas'); },
+    onOpen: openEditTask,
+    onAdd : pid => openNewTask('', pid),
+  });
   openModal('modal-task');
 }
 

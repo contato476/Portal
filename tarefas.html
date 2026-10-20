@@ -114,6 +114,8 @@
       </div>
     </div>
     <div id="t-sub-note" class="note-box" style="display:none;margin-bottom:14px">Esta é uma <b>subtarefa</b>. Ela acompanha o projeto da tarefa principal.</div>
+    <button type="button" class="tsubs-voltar" id="t-sub-back" style="display:none">← Voltar para a tarefa principal</button>
+    <div id="t-subs-box" class="tsubs" style="display:none"></div>
     <div id="t-rev-note" class="note-box warn" style="display:none;margin-bottom:14px"></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-task" style="margin-right:auto;display:none" onclick="deleteTask()">Excluir</button>
@@ -266,6 +268,7 @@ function renderKanban(){
     revisionOf: id => revByTask[id] || null,
     onEdit    : id => openEditTask(id),
     onNew     : status => openNewTask(status),
+    onNewSub  : id => openNewSubtask(id),
     onChanged : () => loadAll(),
   });
 }
@@ -432,6 +435,8 @@ function openNewTask(status){
   document.getElementById('t-project').value = document.getElementById('f-project').value || '';
   document.getElementById('t-project').disabled = false;
   document.getElementById('t-status').value = status || 'pendente';
+  document.getElementById('t-sub-back').style.display = 'none';
+  kbSubsNaJanela(null);
   openModal('modal-task');
 }
 
@@ -474,6 +479,17 @@ function openEditTask(id){
   document.getElementById('t-project').value = t.project_id||'';
   document.getElementById('t-project').disabled = !!t.parent_task_id || !!rev;
   document.getElementById('t-status').value = t.status;
+  // Subtarefa: atalho de volta para a principal. Principal: a lista dela.
+  const volta = document.getElementById('t-sub-back');
+  volta.style.display = t.parent_task_id ? '' : 'none';
+  volta.onclick = () => openEditTask(t.parent_task_id);
+  kbSubsNaJanela(t.parent_task_id || rev ? null : id, {
+    subsOf: pid => subMap[pid] || [],
+    taskOf: tid => taskById[tid],
+    reload: loadAll,
+    onOpen: openEditTask,
+    onAdd : openNewSubtask,
+  });
   openModal('modal-task');
 }
 

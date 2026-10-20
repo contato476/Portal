@@ -193,6 +193,42 @@ textarea.form-input{resize:vertical;min-height:80px}
 .tk-meta.late{color:var(--red)}
 .tk-foot{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap}
 .tk-sub{font-size:10.5px;color:var(--text3);background:var(--dark2);border-radius:20px;padding:2px 7px}
+/* Subtarefas dentro do cartão do kanban e na janela da tarefa */
+.tk-sub-btn{border:0;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;min-height:24px}
+.tk-sub-btn:hover{color:var(--text)}
+.tk-sub-btn .seta{display:inline-block;font-size:8px;transition:transform .15s}
+.tk-sub-btn.open .seta{transform:rotate(90deg)}
+.tk-sub-btn:focus-visible,.tk-subrow button:focus-visible,.tk-subadd:focus-visible,.tsubs-voltar:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+.tk-subs{margin-top:9px;padding-top:6px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:1px;cursor:default}
+.tk-subrow{display:flex;align-items:flex-start;gap:8px;padding:5px 3px;border-radius:6px}
+.tk-subrow:hover{background:rgba(255,255,255,.03)}
+button.task-check{background:none;padding:0;font-family:inherit}
+.tk-subrow .task-check{width:16px;height:16px;margin-top:1px}
+.tk-subinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.tk-subtitle{min-width:0;background:none;border:0;padding:0;text-align:left;color:var(--text2);font-family:inherit;font-size:12px;line-height:1.4;cursor:pointer;overflow-wrap:anywhere}
+.tk-subtitle:hover{color:var(--text)}
+.tk-subtitle.done{text-decoration:line-through;color:var(--text3)}
+.tk-subdate{font-size:10.5px;color:var(--text3);white-space:nowrap}
+.tk-subdate.late{color:var(--red)}
+.tk-subadd{align-self:flex-start;background:none;border:0;color:var(--green2);font-family:inherit;font-size:11.5px;cursor:pointer;padding:6px 3px}
+.tk-subadd:hover{text-decoration:underline}
+.tsubs{margin:2px 0 14px;padding:12px 14px;background:var(--dark3);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;gap:8px}
+.tsubs-hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tsubs-title{font-size:12px;font-weight:600;color:var(--text2)}
+.tsubs-count{font-size:11.5px;color:var(--text3)}
+.tsubs-track{height:5px;border-radius:3px;background:var(--dark2);overflow:hidden}
+.tsubs-track i{display:block;height:100%;background:var(--green2);transition:width .2s}
+.tsubs-list{display:flex;flex-direction:column;gap:1px;max-height:280px;overflow-y:auto}
+.tsubs .tk-subtitle{font-size:13px}
+.tsubs .tk-subdate{font-size:11.5px}
+.tsubs-vazio{font-size:12.5px;color:var(--text3);padding:4px 0}
+.tsubs-voltar{background:none;border:0;color:var(--green2);font-family:inherit;font-size:12.5px;cursor:pointer;padding:0;margin:-6px 0 14px}
+@media (max-width:640px){
+  .tk-subrow{padding:9px 3px}
+  .tk-subrow .task-check{width:20px;height:20px}
+  .tk-sub-btn{min-height:32px}
+  .tk-subadd{padding:10px 3px}
+}
 
 /* ─────────── TIMELINE (projetos) ─────────── */
 .timeline{overflow-x:auto;padding-bottom:8px}
