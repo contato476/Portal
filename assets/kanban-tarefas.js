@@ -118,7 +118,9 @@ function renderTaskKanban(cfg){
           ${ts.length>mostradas.length?`<div class="kb-more">+ ${ts.length-mostradas.length} mais</div>`:''}
         </div>
       </div>`;
-  }).join('');
+  }).join('') + `<div class="kb-col kb-diarias" id="kb-diarias">${kbColunaDiarias()}</div>`;
+
+  if(_kbDiarias===null) kbCarregarDiarias();
 }
 
 function kbTaskCard(t, hoje){
@@ -243,6 +245,111 @@ async function kbSalvarStatus(id, status, aviso){
   if(status==='concluida' && typeof fireAutomation === 'function')
     await fireAutomation('task.completed', {table:'tasks', id, row:{...t, status}});
   _kb.onChanged();
+}
+
+// ──────────── TAREFAS DIÁRIAS ────────────
+// Última coluna do quadro: o que precisa ser feito todo dia. É só um
+// lembrete, sem check e sem status, por isso não aceita arrastar tarefa
+// para cá. Mora na tabela tarefas_diarias (sql/33), carregada uma vez
+// por tela aberta; as recargas do quadro reaproveitam o que já veio.
+let _kbDiarias = null;         // null = ainda não carregou; {erro:true} = falhou
+let _kbDiariaEditando = null;  // id do lembrete em edição, ou 'nova'
+
+const KB_ICONE_REPETE = `<svg class="kd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>`;
+const KB_ICONE_EDITAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+const KB_ICONE_TIRAR  = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+
+async function kbCarregarDiarias(){
+  const {data, error} = await sb.from('tarefas_diarias')
+    .select('id,titulo,ordem')
+    .is('arquivado_em', null)
+    .order('ordem').order('created_at');
+  _kbDiarias = error ? {erro:true} : (data||[]);
+  kbRedesenharDiarias();
+}
+
+function kbRedesenharDiarias(){
+  const col = document.getElementById('kb-diarias');
+  if(col) col.innerHTML = kbColunaDiarias();
+  const campo = col && col.querySelector('.kd-input');
+  if(campo){ campo.focus(); campo.setSelectionRange(campo.value.length, campo.value.length) }
+}
+
+function kbColunaDiarias(){
+  const lista = Array.isArray(_kbDiarias) ? _kbDiarias : [];
+  let corpo;
+  if(_kbDiarias===null)     corpo = '<div class="kb-more">carregando…</div>';
+  else if(_kbDiarias.erro)  corpo = `<div class="kd-vazio">Não foi possível carregar os lembretes.
+                                       <button type="button" class="tk-subadd" onclick="kbCarregarDiarias()">Tentar de novo</button></div>`;
+  else {
+    corpo = (_kbDiariaEditando==='nova' ? kbFormDiaria('nova', '') : '')
+      + lista.map(d=> d.id===_kbDiariaEditando ? kbFormDiaria(d.id, d.titulo) : kbItemDiaria(d)).join('');
+    if(!lista.length && _kbDiariaEditando!=='nova')
+      corpo = `<div class="kd-vazio">Anote aqui o que precisa ser feito todo dia, para não esquecer.
+                 <button type="button" class="tk-subadd" onclick="kbDiariaNova()">+ Adicionar lembrete</button></div>`;
+  }
+  return `
+    <div class="kb-hd">
+      <div class="kb-dot" style="background:#60A5FA"></div>
+      <div class="kb-title" title="Lembretes de todo dia. Não precisam de check.">Tarefas diárias</div>
+      <div class="kb-sum">${lista.length||''}</div>
+      <button class="kb-add" title="Novo lembrete diário" aria-label="Novo lembrete diário" onclick="kbDiariaNova()">＋</button>
+    </div>
+    <div class="kb-body">${corpo}</div>`;
+}
+
+function kbItemDiaria(d){
+  return `
+    <div class="kd-item">
+      ${KB_ICONE_REPETE}
+      <span class="kd-txt">${escapeHtml(d.titulo)}</span>
+      <span class="kd-acoes">
+        <button type="button" class="kd-btn" title="Editar" aria-label="Editar: ${escapeHtml(d.titulo)}" onclick="kbDiariaEditar('${d.id}')">${KB_ICONE_EDITAR}</button>
+        <button type="button" class="kd-btn" title="Tirar da lista" aria-label="Tirar da lista: ${escapeHtml(d.titulo)}" onclick="kbDiariaTirar('${d.id}')">${KB_ICONE_TIRAR}</button>
+      </span>
+    </div>`;
+}
+
+function kbFormDiaria(id, titulo){
+  return `
+    <form class="kd-form" onsubmit="kbDiariaSalvar(event,'${id}')">
+      <label class="sr-only" for="kd-campo">Lembrete diário</label>
+      <input id="kd-campo" class="kd-input" maxlength="200" required value="${escapeHtml(titulo)}"
+             placeholder="Ex.: responder o direct do Instagram" onkeydown="if(event.key==='Escape')kbDiariaCancelar()">
+      <div class="kd-form-acoes">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="kbDiariaCancelar()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+      </div>
+    </form>`;
+}
+
+function kbDiariaNova(){ _kbDiariaEditando = 'nova'; kbRedesenharDiarias() }
+function kbDiariaEditar(id){ _kbDiariaEditando = id; kbRedesenharDiarias() }
+function kbDiariaCancelar(){ _kbDiariaEditando = null; kbRedesenharDiarias() }
+
+async function kbDiariaSalvar(e, id){
+  e.preventDefault();
+  const titulo = e.target.querySelector('.kd-input').value.trim();
+  if(!titulo){ showToast('Escreva o lembrete antes de salvar', true); return }
+  if(titulo.length>200){ showToast('O lembrete passa de 200 caracteres. Encurte um pouco.', true); return }
+  const lista = Array.isArray(_kbDiarias) ? _kbDiarias : [];
+  const {error} = id==='nova'
+    ? await sb.from('tarefas_diarias').insert({titulo, ordem: lista.reduce((m,d)=>Math.max(m,d.ordem), -1)+1})
+    : await sb.from('tarefas_diarias').update({titulo}).eq('id', id);
+  if(error){ showToast('Não foi possível salvar o lembrete', true); return }
+  showToast(id==='nova' ? 'Lembrete adicionado' : 'Lembrete salvo');
+  _kbDiariaEditando = null;
+  await kbCarregarDiarias();
+}
+
+// "Tirar" só arquiva: o lembrete sai do quadro, mas fica guardado no banco.
+async function kbDiariaTirar(id){
+  const d = (_kbDiarias||[]).find?.(x=>x.id===id);
+  if(!d || !confirm('Tirar "'+d.titulo+'" das tarefas diárias?')) return;
+  const {error} = await sb.from('tarefas_diarias').update({arquivado_em: new Date().toISOString()}).eq('id', id);
+  if(error){ showToast('Não foi possível tirar o lembrete', true); return }
+  showToast('Lembrete tirado da lista');
+  await kbCarregarDiarias();
 }
 
 // ──────────── PONTES PARA A TELA ────────────
