@@ -64,7 +64,7 @@ create table if not exists public.crm_deals (
   contact_id uuid references public.crm_contacts(id) on delete cascade,
   title text not null,
   value numeric(12,2) not null default 0,
-  stage text not null default 'novo' check (stage in ('novo','contato','proposta','negociacao','fechado','perdido')),
+  stage text not null default 'novo' check (stage in ('novo','contato','reuniao','proposta','negociacao','fechado','perdido')),
   expected_close date,
   project_id uuid references public.projects(id) on delete set null,
   notes text,

@@ -160,6 +160,7 @@
         <select class="form-input form-select" id="d-stage" onchange="toggleLossBlock()">
           <option value="novo">Novo</option>
           <option value="contato">Contato feito</option>
+          <option value="reuniao">Reunião agendada</option>
           <option value="proposta">Proposta enviada</option>
           <option value="negociacao">Em negociação</option>
           <option value="fechado">Fechado ✓</option>
@@ -198,7 +199,8 @@
 const STAGES = [
   {id:'novo',       label:'Novo',         color:'#8B949E'},
   {id:'contato',    label:'Contato',      color:'#60A5FA'},
-  {id:'proposta',   label:'Proposta',     color:'#E3B341'},
+  {id:'reuniao',    label:'Reunião agendada', color:'#2DD4BF'},
+  {id:'proposta',  label:'Proposta',     color:'#E3B341'},
   {id:'negociacao', label:'Negociação',   color:'#A78BFA'},
   {id:'fechado',    label:'Fechado',      color:'#4ADE80'},
   {id:'perdido',    label:'Perdido',      color:'#F85149'},
