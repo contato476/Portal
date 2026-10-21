@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Playbook · Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.pb button:focus-visible,.pb a:focus-visible,.pb input:focus-visible,.pb select:focus-visible,.pb textarea:focus-visible,.modal button:focus-visible,.modal input:focus-visible,.modal select:focus-visible,.modal textarea:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+button.dtab{background:none;border:none;border-bottom:2px solid transparent;font-family:inherit}
+.icon-btn{width:34px;height:34px;align-items:center;justify-content:center}
+.icon-btn:disabled{opacity:.3;cursor:default;background:none}
+.link-btn{background:none;border:none;color:var(--green2);font-family:inherit;font-size:12.5px;cursor:pointer;padding:6px 0;min-height:32px}
+.link-btn:hover{text-decoration:underline}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.f-err{font-size:11.5px;color:var(--red);margin-top:5px;min-height:0}
+.f-hint{font-size:11.5px;color:var(--text3);margin-top:5px}
+.form-input.invalid{border-color:var(--red)}
+
+/* ── Coluna de serviços + conteúdo (copys e jornadas) ── */
+.pb-wrap{display:grid;grid-template-columns:232px minmax(0,1fr);gap:20px;align-items:start}
+.pb-side{position:sticky;top:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px}
+.pb-side-hd{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);padding:8px 10px 6px}
+.pb-svc{display:flex;align-items:center;gap:9px;width:100%;min-height:40px;padding:8px 10px;border-radius:8px;background:none;border:1px solid transparent;color:var(--text2);font-family:inherit;font-size:13px;text-align:left;cursor:pointer;transition:all .15s}
+.pb-svc:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.pb-svc.on{background:rgba(26,122,74,.15);border-color:rgba(26,122,74,.3);color:var(--text);font-weight:500}
+.pb-svc .n{margin-left:auto;font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums}
+.pb-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.pb-tools .form-input{width:auto;min-width:128px;padding:8px 30px 8px 12px;font-size:12.5px}
+.pb-tools .busca{flex:1 1 200px;min-width:180px;padding-right:12px}
+.pb-count{font-size:12px;color:var(--text3);margin-bottom:12px}
+
+/* ── Copys ── */
+.cp-group{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:4px 0 10px}
+.cp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin-bottom:22px}
+.cp-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.cp-card.fix{border-color:rgba(34,160,96,.45);box-shadow:inset 3px 0 0 var(--green2)}
+.cp-card.arq{opacity:.75}
+.cp-hd{display:flex;align-items:center;gap:8px;min-height:24px}
+.cp-svc{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2)}
+.cp-hd .icon-btn{margin-left:auto;width:30px;height:30px}
+.icon-btn.pin.on{color:#4ADE80}
+.cp-title{font-size:15px;font-weight:600;color:var(--text);line-height:1.35;margin-top:-4px}
+.cp-tags{display:flex;gap:5px;flex-wrap:wrap}
+.cp-text{font-size:13.5px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-word;background:var(--dark3);border:1px solid rgba(255,255,255,.04);border-radius:9px;padding:12px 14px}
+.cp-text.clamp{max-height:186px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 65%,transparent);mask-image:linear-gradient(#000 65%,transparent)}
+.cp-more{align-self:flex-start;background:none;border:none;color:var(--text2);font-family:inherit;font-size:12px;cursor:pointer;padding:2px 0;min-height:28px;margin-top:-4px}
+.cp-more:hover{color:var(--text)}
+mark.ph{background:rgba(227,179,65,.16);color:#F2CC60;border-radius:4px;padding:0 3px}
+.cp-obs{font-size:12px;color:var(--text2);line-height:1.5;padding-left:10px;border-left:2px solid rgba(227,179,65,.5)}
+.cp-uso{font-size:11.5px;color:var(--text3)}
+.cp-ft{display:flex;gap:6px;align-items:center;margin-top:auto;padding-top:4px;flex-wrap:wrap}
+
+/* ── Jornadas ── */
+.jr-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.jr-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;display:flex;align-items:center;gap:10px}
+.jr-title .dot{width:10px;height:10px}
+.jr-sub{font-size:12.5px;color:var(--text2);margin-top:2px}
+.jr-steps{list-style:none}
+.jr-step{display:grid;grid-template-columns:38px minmax(0,1fr);gap:14px;position:relative;padding-bottom:16px}
+.jr-step:not(:last-child)::before{content:'';position:absolute;left:18px;top:40px;bottom:2px;width:2px;background:var(--border)}
+.jr-num{width:38px;height:38px;border-radius:50%;border:2px solid var(--svc,var(--green2));color:var(--text);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;background:var(--dark2);font-variant-numeric:tabular-nums}
+.jr-body{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.jr-hd{display:flex;align-items:flex-start;gap:8px}
+.jr-name{font-size:15.5px;font-weight:600;color:var(--text);line-height:1.35;flex:1;padding-top:6px}
+.jr-acts{display:flex;gap:2px;flex-shrink:0}
+.jr-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.jr-when{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.jr-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-top:8px;white-space:pre-wrap}
+.jr-copys{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.jr-copys-hd{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.jr-copy{background:var(--dark3);border-radius:9px;border:1px solid rgba(255,255,255,.04)}
+.jr-copy-row{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 4px}
+.jr-copy-t{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer;padding:6px;min-height:36px;border-radius:6px}
+.jr-copy-t .seta{font-size:9px;color:var(--text3);transition:transform .15s;flex-shrink:0}
+.jr-copy-t[aria-expanded="true"] .seta{transform:rotate(90deg)}
+.jr-copy-t small{display:block;color:var(--text3);font-size:11.5px;margin-top:1px}
+.jr-copy-txt{padding:0 12px 12px}
+.jr-copy-txt .cp-text{background:var(--dark2)}
+.jr-copy-txt .cp-obs{margin-top:8px}
+.jr-arq .jr-body{opacity:.6}
+
+/* ── Sistemas ── */
+.sy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
+.sy-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sy-hd{display:flex;align-items:flex-start;gap:10px}
+.sy-hd>div:first-child{flex:1;min-width:0}
+.sy-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;line-height:1.2}
+.sy-url{font-size:12px;color:#60A5FA;text-decoration:none;word-break:break-all}
+.sy-url:hover{text-decoration:underline}
+.sy-desc{font-size:13px;color:var(--text2);line-height:1.55}
+.sy-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sy-kpi{background:var(--dark3);border-radius:10px;padding:12px 14px;border:1px solid rgba(255,255,255,.04);text-decoration:none;color:inherit;display:block}
+a.sy-kpi:hover{border-color:var(--border2)}
+.sy-kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.sy-kpi .v{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px;color:var(--text)}
+.sy-kpi .v.alerta{color:var(--red)}
+.sy-kpi .s{font-size:11.5px;color:var(--text3);margin-top:2px}
+.sy-ft{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+
+/* ── Listas ── */
+.ls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;align-items:start}
+.ls-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.ls-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.ls-title{font-size:14px;font-weight:600}
+.ls-desc{font-size:12px;color:var(--text3);margin-top:2px}
+.ls-row{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 10px;border-radius:8px;min-height:42px}
+.ls-row:hover{background:rgba(255,255,255,.03)}
+.ls-row .nm{flex:1;min-width:0;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ls-row .icon-btn{width:32px;height:32px}
+@media (hover:hover){.ls-row .acts{opacity:.35;transition:opacity .15s}.ls-row:hover .acts,.ls-row:focus-within .acts{opacity:1}}
+.ls-row .acts{display:flex;gap:2px;flex-shrink:0}
+.ls-row .us{font-size:11px;color:var(--text3);white-space:nowrap}
+.ls-row.arq .nm{color:var(--text3);text-decoration:line-through}
+.ls-sep{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:10px 0 4px 10px}
+
+/* ── Modais ── */
+.modal-lg{width:720px}
+.modal-sm{width:420px}
+.cf-text{font-size:13.5px;color:var(--text2);line-height:1.6}
+.ck-list{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--dark3)}
+.ck-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;color:var(--text)}
+.ck-row:last-child{border-bottom:none}
+.ck-row:hover{background:rgba(255,255,255,.03)}
+.ck-row input{margin-top:3px;accent-color:var(--green2);width:16px;height:16px;flex-shrink:0}
+.ck-row small{display:block;font-size:11.5px;color:var(--text3);margin-top:2px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.swatch.on{border-color:var(--text)}
+.hist{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.hist summary{font-size:12.5px;color:var(--text2);cursor:pointer;min-height:30px;display:flex;align-items:center}
+.hist ul{list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
+.hist li{font-size:12.5px;color:var(--text2)}
+.hist .em{color:var(--text3);font-variant-numeric:tabular-nums;margin-right:6px}
+
+@media (max-width:900px){
+  .pb-wrap{grid-template-columns:1fr;gap:12px}
+  .pb-side{position:static;display:flex;gap:6px;overflow-x:auto;padding:6px}
+  .pb-side-hd{display:none}
+  .pb-svc{width:auto;flex-shrink:0;white-space:nowrap}
+  .pb-svc .n{margin-left:6px}
+}
+@media (max-width:640px){
+  .main-content{padding:16px}
+  .topbar{padding:12px 16px}
+  .cp-grid,.sy-grid,.ls-grid{grid-template-columns:1fr}
+  .pb-tools .form-input{flex:1 1 45%;min-width:0}
+  .pb-tools .busca{flex-basis:100%}
+  .btn-sm{min-height:40px;padding:6px 12px}
+  .icon-btn{width:40px;height:40px}
+  .jr-step{grid-template-columns:30px minmax(0,1fr);gap:10px}
+  .jr-num{width:30px;height:30px;font-size:12.5px}
+  .jr-step:not(:last-child)::before{left:14px;top:32px}
+  .sy-kpis{grid-template-columns:1fr 1fr}
+  .modal{padding:20px}
+  .top-lbl{display:none}
+  #top-actions .btn{min-height:40px;padding:8px 12px}
+  .jr-hd{flex-wrap:wrap}
+  .jr-name{flex-basis:100%;padding-top:0}
+  .jr-acts{margin-left:-8px}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Playbook</div>
+      <div id="top-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </div>
+    <div class="main-content pb">
+
+      <div class="tabs-row" id="pb-tabs" role="tablist" aria-label="Seções do Playbook">
+        <button class="dtab active" role="tab" data-tab="copys" aria-selected="true" aria-controls="view-copys" onclick="setTab('copys')">Copys</button>
+        <button class="dtab" role="tab" data-tab="jornadas" aria-selected="false" aria-controls="view-jornadas" onclick="setTab('jornadas')">Jornadas</button>
+        <button class="dtab" role="tab" data-tab="sistemas" aria-selected="false" aria-controls="view-sistemas" onclick="setTab('sistemas')">Sistemas</button>
+        <button class="dtab" role="tab" data-tab="listas" aria-selected="false" aria-controls="view-listas" onclick="setTab('listas')">Listas</button>
+      </div>
+
+      <!-- COPYS -->
+      <section class="dtab-view active" id="view-copys" role="tabpanel">
+        <div class="pb-wrap">
+          <nav class="pb-side" id="cp-side" aria-label="Filtrar copys por serviço"></nav>
+          <div>
+            <div class="pb-tools">
+              <label class="sr-only" for="cp-q">Buscar copy</label>
+              <input class="form-input busca" id="cp-q" type="search" placeholder="Buscar no título, texto ou observação..." oninput="cpLimite=PAGINA;renderCopyList()">
+              <label class="sr-only" for="cp-canal">Canal</label>
+              <select class="form-input form-select" id="cp-canal" onchange="cpLimite=PAGINA;renderCopyList()"></select>
+              <label class="sr-only" for="cp-momento">Momento</label>
+              <select class="form-input form-select" id="cp-momento" onchange="cpLimite=PAGINA;renderCopyList()"></select>
+              <label class="sr-only" for="cp-tipo">Tipo</label>
+              <select class="form-input form-select" id="cp-tipo" onchange="cpLimite=PAGINA;renderCopyList()"></select>
+              <label class="sr-only" for="cp-status">Mostrar</label>
+              <select class="form-input form-select" id="cp-status" onchange="cpLimite=PAGINA;renderCopyList()">
+                <option value="ativas">Em uso</option>
+                <option value="arquivadas">Arquivadas</option>
+              </select>
+            </div>
+            <div id="cp-list"><div class="loading">Carregando...</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- JORNADAS -->
+      <section class="dtab-view" id="view-jornadas" role="tabpanel">
+        <div class="pb-wrap">
+          <nav class="pb-side" id="jr-side" aria-label="Escolher serviço"></nav>
+          <div id="jr-main"><div class="loading">Carregando...</div></div>
+        </div>
+      </section>
+
+      <!-- SISTEMAS -->
+      <section class="dtab-view" id="view-sistemas" role="tabpanel">
+        <div id="sy-list"><div class="loading">Carregando...</div></div>
+      </section>
+
+      <!-- LISTAS -->
+      <section class="dtab-view" id="view-listas" role="tabpanel">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Os serviços e as opções que aparecem nas copys e nas jornadas. Um item em uso não pode ser excluído, só arquivado.</p>
+        <div class="ls-grid" id="ls-grid"><div class="loading">Carregando...</div></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Modal: copy -->
+<div class="overlay" id="modal-copy">
+  <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="cp-m-title">
+    <div class="modal-title" id="cp-m-title">Nova copy</div>
+    <div class="form-group">
+      <label class="form-label" for="f-cp-titulo">Título *</label>
+      <input class="form-input" id="f-cp-titulo" maxlength="120" placeholder="Ex.: Privado para as mais quentes do grupo" oninput="limparErro('f-cp-titulo')">
+      <div class="f-err" id="err-f-cp-titulo" role="alert"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" for="f-cp-servico">Serviço</label><select class="form-input form-select" id="f-cp-servico"></select></div>
+      <div class="form-group"><label class="form-label" for="f-cp-canal">Canal</label><select class="form-input form-select" id="f-cp-canal"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" for="f-cp-momento">Momento</label><select class="form-input form-select" id="f-cp-momento"></select></div>
+      <div class="form-group"><label class="form-label" for="f-cp-tipo">Tipo</label><select class="form-input form-select" id="f-cp-tipo"></select></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-cp-texto">Texto *</label>
+      <textarea class="form-input" id="f-cp-texto" rows="10" maxlength="10000" oninput="limparErro('f-cp-texto');contarTexto()"></textarea>
+      <div class="f-hint"><span>Escreva entre colchetes o que muda a cada envio, como [nome]. Na tela fica destacado para você lembrar de trocar.</span> <span id="cp-cont" style="float:right"></span></div>
+      <div class="f-err" id="err-f-cp-texto" role="alert"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-cp-obs">Como usar</label>
+      <textarea class="form-input" id="f-cp-obs" rows="2" maxlength="2000" placeholder="Ex.: mandar um ou dois dias depois do post, uma a uma, nunca por lista"></textarea>
+    </div>
+    <details class="hist" id="cp-hist-wrap" ontoggle="if(this.open)carregarHistorico('pb_copys',editCopyId,'cp-hist')">
+      <summary>Histórico de alterações</summary><ul id="cp-hist"></ul>
+    </details>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-copy')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-copy" onclick="salvarCopy()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: etapa da jornada -->
+<div class="overlay" id="modal-etapa">
+  <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="et-m-title">
+    <div class="modal-title" id="et-m-title">Nova etapa</div>
+    <div class="form-group">
+      <label class="form-label" for="f-et-titulo">Nome da etapa *</label>
+      <input class="form-input" id="f-et-titulo" maxlength="120" placeholder="Ex.: Chamar no privado" oninput="limparErro('f-et-titulo')">
+      <div class="f-err" id="err-f-et-titulo" role="alert"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" for="f-et-quando">Quando</label><input class="form-input" id="f-et-quando" maxlength="120" placeholder="Ex.: 1 ou 2 dias depois do post"></div>
+      <div class="form-group"><label class="form-label" for="f-et-crm">Etapa no CRM</label><select class="form-input form-select" id="f-et-crm"></select></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-et-desc">O que fazer</label>
+      <textarea class="form-input" id="f-et-desc" rows="4" maxlength="4000"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-et-busca">Copys desta etapa</label>
+      <input class="form-input" id="f-et-busca" type="search" placeholder="Buscar copy..." oninput="filtrarChecklist()" style="margin-bottom:8px">
+      <div class="ck-list" id="f-et-copys"></div>
+      <div class="f-hint">Aparecem as copys deste serviço e as gerais.</div>
+    </div>
+    <details class="hist" id="et-hist-wrap" ontoggle="if(this.open)carregarHistorico('pb_etapas',editEtapaId,'et-hist')">
+      <summary>Histórico de alterações</summary><ul id="et-hist"></ul>
+    </details>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-etapa')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-etapa" onclick="salvarEtapa()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: sistema -->
+<div class="overlay" id="modal-sistema">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sy-m-title">
+    <div class="modal-title" id="sy-m-title">Adicionar sistema</div>
+    <div class="form-group">
+      <label class="form-label" for="f-sy-nome">Nome *</label>
+      <input class="form-input" id="f-sy-nome" maxlength="80" oninput="limparErro('f-sy-nome')">
+      <div class="f-err" id="err-f-sy-nome" role="alert"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-sy-url">Link *</label>
+      <input class="form-input" id="f-sy-url" type="url" inputmode="url" placeholder="https://..." oninput="limparErro('f-sy-url')">
+      <div class="f-err" id="err-f-sy-url" role="alert"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-sy-desc">Para que serve</label>
+      <textarea class="form-input" id="f-sy-desc" rows="2" maxlength="500"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-sy-ind">Números no card</label>
+      <select class="form-input form-select" id="f-sy-ind">
+        <option value="">Nenhum, só o atalho</option>
+        <option value="mentoria">Portal da mentoria (mentoradas, Clube, check-ins, tarefas)</option>
+        <option value="maosnaia">Mãos na IA (aplicações, desafio, teste da bio)</option>
+      </select>
+    </div>
+    <details class="hist" id="sy-hist-wrap" ontoggle="if(this.open)carregarHistorico('pb_sistemas',editSistemaId,'sy-hist')">
+      <summary>Histórico de alterações</summary><ul id="sy-hist"></ul>
+    </details>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-sistema')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-sistema" onclick="salvarSistema()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: item de lista (serviço, canal, momento, tipo) -->
+<div class="overlay" id="modal-item">
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="it-m-title">
+    <div class="modal-title" id="it-m-title">Novo item</div>
+    <div class="form-group">
+      <label class="form-label" for="f-it-nome">Nome *</label>
+      <input class="form-input" id="f-it-nome" maxlength="80" oninput="limparErro('f-it-nome')" onkeydown="if(event.key==='Enter')salvarItem()">
+      <div class="f-err" id="err-f-it-nome" role="alert"></div>
+    </div>
+    <div class="form-group" id="f-it-cor-wrap">
+      <span class="form-label">Cor</span>
+      <div class="swatches" id="f-it-cores" role="radiogroup" aria-label="Cor do serviço"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-item')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-item" onclick="salvarItem()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: confirmação -->
+<div class="overlay" id="modal-confirm">
+  <div class="modal modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="cf-title" aria-describedby="cf-text">
+    <div class="modal-title" id="cf-title"></div>
+    <p class="cf-text" id="cf-text"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cf-no">Cancelar</button>
+      <button class="btn btn-danger" id="cf-yes">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+// Etapas do funil do CRM (mesma ordem e cores do crm.html)
+const CRM_ETAPAS = [
+  {id:'novo',       label:'Novo',             cor:'#8B949E'},
+  {id:'contato',    label:'Contato',          cor:'#60A5FA'},
+  {id:'reuniao',    label:'Reunião agendada', cor:'#2DD4BF'},
+  {id:'proposta',   label:'Proposta',         cor:'#E3B341'},
+  {id:'negociacao', label:'Negociação',       cor:'#A78BFA'},
+  {id:'fechado',    label:'Fechado',          cor:'#4ADE80'},
+  {id:'perdido',    label:'Perdido',          cor:'#F85149'},
+];
+const CORES = ['#22A060','#2DD4BF','#60A5FA','#A78BFA','#F472B6','#E3B341','#FB923C','#F85149','#8B949E'];
+const LISTAS = [
+  {k:'servico', t:'Serviços', d:'Organizam as copys e as jornadas.'},
+  {k:'canal',   t:'Canais',   d:'Onde a copy é usada.'},
+  {k:'momento', t:'Momentos', d:'Em que ponto da conversa.'},
+  {k:'tipo',    t:'Tipos',    d:'O formato da mensagem.'},
+];
+const PAGINA = 24;
+
+// Ícones (Lucide)
+const ICON = {
+  copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  pin:'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V7a1 1 0 011-1 2 2 0 000-4H8a2 2 0 000 4 1 1 0 011 1z"/>',
+  pencil:'<path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/>',
+  archive:'<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><path d="M10 12h4"/>',
+  undo:'<path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
+  ext:'<path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  up:'<path d="M18 15l-6-6-6 6"/>',
+  down:'<path d="M6 9l6 6 6-6"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+};
+function ic(n, t=15){ return `<svg width="${t}" height="${t}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>` }
+
+let servicos=[], opcoes=[], copys=[], etapas=[], etapaCopys=[], sistemas=[];
+let tab = 'copys';
+let cpServico = 'todos';        // 'todos' | 'gerais' | id do serviço
+let cpLimite = PAGINA;
+let jrServico = null;
+let jrVerArquivadas = false;
+let editCopyId=null, editEtapaId=null, editSistemaId=null, editItem=null, corEscolhida=CORES[0];
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('playbook'); requireAdmin(init); });
+// Esc fecha a janela aberta
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open')) });
+
+async function init(){
+  const h = location.hash.slice(1);
+  setTab(['copys','jornadas','sistemas','listas'].includes(h) ? h : 'copys');
+  await loadAll();
+}
+
+async function loadAll(){
+  const rs = await Promise.all([
+    sb.from('pb_servicos').select('*').order('ordem').order('created_at'),
+    sb.from('pb_opcoes').select('*').order('ordem').order('created_at'),
+    sb.from('pb_copys').select('*').order('updated_at', {ascending:false}),
+    sb.from('pb_etapas').select('*').order('ordem').order('created_at'),
+    sb.from('pb_etapa_copys').select('*').order('ordem'),
+    sb.from('pb_sistemas').select('*').order('ordem').order('created_at'),
+  ]);
+  const erro = rs.find(r=>r.error)?.error;
+  if(erro){
+    const msg = isMissingTable(erro)
+      ? 'As tabelas do Playbook ainda não existem. Rode o <b>sql/32_playbook.sql</b> no SQL Editor do Supabase.'
+      : 'Não consegui carregar o Playbook. <button class="link-btn" onclick="loadAll()">Tentar de novo</button>';
+    ['cp-list','jr-main','sy-list','ls-grid'].forEach(id => document.getElementById(id).innerHTML = `<div class="empty">${msg}</div>`);
+    return;
+  }
+  [servicos, opcoes, copys, etapas, etapaCopys, sistemas] = rs.map(r=>r.data||[]);
+  if(!servicosAtivos().some(s=>s.id===jrServico)) jrServico = servicosAtivos()[0]?.id || null;
+  renderAll();
+}
+function renderAll(){ preencherFiltros(); renderCopys(); renderJornadas(); renderSistemas(); renderListas(); }
+
+// ──────────── ABAS ────────────
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('#pb-tabs .dtab').forEach(el=>{
+    const on = el.dataset.tab===t;
+    el.classList.toggle('active', on); el.setAttribute('aria-selected', on);
+  });
+  document.querySelectorAll('.dtab-view').forEach(v=>v.classList.toggle('active', v.id==='view-'+t));
+  history.replaceState(null, '', '#'+t);
+  const acoes = {
+    copys:    `<button class="btn btn-primary" aria-label="Nova copy" onclick="abrirCopy()">${ic('plus')}<span class="top-lbl">Nova copy</span></button>`,
+    jornadas: `<button class="btn btn-primary" aria-label="Nova etapa" onclick="abrirEtapa()">${ic('plus')}<span class="top-lbl">Nova etapa</span></button>`,
+    sistemas: `<button class="btn btn-primary" aria-label="Adicionar sistema" onclick="abrirSistema()">${ic('plus')}<span class="top-lbl">Adicionar sistema</span></button>`,
+    listas:   '',
+  };
+  document.getElementById('top-actions').innerHTML = acoes[t];
+}
+
+// ──────────── APOIO ────────────
+const servicosAtivos = () => servicos.filter(s=>!s.arquivado_em);
+const servicoDe = id => servicos.find(s=>s.id===id);
+const nomeOpcao = id => opcoes.find(o=>o.id===id)?.nome || '';
+const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const val = id => document.getElementById(id).value;
+const plural = (n, um, varios) => `${n} ${n===1?um:varios}`;
+// Destaca os campos entre colchetes, como [nome]
+function marcarCampos(t){ return escapeHtml(t).replace(/\[([^\[\]\n]{1,120})\]/g, '<mark class="ph">[$1]</mark>') }
+function msgErro(error, padrao='Não consegui salvar. Tente de novo.'){
+  if(error?.code==='23503') return 'Está em uso. Arquive em vez de excluir.';
+  if(error?.code==='23514') return 'Algum campo passou do limite. Confira e tente de novo.';
+  return padrao;
+}
+function setErro(id, msg){
+  document.getElementById(id).classList.add('invalid');
+  document.getElementById('err-'+id).textContent = msg;
+}
+function limparErro(id){
+  document.getElementById(id).classList.remove('invalid');
+  document.getElementById('err-'+id).textContent = '';
+}
+// Opções de um select: as ativas e, se for o caso, a atual mesmo arquivada
+function opcoesSelect(itens, atual, vazio){
+  const lista = itens.filter(i=>!i.arquivado_em || i.id===atual);
+  return `<option value="">${vazio}</option>` + lista.map(i=>`<option value="${i.id}"${i.id===atual?' selected':''}>${escapeHtml(i.nome)}${i.arquivado_em?' (arquivado)':''}</option>`).join('');
+}
+function askConfirm(titulo, texto, ok='Excluir'){
+  return new Promise(res=>{
+    document.getElementById('cf-title').textContent = titulo;
+    document.getElementById('cf-text').textContent = texto;
+    const yes = document.getElementById('cf-yes'), no = document.getElementById('cf-no');
+    yes.textContent = ok;
+    const fim = v => { closeModal('modal-confirm'); yes.onclick = no.onclick = null; res(v) };
+    yes.onclick = () => fim(true); no.onclick = () => fim(false);
+    openModal('modal-confirm'); no.focus();
+  });
+}
+async function copiarTexto(t){
+  try{ await navigator.clipboard.writeText(t); return true }
+  catch(e){
+    // Plano B para navegador que bloqueia a área de transferência
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove(); return ok;
+  }
+}
+async function copiar(id){
+  const c = copys.find(x=>x.id===id); if(!c) return;
+  const ok = await copiarTexto(c.texto);
+  if(!ok){ showToast('Não consegui copiar. Selecione o texto e copie manualmente.', true); return }
+  showToast(/\[[^\]]+\]/.test(c.texto) ? 'Copiado. Lembre de trocar o que está entre colchetes.' : 'Copiado');
+}
+function fmtDataHora(ts){
+  return new Date(ts).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function addDias(iso, n){
+  const d = new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// Reordena uma lista e grava só o que mudou de posição
+async function gravarOrdem(tabela, lista){
+  const mudou = lista.map((x,i)=>({x,i})).filter(({x,i})=>x.ordem!==i);
+  mudou.forEach(({x,i})=>x.ordem=i);
+  const rs = await Promise.all(mudou.map(({x,i})=>sb.from(tabela).update({ordem:i}).eq('id',x.id)));
+  return !rs.some(r=>r.error);
+}
+
+// ──────────── HISTÓRICO ────────────
+const CAMPOS_HIST = {titulo:'título', texto:'texto', observacao:'como usar', servico_id:'serviço', canal_id:'canal', momento_id:'momento',
+  tipo_id:'tipo', fixada:'fixada', quando:'quando', descricao:'descrição', crm_stage:'etapa do CRM', ordem:'ordem', nome:'nome',
+  cor:'cor', url:'link', indicador:'números'};
+function descreverHist(h){
+  if(h.acao==='insert') return 'criou';
+  if(h.acao==='delete') return 'excluiu';
+  const a = h.antes||{}, d = h.depois||{};
+  if(!a.arquivado_em && d.arquivado_em) return 'arquivou';
+  if(a.arquivado_em && !d.arquivado_em) return 'restaurou';
+  const mud = Object.keys(CAMPOS_HIST).filter(k=>JSON.stringify(a[k])!==JSON.stringify(d[k]));
+  return mud.length ? 'alterou ' + mud.map(k=>CAMPOS_HIST[k]).join(', ') : 'salvou sem mudanças';
+}
+async function carregarHistorico(tabela, id, elId){
+  const el = document.getElementById(elId);
+  if(!id){ el.innerHTML = ''; return }
+  el.innerHTML = '<li>Carregando...</li>';
+  const {data, error} = await sb.from('pb_historico').select('em,acao,antes,depois')
+    .eq('tabela',tabela).eq('registro_id',id).order('em',{ascending:false}).limit(30);
+  if(error){ el.innerHTML = '<li>Não consegui carregar o histórico.</li>'; return }
+  el.innerHTML = data.length
+    ? data.map(h=>`<li><span class="em">${fmtDataHora(h.em)}</span>${descreverHist(h)}</li>`).join('')
+    : '<li>Sem alterações registradas.</li>';
+}
+function prepararHistorico(wrapId, listaId, temId){
+  const w = document.getElementById(wrapId);
+  w.open = false; w.style.display = temId ? '' : 'none';
+  document.getElementById(listaId).innerHTML = '';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// COPYS
+// ════════════════════════════════════════════════════════════════════
+function preencherFiltros(){
+  const sel = (id, lista, vazio) => {
+    const el = document.getElementById(id), atual = el.value;
+    el.innerHTML = `<option value="">${vazio}</option>` + opcoes.filter(o=>o.lista===lista && !o.arquivado_em)
+      .map(o=>`<option value="${o.id}">${escapeHtml(o.nome)}</option>`).join('');
+    el.value = atual;
+    if(el.value!==atual) el.value = '';
+  };
+  sel('cp-canal','canal','Todos os canais');
+  sel('cp-momento','momento','Todos os momentos');
+  sel('cp-tipo','tipo','Todos os tipos');
+}
+function setCpServico(id){ cpServico = id; cpLimite = PAGINA; renderCopys(); }
+function renderCopys(){ renderCopySide(); renderCopyList(); }
+
+function renderCopySide(){
+  const ativas = copys.filter(c=>!c.arquivado_em);
+  const item = (id, nome, cor, n) => `<button class="pb-svc${cpServico===id?' on':''}" aria-pressed="${cpServico===id}" onclick="setCpServico('${id}')">
+    ${cor?`<span class="dot" style="background:${cor}"></span>`:''}<span>${escapeHtml(nome)}</span><span class="n">${n}</span></button>`;
+  document.getElementById('cp-side').innerHTML = '<div class="pb-side-hd">Serviços</div>'
+    + item('todos', 'Todas as copys', null, ativas.length)
+    + servicosAtivos().map(s=>item(s.id, s.nome, s.cor, ativas.filter(c=>c.servico_id===s.id).length)).join('')
+    + item('gerais', 'Gerais', '#6E7681', ativas.filter(c=>!c.servico_id).length);
+}
+
+function copysFiltradas(){
+  const q = norm(val('cp-q').trim()), canal = val('cp-canal'), momento = val('cp-momento'), tipo = val('cp-tipo');
+  const arquivadas = val('cp-status')==='arquivadas';
+  return copys.filter(c=>{
+    if(arquivadas !== !!c.arquivado_em) return false;
+    if(cpServico==='gerais' && c.servico_id) return false;
+    if(cpServico!=='todos' && cpServico!=='gerais' && c.servico_id!==cpServico) return false;
+    if(canal && c.canal_id!==canal) return false;
+    if(momento && c.momento_id!==momento) return false;
+    if(tipo && c.tipo_id!==tipo) return false;
+    if(q && !norm(c.titulo+' '+c.texto+' '+(c.observacao||'')).includes(q)) return false;
+    return true;
+  }).sort((a,b)=>(b.fixada-a.fixada) || (new Date(b.updated_at)-new Date(a.updated_at)));
+}
+
+function renderCopyList(){
+  const el = document.getElementById('cp-list');
+  const lista = copysFiltradas();
+  const arquivadas = val('cp-status')==='arquivadas';
+  if(!lista.length){
+    const filtrando = val('cp-q') || val('cp-canal') || val('cp-momento') || val('cp-tipo') || cpServico!=='todos';
+    el.innerHTML = arquivadas
+      ? '<div class="empty">Nenhuma copy arquivada aqui.</div>'
+      : filtrando
+        ? '<div class="empty">Nenhuma copy com esses filtros.<br><button class="link-btn" onclick="limparFiltros()">Limpar filtros</button></div>'
+        : `<div class="empty">Nenhuma copy ainda. Guarde aqui as mensagens que você repete, separadas por serviço, canal e momento.<br><br><button class="btn btn-primary" onclick="abrirCopy()">${ic('plus')} Cadastrar a primeira</button></div>`;
+    return;
+  }
+  const vis = lista.slice(0, cpLimite);
+  const fixadas = arquivadas ? [] : vis.filter(c=>c.fixada);
+  const outras = vis.filter(c=>!fixadas.includes(c));
+  let html = `<div class="pb-count">${plural(lista.length,'copy','copys')}</div>`;
+  if(fixadas.length) html += `<div class="cp-group">Fixadas</div><div class="cp-grid">${fixadas.map(copyCard).join('')}</div>`;
+  if(outras.length) html += (fixadas.length?'<div class="cp-group">Demais copys</div>':'') + `<div class="cp-grid">${outras.map(copyCard).join('')}</div>`;
+  if(lista.length > cpLimite) html += `<div style="text-align:center"><button class="btn btn-ghost" onclick="cpLimite+=PAGINA;renderCopyList()">Mostrar mais (${lista.length-cpLimite})</button></div>`;
+  el.innerHTML = html;
+}
+
+function limparFiltros(){
+  ['cp-q','cp-canal','cp-momento','cp-tipo'].forEach(id=>document.getElementById(id).value='');
+  cpServico = 'todos'; cpLimite = PAGINA; renderCopys();
+}
+
+// Em quais jornadas a copy aparece
+function usoNasJornadas(copyId){
+  return etapaCopys.filter(x=>x.copy_id===copyId)
+    .map(x=>etapas.find(e=>e.id===x.etapa_id)).filter(e=>e && !e.arquivado_em)
+    .map(e=>e.titulo);
+}
+
+function copyCard(c){
+  const s = servicoDe(c.servico_id);
+  const tags = [c.canal_id, c.momento_id, c.tipo_id].map(nomeOpcao).filter(Boolean);
+  const longo = c.texto.length > 320 || c.texto.split('\n').length > 8;
+  const usos = usoNasJornadas(c.id);
+  const fixLabel = c.fixada ? 'Desafixar' : 'Fixar no topo';
+  return `<article class="cp-card${c.fixada&&!c.arquivado_em?' fix':''}${c.arquivado_em?' arq':''}">
+    <div class="cp-hd">
+      <span class="cp-svc"><span class="dot" style="background:${s?.cor||'#6E7681'}"></span>${escapeHtml(s?.nome||'Geral')}</span>
+      ${c.arquivado_em ? '' : `<button class="icon-btn pin${c.fixada?' on':''}" onclick="toggleFixar('${c.id}')" aria-label="${fixLabel}" aria-pressed="${c.fixada}" title="${fixLabel}">${ic('pin',14)}</button>`}
+    </div>
+    <h3 class="cp-title">${escapeHtml(c.titulo)}</h3>
+    ${tags.length?`<div class="cp-tags">${tags.map(t=>`<span class="badge bg-gray">${escapeHtml(t)}</span>`).join('')}</div>`:''}
+    <div class="cp-text${longo?' clamp':''}" id="cpt-${c.id}">${marcarCampos(c.texto)}</div>
+    ${longo?`<button class="cp-more" aria-expanded="false" aria-controls="cpt-${c.id}" onclick="expandir('${c.id}',this)">Ver texto inteiro</button>`:''}
+    ${c.observacao?`<div class="cp-obs">${escapeHtml(c.observacao)}</div>`:''}
+    ${usos.length?`<div class="cp-uso">Na jornada: ${usos.map(escapeHtml).join(', ')}</div>`:''}
+    <div class="cp-ft">
+      ${c.arquivado_em
+        ? `<button class="btn btn-ghost btn-sm" onclick="arquivarCopy('${c.id}',false)">${ic('undo',14)} Restaurar</button>
+           <button class="btn btn-danger btn-sm" onclick="excluirCopy('${c.id}')">${ic('trash',14)} Excluir de vez</button>`
+        : `<button class="btn btn-primary btn-sm" onclick="copiar('${c.id}')">${ic('copy',14)} Copiar</button>
+           <button class="btn btn-ghost btn-sm" onclick="abrirCopy('${c.id}')">${ic('pencil',14)} Editar</button>
+           <button class="icon-btn" style="margin-left:auto" onclick="arquivarCopy('${c.id}',true)" aria-label="Arquivar copy" title="Arquivar">${ic('archive')}</button>`}
+    </div>
+  </article>`;
+}
+function expandir(id, btn){
+  const el = document.getElementById('cpt-'+id);
+  const aberto = el.classList.toggle('clamp') === false;
+  btn.textContent = aberto ? 'Mostrar menos' : 'Ver texto inteiro';
+  btn.setAttribute('aria-expanded', aberto);
+}
+
+function abrirCopy(id){
+  editCopyId = id || null;
+  const c = id ? copys.find(x=>x.id===id) : null;
+  document.getElementById('cp-m-title').textContent = c ? 'Editar copy' : 'Nova copy';
+  const servicoPadrao = c ? c.servico_id : (cpServico!=='todos' && cpServico!=='gerais' ? cpServico : null);
+  document.getElementById('f-cp-servico').innerHTML = opcoesSelect(servicos, servicoPadrao, 'Geral (todos os serviços)');
+  document.getElementById('f-cp-canal').innerHTML   = opcoesSelect(opcoes.filter(o=>o.lista==='canal'),   c?.canal_id,   'Sem canal');
+  document.getElementById('f-cp-momento').innerHTML = opcoesSelect(opcoes.filter(o=>o.lista==='momento'), c?.momento_id, 'Sem momento');
+  document.getElementById('f-cp-tipo').innerHTML    = opcoesSelect(opcoes.filter(o=>o.lista==='tipo'),    c?.tipo_id,    'Sem tipo');
+  document.getElementById('f-cp-titulo').value = c?.titulo || '';
+  document.getElementById('f-cp-texto').value  = c?.texto || '';
+  document.getElementById('f-cp-obs').value    = c?.observacao || '';
+  limparErro('f-cp-titulo'); limparErro('f-cp-texto'); contarTexto();
+  prepararHistorico('cp-hist-wrap', 'cp-hist', !!c);
+  openModal('modal-copy');
+  setTimeout(()=>document.getElementById('f-cp-titulo').focus(), 50);
+}
+function contarTexto(){
+  const n = document.getElementById('f-cp-texto').value.length;
+  document.getElementById('cp-cont').textContent = n ? `${n.toLocaleString('pt-BR')} caracteres` : '';
+}
+
+async function salvarCopy(){
+  const titulo = val('f-cp-titulo').trim(), texto = val('f-cp-texto').trim();
+  let ok = true;
+  if(!titulo){ setErro('f-cp-titulo','Dê um nome para achar a copy depois.'); ok = false }
+  if(!texto){ setErro('f-cp-texto','Cole ou escreva o texto da mensagem.'); ok = false }
+  if(!ok) return;
+  const payload = {
+    titulo, texto,
+    observacao: val('f-cp-obs').trim() || null,
+    servico_id: val('f-cp-servico') || null,
+    canal_id:   val('f-cp-canal') || null,
+    momento_id: val('f-cp-momento') || null,
+    tipo_id:    val('f-cp-tipo') || null,
+  };
+  const btn = document.getElementById('btn-save-copy'); btn.disabled = true;
+  const q = editCopyId
+    ? sb.from('pb_copys').update(payload).eq('id', editCopyId).select().single()
+    : sb.from('pb_copys').insert(payload).select().single();
+  const {data, error} = await q;
+  btn.disabled = false;
+  if(error){ showToast(msgErro(error), true); return }
+  copys = editCopyId ? copys.map(x=>x.id===data.id?data:x) : [data, ...copys];
+  closeModal('modal-copy');
+  showToast(editCopyId ? 'Copy salva' : 'Copy cadastrada');
+  renderCopys(); renderJornadas(); renderListas();
+}
+
+async function toggleFixar(id){
+  const c = copys.find(x=>x.id===id);
+  const {error} = await sb.from('pb_copys').update({fixada:!c.fixada}).eq('id', id);
+  if(error){ showToast(msgErro(error), true); return }
+  c.fixada = !c.fixada;
+  showToast(c.fixada ? 'Fixada no topo' : 'Desafixada');
+  renderCopyList();
+}
+async function arquivarCopy(id, arquivar){
+  const arquivado_em = arquivar ? new Date().toISOString() : null;
+  const {error} = await sb.from('pb_copys').update({arquivado_em}).eq('id', id);
+  if(error){ showToast(msgErro(error), true); return }
+  copys.find(x=>x.id===id).arquivado_em = arquivado_em;
+  showToast(arquivar ? 'Copy arquivada. Para trazer de volta, mostre as Arquivadas.' : 'Copy restaurada');
+  renderCopys(); renderJornadas(); renderListas();
+}
+async function excluirCopy(id){
+  const c = copys.find(x=>x.id===id);
+  if(!await askConfirm('Excluir de vez?', `"${c.titulo}" sai também das jornadas. Não dá para desfazer.`)) return;
+  const {error} = await sb.from('pb_copys').delete().eq('id', id);
+  if(error){ showToast(msgErro(error,'Não consegui excluir. Tente de novo.'), true); return }
+  copys = copys.filter(x=>x.id!==id);
+  etapaCopys = etapaCopys.filter(x=>x.copy_id!==id);
+  showToast('Copy excluída');
+  renderCopys(); renderJornadas(); renderListas();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// JORNADAS
+// ════════════════════════════════════════════════════════════════════
+function setJrServico(id){ jrServico = id; jrVerArquivadas = false; renderJornadas(); }
+const etapasDo = (sid, arquivadas=false) => etapas
+  .filter(e=>e.servico_id===sid && !!e.arquivado_em===arquivadas)
+  .sort((a,b)=>(a.ordem-b.ordem) || (new Date(a.created_at)-new Date(b.created_at)));
+const copysDaEtapa = eid => etapaCopys.filter(x=>x.etapa_id===eid).sort((a,b)=>a.ordem-b.ordem)
+  .map(x=>copys.find(c=>c.id===x.copy_id)).filter(c=>c && !c.arquivado_em);
+
+function renderJornadas(){
+  const ativos = servicosAtivos();
+  document.getElementById('jr-side').innerHTML = '<div class="pb-side-hd">Serviços</div>' + ativos.map(s=>
+    `<button class="pb-svc${jrServico===s.id?' on':''}" aria-pressed="${jrServico===s.id}" onclick="setJrServico('${s.id}')">
+      <span class="dot" style="background:${s.cor}"></span><span>${escapeHtml(s.nome)}</span><span class="n">${etapasDo(s.id).length}</span></button>`).join('');
+  const main = document.getElementById('jr-main');
+  const s = servicoDe(jrServico);
+  if(!s){
+    main.innerHTML = `<div class="empty">Nenhum serviço cadastrado.<br><button class="link-btn" onclick="setTab('listas')">Cadastrar na aba Listas</button></div>`;
+    return;
+  }
+  const ets = etapasDo(s.id), arq = etapasDo(s.id, true);
+  let html = `<div class="jr-head">
+      <div><h2 class="jr-title"><span class="dot" style="background:${s.cor}"></span>${escapeHtml(s.nome)}</h2>
+      <p class="jr-sub">${ets.length ? plural(ets.length,'etapa','etapas')+', do primeiro contato em diante' : 'Jornada ainda não montada'}</p></div>
+    </div>`;
+  if(!ets.length){
+    html += `<div class="card empty">Monte o caminho desse serviço, etapa por etapa: como a pessoa chega, o que você manda, quando marca a conversa e o que vem depois.<br><br>
+      <button class="btn btn-primary" onclick="abrirEtapa()">${ic('plus')} Criar a primeira etapa</button></div>`;
+  } else {
+    html += `<ol class="jr-steps" style="--svc:${s.cor}">${ets.map((e,i)=>etapaItem(e,i,ets.length)).join('')}</ol>
+      <button class="btn btn-ghost" style="margin-left:52px" onclick="abrirEtapa()">${ic('plus')} Adicionar etapa</button>`;
+  }
+  if(arq.length){
+    html += `<div style="margin-top:18px"><button class="link-btn" aria-expanded="${jrVerArquivadas}" onclick="jrVerArquivadas=!jrVerArquivadas;renderJornadas()">
+      ${jrVerArquivadas?'Esconder':'Ver'} ${plural(arq.length,'etapa arquivada','etapas arquivadas')}</button></div>`;
+    if(jrVerArquivadas) html += `<ol class="jr-steps jr-arq" style="--svc:var(--border2);margin-top:8px">${arq.map(e=>etapaArquivada(e)).join('')}</ol>`;
+  }
+  main.innerHTML = html;
+}
+
+function etapaItem(e, i, total){
+  const crm = CRM_ETAPAS.find(x=>x.id===e.crm_stage);
+  const ligadas = copysDaEtapa(e.id);
+  return `<li class="jr-step">
+    <div class="jr-num" aria-hidden="true">${i+1}</div>
+    <div class="jr-body">
+      <div class="jr-hd">
+        <h3 class="jr-name"><span class="sr-only">Etapa ${i+1}: </span>${escapeHtml(e.titulo)}</h3>
+        <div class="jr-acts">
+          <button class="icon-btn" ${i===0?'disabled':''} onclick="moverEtapa('${e.id}',-1)" aria-label="Subir etapa" title="Subir">${ic('up')}</button>
+          <button class="icon-btn" ${i===total-1?'disabled':''} onclick="moverEtapa('${e.id}',1)" aria-label="Descer etapa" title="Descer">${ic('down')}</button>
+          <button class="icon-btn" onclick="abrirEtapa('${e.id}')" aria-label="Editar etapa" title="Editar">${ic('pencil')}</button>
+          <button class="icon-btn" onclick="arquivarEtapa('${e.id}',true)" aria-label="Arquivar etapa" title="Arquivar">${ic('archive')}</button>
+        </div>
+      </div>
+      ${(e.quando||crm) ? `<div class="jr-meta">
+        ${e.quando?`<span class="jr-when">${ic('clock',13)} ${escapeHtml(e.quando)}</span>`:''}
+        ${crm?`<a class="badge" href="crm.html" style="background:${crm.cor}22;color:${crm.cor};text-decoration:none" title="Etapa correspondente no funil do CRM">CRM: ${crm.label}</a>`:''}
+      </div>` : ''}
+      ${e.descricao?`<p class="jr-desc">${escapeHtml(e.descricao)}</p>`:''}
+      ${ligadas.length
+        ? `<div class="jr-copys"><div class="jr-copys-hd">Copys desta etapa</div>${ligadas.map(c=>jrCopy(c, e.id)).join('')}</div>`
+        : `<button class="link-btn" onclick="abrirEtapa('${e.id}')">+ Vincular copys</button>`}
+    </div>
+  </li>`;
+}
+function jrCopy(c, eid){
+  const tags = [c.canal_id, c.tipo_id].map(nomeOpcao).filter(Boolean).join(' · ');
+  const box = `jc-${eid}-${c.id}`;
+  return `<div class="jr-copy">
+    <div class="jr-copy-row">
+      <button class="jr-copy-t" aria-expanded="false" aria-controls="${box}" onclick="toggleJrCopy(this)">
+        <span class="seta" aria-hidden="true">▶</span><span>${escapeHtml(c.titulo)}${tags?`<small>${escapeHtml(tags)}</small>`:''}</span>
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="copiar('${c.id}')">${ic('copy',14)} Copiar</button>
+    </div>
+    <div class="jr-copy-txt" id="${box}" hidden>
+      <div class="cp-text">${marcarCampos(c.texto)}</div>
+      ${c.observacao?`<div class="cp-obs">${escapeHtml(c.observacao)}</div>`:''}
+    </div>
+  </div>`;
+}
+function toggleJrCopy(btn){
+  const box = document.getElementById(btn.getAttribute('aria-controls'));
+  box.hidden = !box.hidden;
+  btn.setAttribute('aria-expanded', !box.hidden);
+}
+function etapaArquivada(e){
+  return `<li class="jr-step"><div class="jr-num" aria-hidden="true">·</div><div class="jr-body">
+    <div class="jr-hd"><h3 class="jr-name">${escapeHtml(e.titulo)}</h3>
+      <div class="jr-acts">
+        <button class="btn btn-ghost btn-sm" onclick="arquivarEtapa('${e.id}',false)">${ic('undo',14)} Restaurar</button>
+        <button class="icon-btn danger" onclick="excluirEtapa('${e.id}')" aria-label="Excluir etapa de vez" title="Excluir de vez">${ic('trash')}</button>
+      </div></div></div></li>`;
+}
+
+function abrirEtapa(id){
+  if(!jrServico){ showToast('Cadastre um serviço primeiro, na aba Listas.', true); return }
+  if(tab!=='jornadas') setTab('jornadas');
+  editEtapaId = id || null;
+  const e = id ? etapas.find(x=>x.id===id) : null;
+  document.getElementById('et-m-title').textContent = e ? 'Editar etapa' : `Nova etapa · ${servicoDe(jrServico).nome}`;
+  document.getElementById('f-et-titulo').value = e?.titulo || '';
+  document.getElementById('f-et-quando').value = e?.quando || '';
+  document.getElementById('f-et-desc').value   = e?.descricao || '';
+  document.getElementById('f-et-crm').innerHTML = '<option value="">Nenhuma</option>' +
+    CRM_ETAPAS.map(x=>`<option value="${x.id}"${e?.crm_stage===x.id?' selected':''}>${x.label}</option>`).join('');
+  document.getElementById('f-et-busca').value = '';
+  // Copys possíveis: do serviço da etapa e as gerais. As já ligadas vêm primeiro, na ordem delas.
+  const sid = e ? e.servico_id : jrServico;
+  const ligadas = e ? copysDaEtapa(e.id) : [];
+  const resto = copys.filter(c=>!c.arquivado_em && (!c.servico_id || c.servico_id===sid) && !ligadas.includes(c))
+    .sort((a,b)=>a.titulo.localeCompare(b.titulo,'pt-BR'));
+  const linha = (c, marcada) => {
+    const tags = [c.canal_id, c.momento_id, c.tipo_id].map(nomeOpcao).filter(Boolean).join(' · ');
+    return `<label class="ck-row" data-busca="${escapeHtml(norm(c.titulo+' '+tags))}"><input type="checkbox" value="${c.id}"${marcada?' checked':''}>
+      <span>${escapeHtml(c.titulo)}${tags?`<small>${escapeHtml(tags)}</small>`:''}</span></label>`;
+  };
+  const todas = [...ligadas.map(c=>linha(c,true)), ...resto.map(c=>linha(c,false))];
+  document.getElementById('f-et-copys').innerHTML = todas.length ? todas.join('')
+    : '<div class="empty" style="padding:16px">Ainda não há copys deste serviço. Cadastre na aba Copys e volte aqui.</div>';
+  limparErro('f-et-titulo');
+  prepararHistorico('et-hist-wrap', 'et-hist', !!e);
+  openModal('modal-etapa');
+  setTimeout(()=>document.getElementById('f-et-titulo').focus(), 50);
+}
+function filtrarChecklist(){
+  const q = norm(val('f-et-busca').trim());
+  document.querySelectorAll('#f-et-copys .ck-row').forEach(r=>{ r.style.display = !q || r.dataset.busca.includes(q) ? '' : 'none' });
+}
+
+async function salvarEtapa(){
+  const titulo = val('f-et-titulo').trim();
+  if(!titulo){ setErro('f-et-titulo','Dê um nome para a etapa, como "Chamar no privado".'); return }
+  const payload = {
+    titulo,
+    quando: val('f-et-quando').trim() || null,
+    descricao: val('f-et-desc').trim() || null,
+    crm_stage: val('f-et-crm') || null,
+  };
+  if(!editEtapaId){
+    payload.servico_id = jrServico;
+    payload.ordem = etapasDo(jrServico).length;
+  }
+  const ids = [...document.querySelectorAll('#f-et-copys input:checked')].map(i=>i.value);
+  const btn = document.getElementById('btn-save-etapa'); btn.disabled = true;
+  const {data, error} = editEtapaId
+    ? await sb.from('pb_etapas').update(payload).eq('id', editEtapaId).select().single()
+    : await sb.from('pb_etapas').insert(payload).select().single();
+  if(error){ btn.disabled = false; showToast(msgErro(error), true); return }
+  // Troca as copys ligadas pela seleção atual
+  const del = await sb.from('pb_etapa_copys').delete().eq('etapa_id', data.id);
+  const linhas = ids.map((copy_id,i)=>({etapa_id:data.id, copy_id, ordem:i}));
+  const ins = linhas.length && !del.error ? await sb.from('pb_etapa_copys').insert(linhas) : {error:del.error};
+  btn.disabled = false;
+  etapas = editEtapaId ? etapas.map(x=>x.id===data.id?data:x) : [...etapas, data];
+  if(!del.error && !ins.error) etapaCopys = etapaCopys.filter(x=>x.etapa_id!==data.id).concat(linhas);
+  closeModal('modal-etapa');
+  if(del.error || ins.error){ showToast('A etapa foi salva, mas as copys não. Abra de novo e salve.', true); await loadAll(); return }
+  showToast(editEtapaId ? 'Etapa salva' : 'Etapa criada');
+  renderJornadas(); renderCopyList(); renderListas();
+}
+
+async function moverEtapa(id, dir){
+  const e = etapas.find(x=>x.id===id);
+  const lista = etapasDo(e.servico_id);
+  const i = lista.findIndex(x=>x.id===id), j = i + dir;
+  if(j<0 || j>=lista.length) return;
+  [lista[i], lista[j]] = [lista[j], lista[i]];
+  const ok = await gravarOrdem('pb_etapas', lista);
+  if(!ok){ showToast('Não consegui mudar a ordem. Tente de novo.', true); await loadAll(); return }
+  renderJornadas();
+}
+async function arquivarEtapa(id, arquivar){
+  const arquivado_em = arquivar ? new Date().toISOString() : null;
+  const e = etapas.find(x=>x.id===id);
+  const patch = {arquivado_em};
+  if(!arquivar) patch.ordem = etapasDo(e.servico_id).length;   // volta no fim da jornada
+  const {error} = await sb.from('pb_etapas').update(patch).eq('id', id);
+  if(error){ showToast(msgErro(error), true); return }
+  Object.assign(e, patch);
+  if(arquivar) await gravarOrdem('pb_etapas', etapasDo(e.servico_id));
+  showToast(arquivar ? 'Etapa arquivada' : 'Etapa restaurada no fim da jornada');
+  renderJornadas(); renderCopyList(); renderListas();
+}
+async function excluirEtapa(id){
+  const e = etapas.find(x=>x.id===id);
+  if(!await askConfirm('Excluir etapa de vez?', `"${e.titulo}" será apagada. As copys continuam guardadas na aba Copys.`)) return;
+  const {error} = await sb.from('pb_etapas').delete().eq('id', id);
+  if(error){ showToast(msgErro(error,'Não consegui excluir. Tente de novo.'), true); return }
+  etapas = etapas.filter(x=>x.id!==id);
+  etapaCopys = etapaCopys.filter(x=>x.etapa_id!==id);
+  showToast('Etapa excluída');
+  renderJornadas(); renderListas();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SISTEMAS
+// ════════════════════════════════════════════════════════════════════
+function renderSistemas(){
+  const el = document.getElementById('sy-list');
+  const ativos = sistemas.filter(s=>!s.arquivado_em), arq = sistemas.filter(s=>s.arquivado_em);
+  if(!ativos.length && !arq.length){
+    el.innerHTML = `<div class="empty">Nenhum sistema cadastrado.<br><br><button class="btn btn-primary" onclick="abrirSistema()">${ic('plus')} Adicionar sistema</button></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="sy-grid">${ativos.map(sistemaCard).join('')}</div>`
+    + (arq.length ? `<div class="cp-group" style="margin-top:24px">Arquivados</div><div class="list-arq">${arq.map(s=>
+      `<div class="list-item"><div class="li-info"><div class="li-title">${escapeHtml(s.nome)}</div><div class="li-sub">${escapeHtml(s.url)}</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="arquivarSistema('${s.id}',false)">${ic('undo',14)} Restaurar</button>
+        <button class="icon-btn danger" onclick="excluirSistema('${s.id}')" aria-label="Excluir de vez" title="Excluir de vez">${ic('trash')}</button></div>`).join('')}</div>` : '');
+  ativos.filter(s=>s.indicador).forEach(carregarKpis);
+}
+function sistemaCard(s){
+  let host = s.url;
+  try{ const u = new URL(s.url); host = u.host + (u.pathname!=='/'?u.pathname:'') }catch(e){}
+  return `<article class="sy-card">
+    <div class="sy-hd">
+      <div><h3 class="sy-name">${escapeHtml(s.nome)}</h3><a class="sy-url" href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(host)}</a></div>
+      <button class="icon-btn" onclick="abrirSistema('${s.id}')" aria-label="Editar sistema" title="Editar">${ic('pencil')}</button>
+      <button class="icon-btn" onclick="arquivarSistema('${s.id}',true)" aria-label="Arquivar sistema" title="Arquivar">${ic('archive')}</button>
+    </div>
+    ${s.descricao?`<p class="sy-desc">${escapeHtml(s.descricao)}</p>`:''}
+    ${s.indicador?`<div class="sy-kpis" id="kpi-${s.id}" aria-live="polite"><div class="loading" style="grid-column:1/-1;padding:14px">Carregando números...</div></div>`:''}
+    <div class="sy-ft">
+      <a class="btn btn-primary" href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${ic('ext',14)} Abrir sistema</a>
+      ${s.indicador==='maosnaia'?'<a class="btn btn-ghost" href="novidades.html">Ver em Novidades</a>':''}
+    </div>
+  </article>`;
+}
+
+const HEAD = {count:'exact', head:true};
+const contar = q => q.then(r => r.error ? null : r.count);
+const comparar = (atual, antes, txt) => antes==null || atual==null ? '' : `${antes} ${txt}`;
+
+async function kpisMentoria(){
+  const hoje = todayISO(), d7 = addDias(hoje,-7), d14 = addDias(hoje,-14);
+  const [ment, clube, ck, ckAntes, atras] = await Promise.all([
+    contar(sb.from('mn_membros').select('id',HEAD).eq('tipo','mentorada').eq('status','ativa').is('arquivado_em',null)),
+    contar(sb.from('mn_membros').select('id',HEAD).eq('tipo','clube').eq('status','ativa').is('arquivado_em',null).or(`clube_ate.is.null,clube_ate.gte.${hoje}`)),
+    contar(sb.from('mn_checkins').select('id',HEAD).gt('data',d7)),
+    contar(sb.from('mn_checkins').select('id',HEAD).gt('data',d14).lte('data',d7)),
+    contar(sb.from('mn_tarefas').select('id',HEAD).is('concluida_em',null).is('arquivado_em',null).lt('prazo',hoje)),
+  ]);
+  return [
+    {l:'Mentoradas ativas', v:ment, s:'em acompanhamento'},
+    {l:'Clube', v:clube, s:'assinantes com acesso'},
+    {l:'Check-ins · 7 dias', v:ck, s:comparar(ck, ckAntes, 'na semana anterior')},
+    {l:'Tarefas atrasadas', v:atras, s:'das mentoradas', alerta:atras>0},
+  ];
+}
+async function kpisMaosnaia(){
+  const agora = Date.now(), dia = 86400000;
+  const d30 = new Date(agora-30*dia).toISOString(), d60 = new Date(agora-60*dia).toISOString();
+  const nov = () => sb.from('novidades').select('id',HEAD);
+  const [novas, apl, aplAntes, desafio, testes] = await Promise.all([
+    contar(nov().eq('status','novo')),
+    contar(nov().eq('origem','aplicacao').gte('created_at',d30)),
+    contar(nov().eq('origem','aplicacao').gte('created_at',d60).lt('created_at',d30)),
+    contar(nov().eq('origem','desafio')),
+    contar(nov().eq('origem','teste').gte('created_at',d30)),
+  ]);
+  return [
+    {l:'Novas para ver', v:novas, s:'em Novidades', link:'novidades.html'},
+    {l:'Aplicações · 30 dias', v:apl, s:comparar(apl, aplAntes, 'nos 30 dias anteriores')},
+    {l:'Desafio 21 dias', v:desafio, s:'inscritas no total'},
+    {l:'Teste da bio · 30 dias', v:testes, s:'respostas'},
+  ];
+}
+async function carregarKpis(s){
+  const el = document.getElementById('kpi-'+s.id);
+  if(!el) return;
+  try{
+    const kpis = s.indicador==='mentoria' ? await kpisMentoria() : await kpisMaosnaia();
+    if(kpis.every(k=>k.v==null)){ el.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:12px">Não consegui ler os números agora.</div>'; return }
+    el.innerHTML = kpis.map(k=>{
+      const tag = k.link ? 'a' : 'div';
+      return `<${tag} class="sy-kpi"${k.link?` href="${k.link}"`:''}>
+        <div class="l">${k.l}</div><div class="v${k.alerta?' alerta':''}">${k.v==null?'—':k.v}</div>${k.s?`<div class="s">${escapeHtml(k.s)}</div>`:''}</${tag}>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:12px">Não consegui ler os números agora.</div>';
+  }
+}
+
+function abrirSistema(id){
+  editSistemaId = id || null;
+  const s = id ? sistemas.find(x=>x.id===id) : null;
+  document.getElementById('sy-m-title').textContent = s ? 'Editar sistema' : 'Adicionar sistema';
+  document.getElementById('f-sy-nome').value = s?.nome || '';
+  document.getElementById('f-sy-url').value  = s?.url || '';
+  document.getElementById('f-sy-desc').value = s?.descricao || '';
+  document.getElementById('f-sy-ind').value  = s?.indicador || '';
+  limparErro('f-sy-nome'); limparErro('f-sy-url');
+  prepararHistorico('sy-hist-wrap', 'sy-hist', !!s);
+  openModal('modal-sistema');
+  setTimeout(()=>document.getElementById('f-sy-nome').focus(), 50);
+}
+async function salvarSistema(){
+  const nome = val('f-sy-nome').trim(), url = val('f-sy-url').trim();
+  let ok = true;
+  if(!nome){ setErro('f-sy-nome','Dê um nome ao sistema.'); ok = false }
+  let urlOk = false;
+  try{ urlOk = new URL(url).protocol === 'https:' }catch(e){}
+  if(!urlOk){ setErro('f-sy-url','Cole o link completo, começando com https://'); ok = false }
+  if(!ok) return;
+  const payload = {nome, url, descricao: val('f-sy-desc').trim() || null, indicador: val('f-sy-ind') || null};
+  if(!editSistemaId) payload.ordem = sistemas.length;
+  const btn = document.getElementById('btn-save-sistema'); btn.disabled = true;
+  const {data, error} = editSistemaId
+    ? await sb.from('pb_sistemas').update(payload).eq('id', editSistemaId).select().single()
+    : await sb.from('pb_sistemas').insert(payload).select().single();
+  btn.disabled = false;
+  if(error){ showToast(msgErro(error), true); return }
+  sistemas = editSistemaId ? sistemas.map(x=>x.id===data.id?data:x) : [...sistemas, data];
+  closeModal('modal-sistema');
+  showToast(editSistemaId ? 'Sistema salvo' : 'Sistema adicionado');
+  renderSistemas();
+}
+async function arquivarSistema(id, arquivar){
+  const arquivado_em = arquivar ? new Date().toISOString() : null;
+  const {error} = await sb.from('pb_sistemas').update({arquivado_em}).eq('id', id);
+  if(error){ showToast(msgErro(error), true); return }
+  sistemas.find(x=>x.id===id).arquivado_em = arquivado_em;
+  showToast(arquivar ? 'Sistema arquivado' : 'Sistema restaurado');
+  renderSistemas();
+}
+async function excluirSistema(id){
+  const s = sistemas.find(x=>x.id===id);
+  if(!await askConfirm('Excluir de vez?', `O atalho "${s.nome}" será apagado. O sistema em si não é afetado.`)) return;
+  const {error} = await sb.from('pb_sistemas').delete().eq('id', id);
+  if(error){ showToast(msgErro(error,'Não consegui excluir. Tente de novo.'), true); return }
+  sistemas = sistemas.filter(x=>x.id!==id);
+  showToast('Atalho excluído');
+  renderSistemas();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// LISTAS (serviços, canais, momentos, tipos)
+// ════════════════════════════════════════════════════════════════════
+const tabelaDa = k => k==='servico' ? 'pb_servicos' : 'pb_opcoes';
+const itensDa = k => (k==='servico' ? servicos : opcoes.filter(o=>o.lista===k))
+  .slice().sort((a,b)=>(a.ordem-b.ordem) || (new Date(a.created_at)-new Date(b.created_at)));
+function usosDe(k, id){
+  if(k==='servico') return copys.filter(c=>c.servico_id===id).length + etapas.filter(e=>e.servico_id===id).length;
+  const campo = {canal:'canal_id', momento:'momento_id', tipo:'tipo_id'}[k];
+  return copys.filter(c=>c[campo]===id).length;
+}
+
+function renderListas(){
+  document.getElementById('ls-grid').innerHTML = LISTAS.map(L=>{
+    const itens = itensDa(L.k), ativos = itens.filter(i=>!i.arquivado_em), arq = itens.filter(i=>i.arquivado_em);
+    const linha = (it, i) => {
+      const n = usosDe(L.k, it.id);
+      const usoTxt = n ? plural(n,'uso','usos') : 'sem uso';
+      // Em uso: só arquiva. Sem uso: pode excluir de vez.
+      const remover = n
+        ? `<button class="icon-btn" onclick="arquivarItem('${L.k}','${it.id}',true)" aria-label="Arquivar ${escapeHtml(it.nome)}" title="Em uso: arquivar">${ic('archive')}</button>`
+        : `<button class="icon-btn danger" onclick="excluirItem('${L.k}','${it.id}')" aria-label="Excluir ${escapeHtml(it.nome)}" title="Excluir">${ic('trash')}</button>`;
+      if(it.arquivado_em) return `<div class="ls-row arq">
+        ${L.k==='servico'?`<span class="dot" style="background:${it.cor}"></span>`:''}<span class="nm">${escapeHtml(it.nome)}</span><span class="us">${usoTxt}</span>
+        <span class="acts"><button class="icon-btn" onclick="arquivarItem('${L.k}','${it.id}',false)" aria-label="Restaurar ${escapeHtml(it.nome)}" title="Restaurar">${ic('undo')}</button>
+        ${n?'':`<button class="icon-btn danger" onclick="excluirItem('${L.k}','${it.id}')" aria-label="Excluir ${escapeHtml(it.nome)}" title="Excluir">${ic('trash')}</button>`}</span></div>`;
+      return `<div class="ls-row">
+        ${L.k==='servico'?`<span class="dot" style="background:${it.cor}"></span>`:''}<span class="nm">${escapeHtml(it.nome)}</span><span class="us">${usoTxt}</span>
+        <span class="acts">
+        <button class="icon-btn" ${i===0?'disabled':''} onclick="moverItem('${L.k}','${it.id}',-1)" aria-label="Subir ${escapeHtml(it.nome)}" title="Subir">${ic('up')}</button>
+        <button class="icon-btn" ${i===ativos.length-1?'disabled':''} onclick="moverItem('${L.k}','${it.id}',1)" aria-label="Descer ${escapeHtml(it.nome)}" title="Descer">${ic('down')}</button>
+        <button class="icon-btn" onclick="abrirItem('${L.k}','${it.id}')" aria-label="Editar ${escapeHtml(it.nome)}" title="Editar">${ic('pencil')}</button>
+        ${remover}</span></div>`;
+    };
+    return `<section class="ls-card" aria-labelledby="ls-${L.k}">
+      <div class="ls-hd"><div><h3 class="ls-title" id="ls-${L.k}">${L.t}</h3><div class="ls-desc">${L.d}</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="abrirItem('${L.k}')">${ic('plus',14)} Adicionar</button></div>
+      ${ativos.length ? ativos.map(linha).join('') : '<div class="empty" style="padding:14px">Nenhum item ainda.</div>'}
+      ${arq.length ? `<div class="ls-sep">Arquivados</div>${arq.map(linha).join('')}` : ''}
+    </section>`;
+  }).join('');
+}
+
+function abrirItem(k, id){
+  editItem = {k, id: id||null};
+  const L = LISTAS.find(x=>x.k===k);
+  const it = id ? itensDa(k).find(x=>x.id===id) : null;
+  document.getElementById('it-m-title').textContent = it ? `Editar · ${L.t}` : `Novo item · ${L.t}`;
+  document.getElementById('f-it-nome').value = it?.nome || '';
+  document.getElementById('f-it-cor-wrap').style.display = k==='servico' ? '' : 'none';
+  corEscolhida = it?.cor || CORES[servicos.length % CORES.length];
+  renderCores();
+  limparErro('f-it-nome');
+  openModal('modal-item');
+  setTimeout(()=>document.getElementById('f-it-nome').focus(), 50);
+}
+function renderCores(){
+  document.getElementById('f-it-cores').innerHTML = CORES.map(c=>
+    `<button type="button" class="swatch${c===corEscolhida?' on':''}" style="background:${c}" role="radio" aria-checked="${c===corEscolhida}"
+      aria-label="Cor ${c}" onclick="corEscolhida='${c}';renderCores()"></button>`).join('');
+}
+async function salvarItem(){
+  const nome = val('f-it-nome').trim();
+  if(!nome){ setErro('f-it-nome','Escreva o nome.'); return }
+  const {k, id} = editItem;
+  const repetido = itensDa(k).some(x=>x.id!==id && norm(x.nome)===norm(nome));
+  if(repetido){ setErro('f-it-nome','Já existe um item com esse nome nesta lista.'); return }
+  const payload = {nome};
+  if(k==='servico') payload.cor = corEscolhida;
+  if(!id){ payload.ordem = itensDa(k).filter(x=>!x.arquivado_em).length; if(k!=='servico') payload.lista = k }
+  const btn = document.getElementById('btn-save-item'); btn.disabled = true;
+  const tabela = tabelaDa(k);
+  const {data, error} = id
+    ? await sb.from(tabela).update(payload).eq('id', id).select().single()
+    : await sb.from(tabela).insert(payload).select().single();
+  btn.disabled = false;
+  if(error){ showToast(msgErro(error), true); return }
+  if(k==='servico') servicos = id ? servicos.map(x=>x.id===id?data:x) : [...servicos, data];
+  else opcoes = id ? opcoes.map(x=>x.id===id?data:x) : [...opcoes, data];
+  if(k==='servico' && !jrServico) jrServico = data.id;
+  closeModal('modal-item');
+  showToast(id ? 'Salvo' : 'Adicionado');
+  renderAll();
+}
+async function moverItem(k, id, dir){
+  const lista = itensDa(k).filter(x=>!x.arquivado_em);
+  const i = lista.findIndex(x=>x.id===id), j = i + dir;
+  if(j<0 || j>=lista.length) return;
+  [lista[i], lista[j]] = [lista[j], lista[i]];
+  const ok = await gravarOrdem(tabelaDa(k), lista);
+  if(!ok){ showToast('Não consegui mudar a ordem. Tente de novo.', true); await loadAll(); return }
+  renderAll();
+}
+async function arquivarItem(k, id, arquivar){
+  const arquivado_em = arquivar ? new Date().toISOString() : null;
+  const {error} = await sb.from(tabelaDa(k)).update({arquivado_em}).eq('id', id);
+  if(error){ showToast(msgErro(error), true); return }
+  itensDa(k).find(x=>x.id===id).arquivado_em = arquivado_em;
+  if(k==='servico'){
+    if(arquivar && cpServico===id) cpServico = 'todos';
+    if(!servicosAtivos().some(s=>s.id===jrServico)) jrServico = servicosAtivos()[0]?.id || null;
+  }
+  showToast(arquivar ? 'Arquivado. As copys continuam guardadas.' : 'Restaurado');
+  renderAll();
+}
+async function excluirItem(k, id){
+  const it = itensDa(k).find(x=>x.id===id);
+  if(usosDe(k,id)){ showToast('Está em uso. Arquive em vez de excluir.', true); return }
+  if(!await askConfirm('Excluir de vez?', `"${it.nome}" será apagado da lista.`)) return;
+  const {error} = await sb.from(tabelaDa(k)).delete().eq('id', id);
+  if(error){ showToast(msgErro(error,'Não consegui excluir. Tente de novo.'), true); return }
+  if(k==='servico') servicos = servicos.filter(x=>x.id!==id);
+  else opcoes = opcoes.filter(x=>x.id!==id);
+  if(k==='servico' && jrServico===id) jrServico = servicosAtivos()[0]?.id || null;
+  if(k==='servico' && cpServico===id) cpServico = 'todos';
+  showToast('Excluído');
+  renderAll();
+}
+</script>
+</body>
+</html>
