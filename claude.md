@@ -39,6 +39,8 @@ O sistema já tem tema próprio, e as telas novas seguem ele (não o padrão #00
   - Histórico de alterações em `pb_historico` (gatilho no banco).
   - Serviços: Mentoria Mãos na IA, Clube Mãos na IA, Workshop, Palestra, Implementação de IA, Sistemas personalizados. Desafio e Oficina não são serviços.
 
+- **Tarefas diárias** (`assets/kanban-tarefas.js`, `sql/33_tarefas_diarias.sql`), 21/10/2026: última coluna do Kanban de tarefas (Projetos e Tarefas), depois de Concluído. Lembretes do que fazer todo dia, sem check e sem status, numa tabela própria (`tarefas_diarias`). Adicionar, editar e tirar (só arquiva) direto na coluna. `sql/33` já rodou no Supabase (22/10/2026).
+
 ## LGPD
 O Playbook não guarda dados pessoais: só textos de mensagens e links. Os dados de pessoas ficam no CRM e nas tabelas da mentoria.
 
@@ -48,7 +50,6 @@ O Playbook não guarda dados pessoais: só textos de mensagens e links. Os dados
 - Números dos sistemas externos lidos direto do banco (mesmo Supabase), sem chave nova.
 
 ## Pendências
-- Rodar `sql/32_playbook.sql` no Supabase (cria as tabelas e já cadastra o exemplo da Mentoria).
-- Cadastrar as outras copys e montar as jornadas dos demais serviços.
+- Rodar `sql/32_playbook.sql` no Supabase (cria as tabelas e já cadastra o exemplo da Mentoria).- Cadastrar as outras copys e montar as jornadas dos demais serviços.
 - Arquivos soltos fora do git: `agenda.html` e `sql/25`, `28`, `29`, `30`.
 - Anotar aqui o endereço do site no Vercel.
