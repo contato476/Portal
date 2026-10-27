@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>CRM — Jenneffer Prazeres</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -22,6 +23,63 @@
 .act-add-row .form-input{margin:0}
 .icon-btn{background:none;border:1px solid var(--border2);cursor:pointer;color:var(--text3);border-radius:6px;font-size:13px;line-height:1}
 .icon-btn:hover{color:var(--text);border-color:var(--green)}
+
+/* Seletor de pipeline e filtro por produto */
+.pipe-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.pipe-switch{display:inline-flex;background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:3px}
+.pipe-switch button{min-height:38px;padding:0 16px;border:0;border-radius:8px;background:none;color:var(--text2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.pipe-switch button.on{background:var(--green);color:#fff}
+.pipe-switch button:focus-visible,.chip:focus-visible,.jr-check:focus-visible,.btn:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:var(--dark2);color:var(--text2);font-family:inherit;font-size:12.5px;cursor:pointer}
+.chip.on{border-color:var(--green2);color:var(--text);background:rgba(34,160,96,.12)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.prod-tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);margin-top:5px}
+.kanban.ia .kb-col{min-width:215px;width:215px}
+
+/* Janela do ganho */
+.gn-resumo{font-size:13px;color:var(--text2);margin:-10px 0 16px;line-height:1.55}
+.gn-bloco{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:rgba(255,255,255,.015)}
+.gn-check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;min-height:32px}
+.gn-check input{width:18px;height:18px;accent-color:var(--green2);flex-shrink:0}
+.gn-aviso{font-size:12px;color:var(--amber);margin:4px 0 0 28px}
+.gn-corpo{margin-top:12px}
+.gn-corpo .form-group{margin-bottom:10px}
+.gn-linhas{width:100%;border-collapse:collapse;margin-top:4px}
+.gn-linhas th{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:left;padding:4px 6px}
+.gn-linhas td{padding:4px 6px;vertical-align:middle}
+.gn-linhas .form-input{padding:7px 9px;font-size:12.5px}
+.gn-linhas input[type=checkbox]{width:18px;height:18px;accent-color:var(--green2)}
+.gn-soma{font-size:12px;color:var(--text3);margin-top:6px;text-align:right}
+.gn-soma.erro{color:var(--amber)}
+.gn-nota{font-size:11.5px;color:var(--text3);line-height:1.45}
+
+/* Jornada */
+.jr-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.jr-lista{display:flex;flex-direction:column;gap:8px}
+.jr-card{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;text-align:left;width:100%;font-family:inherit;color:inherit}
+.jr-card:hover{border-color:var(--border2)}
+.jr-card:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+.jr-nome{font-size:14px;font-weight:500;color:var(--text)}
+.jr-sub{font-size:11.5px;color:var(--text3);margin-top:3px;line-height:1.45}
+.jr-prog{width:180px;flex-shrink:0}
+.jr-late{color:var(--red)}
+.jr-item{display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05)}
+.jr-item:last-child{border-bottom:none}
+.jr-check{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--border2);background:none;cursor:pointer;flex-shrink:0;display:grid;place-items:center;color:#fff;margin-top:1px}
+.jr-check.on{background:var(--green2);border-color:var(--green2)}
+.jr-txt{flex:1;min-width:0}
+.jr-tit{font-size:13.5px;color:var(--text);line-height:1.4}
+.jr-item.feito .jr-tit{color:var(--text3);text-decoration:line-through}
+.jr-desc{font-size:11.5px;color:var(--text3);margin-top:2px;line-height:1.45;white-space:pre-line}
+.jr-acts{display:flex;gap:2px;flex-shrink:0}
+.jr-btn{width:34px;height:34px;display:grid;place-items:center;background:none;border:1px solid transparent;border-radius:8px;color:var(--text3);cursor:pointer}
+.jr-btn:hover{color:var(--text);border-color:var(--border2);background:var(--dark3)}
+@media(max-width:640px){
+  .jr-card{flex-wrap:wrap}.jr-prog{width:100%}
+  .pipe-switch{width:100%}.pipe-switch button{flex:1}
+  .gn-linhas th:first-child,.gn-linhas td:first-child{display:none}
+}
 </style>
 </head>
 <body>
@@ -57,15 +115,24 @@
     </div>
     <div class="main-content">
 
+      <div class="pipe-bar">
+        <div class="pipe-switch" role="group" aria-label="Pipeline">
+          <button type="button" data-pipe="sistemas" onclick="setPipeline('sistemas')">Sistemas</button>
+          <button type="button" data-pipe="ia" onclick="setPipeline('ia')">Produtos de IA</button>
+        </div>
+        <div class="chips" id="prod-chips"></div>
+      </div>
+
       <div class="stats-row">
         <div class="stat"><div class="stat-label">Contatos</div><div class="stat-val" id="st-contacts">—</div><div class="stat-sub" id="st-contacts-sub">leads e clientes</div></div>
         <div class="stat"><div class="stat-label">Funil aberto</div><div class="stat-val" id="st-open" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-open-sub">em negociação</div></div>
-        <div class="stat"><div class="stat-label" style="display:flex;align-items:center;gap:6px">Fechados <span id="won-month-lbl" style="text-transform:capitalize;color:var(--text2)"></span><span style="margin-left:auto;display:flex;gap:3px"><button class="icon-btn" style="padding:1px 5px" onclick="changeWonMonth(-1)" title="Mês anterior">‹</button><button class="icon-btn" style="padding:1px 5px" onclick="changeWonMonth(1)" title="Próximo mês">›</button></span></div><div class="stat-val money-pos" id="st-won" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-won-sub">ganhos</div></div>
-        <div class="stat"><div class="stat-label">Conversão</div><div class="stat-val" id="st-conv">—</div><div class="stat-sub">fechados ÷ encerrados</div></div>
+        <div class="stat"><div class="stat-label" style="display:flex;align-items:center;gap:6px"><span id="won-label">Fechados</span> <span id="won-month-lbl" style="text-transform:capitalize;color:var(--text2)"></span><span style="margin-left:auto;display:flex;gap:3px"><button class="icon-btn" style="padding:1px 5px" onclick="changeWonMonth(-1)" title="Mês anterior" aria-label="Mês anterior">‹</button><button class="icon-btn" style="padding:1px 5px" onclick="changeWonMonth(1)" title="Próximo mês" aria-label="Próximo mês">›</button></span></div><div class="stat-val money-pos" id="st-won" style="font-size:26px;padding-top:6px">—</div><div class="stat-sub" id="st-won-sub">ganhos</div></div>
+        <div class="stat"><div class="stat-label">Conversão</div><div class="stat-val" id="st-conv">—</div><div class="stat-sub" id="st-conv-sub">fechados ÷ encerrados</div></div>
       </div>
 
       <div class="tabs-row">
         <div class="dtab active" data-tab="funil" onclick="switchTab('funil')">Funil</div>
+        <div class="dtab" data-tab="jornada" id="tab-btn-jornada" style="display:none" onclick="switchTab('jornada')">Jornada</div>
         <div class="dtab" data-tab="contatos" onclick="switchTab('contatos')">Contatos</div>
       </div>
 
@@ -75,6 +142,22 @@
           <div class="card-hd"><div class="card-title">Motivos de perda</div></div>
           <div id="lost-reasons-card" style="padding:14px"><div class="loading">Carregando...</div></div>
         </div>
+      </div>
+
+      <div class="dtab-view" id="tab-jornada">
+        <div class="jr-bar">
+          <div class="pipe-switch" role="group" aria-label="Como ver a jornada">
+            <button type="button" data-vista="lista" onclick="setVista('lista')">Por cliente</button>
+            <button type="button" data-vista="kanban" onclick="setVista('kanban')">Kanban</button>
+          </div>
+          <select class="form-input form-select" id="jr-filtro" style="width:auto;min-width:170px" onchange="jornadaFiltro=this.value;renderJornada()" aria-label="Situação da jornada">
+            <option value="andamento">Em andamento</option>
+            <option value="concluida">Concluídas</option>
+            <option value="todas">Todas</option>
+          </select>
+          <a href="configuracoes.html?aba=jornada" style="margin-left:auto;font-size:12.5px;color:var(--green2)">Editar os passos de cada produto</a>
+        </div>
+        <div id="jornada-view"><div class="loading">Carregando...</div></div>
       </div>
 
       <div class="dtab-view" id="tab-contatos">
@@ -100,15 +183,7 @@
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Origem</label>
-        <select class="form-input form-select" id="c-origin">
-          <option value="">— Selecione —</option>
-          <option value="indicacao">Indicação</option>
-          <option value="instagram">Instagram</option>
-          <option value="linkedin">LinkedIn</option>
-          <option value="site">Site</option>
-          <option value="evento">Evento</option>
-          <option value="outro">Outro</option>
-        </select>
+        <select class="form-input form-select" id="c-origin"></select>
       </div>
       <div class="form-group"><label class="form-label">Status</label>
         <select class="form-input form-select" id="c-status">
@@ -146,26 +221,29 @@
 
 <!-- MODAL: NEGÓCIO -->
 <div class="overlay" id="modal-deal">
-  <div class="modal" style="width:520px">
+  <div class="modal" style="width:540px">
     <div class="modal-title" id="modal-deal-title">Novo negócio</div>
+    <div class="form-row" id="d-pipe-row">
+      <div class="form-group"><label class="form-label" for="d-pipeline">Pipeline</label>
+        <select class="form-input form-select" id="d-pipeline" onchange="trocarPipelineNoModal()">
+          <option value="sistemas">Sistemas</option>
+          <option value="ia">Produtos de IA</option>
+        </select>
+      </div>
+      <div class="form-group" id="d-produto-box"><label class="form-label" for="d-produto">Produto *</label>
+        <select class="form-input form-select" id="d-produto" onchange="produtoEscolhido()"></select>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label">Título *</label><input class="form-input" id="d-title" placeholder="Ex.: Site institucional — Empresa X"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Contato</label>
-        <select class="form-input form-select" id="d-contact"><option value="">— Sem contato —</option></select>
+        <select class="form-input form-select" id="d-contact" onchange="produtoEscolhido(true)"><option value="">— Sem contato —</option></select>
       </div>
       <div class="form-group"><label class="form-label">Valor (R$)</label><input class="form-input" id="d-value" type="number" min="0" step="0.01" placeholder="0,00"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Etapa</label>
-        <select class="form-input form-select" id="d-stage" onchange="toggleLossBlock()">
-          <option value="novo">Novo</option>
-          <option value="contato">Contato feito</option>
-          <option value="reuniao">Reunião agendada</option>
-          <option value="proposta">Proposta enviada</option>
-          <option value="negociacao">Em negociação</option>
-          <option value="fechado">Fechado ✓</option>
-          <option value="perdido">Perdido</option>
-        </select>
+        <select class="form-input form-select" id="d-stage" onchange="toggleLossBlock()"></select>
       </div>
       <div class="form-group"><label class="form-label">Previsão de fechamento</label><input class="form-input" id="d-close" type="date"></div>
     </div>
@@ -183,31 +261,186 @@
     <div class="form-group"><label class="form-label">Observações</label><textarea class="form-input" id="d-notes" placeholder="Detalhes da negociação"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-del-deal" style="margin-right:auto;display:none" onclick="deleteDeal()">Excluir</button>
+      <button class="btn btn-ghost" id="btn-ganho" style="display:none" onclick="closeModal('modal-deal');abrirGanho(editingDealId)">Ações do ganho</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-deal')">Cancelar</button>
       <button class="btn btn-primary" id="btn-save-deal" onclick="saveDeal()">Salvar</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- MODAL: NEGÓCIO GANHO (pipeline de IA) -->
+<div class="overlay" id="modal-ganho">
+  <div class="modal" style="width:660px" role="dialog" aria-modal="true" aria-labelledby="gn-titulo">
+    <div class="modal-title" id="gn-titulo">Negócio ganho</div>
+    <div class="gn-resumo" id="gn-resumo"></div>
+
+    <section class="gn-bloco">
+      <label class="gn-check"><input type="checkbox" id="gn-fin-on" onchange="gnMostrar()"> Lançar no financeiro</label>
+      <div class="gn-aviso" id="gn-fin-aviso"></div>
+      <div class="gn-corpo" id="gn-fin-corpo">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-forma">Como vai ser pago</label>
+            <select class="form-input form-select" id="gn-forma" onchange="gnFormaMudou()">
+              <option value="avista">À vista</option>
+              <option value="entrada">Entrada + parcelas</option>
+              <option value="parcelado">Parcelado</option>
+              <option value="mensal">Assinatura mensal (recorrente)</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label" for="gn-meio">Meio de pagamento</label>
+            <select class="form-input form-select" id="gn-meio">
+              <option>Pix</option><option>Boleto</option><option>Cartão de crédito</option><option>Cartão recorrente</option><option>Transferência</option><option>Outro</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-total" id="gn-total-lbl">Valor total (R$)</label><input class="form-input" id="gn-total" type="number" min="0" step="0.01" oninput="gnGerarLinhas()"></div>
+          <div class="form-group"><label class="form-label" for="gn-cat">Categoria</label><select class="form-input form-select" id="gn-cat"></select></div>
+        </div>
+        <div class="form-row" id="gn-entrada-row">
+          <div class="form-group"><label class="form-label" for="gn-entrada">Entrada (R$)</label><input class="form-input" id="gn-entrada" type="number" min="0" step="0.01" oninput="gnGerarLinhas()"></div>
+          <div class="form-group"><label class="form-label" for="gn-entrada-data">Data da entrada</label><input class="form-input" id="gn-entrada-data" type="date" onchange="gnGerarLinhas()"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" id="gn-parcelas-box"><label class="form-label" for="gn-parcelas">Número de parcelas</label><input class="form-input" id="gn-parcelas" type="number" min="1" max="36" step="1" value="3" oninput="gnGerarLinhas()"></div>
+          <div class="form-group"><label class="form-label" for="gn-venc" id="gn-venc-lbl">1º vencimento</label><input class="form-input" id="gn-venc" type="date" onchange="gnGerarLinhas()"></div>
+        </div>
+        <table class="gn-linhas" aria-label="Lançamentos que serão criados">
+          <thead><tr><th>Descrição</th><th>Vencimento</th><th>Valor</th><th title="Já recebido">Recebido</th></tr></thead>
+          <tbody id="gn-linhas"></tbody>
+        </table>
+        <div class="gn-soma" id="gn-soma"></div>
+      </div>
+    </section>
+
+    <section class="gn-bloco">
+      <label class="gn-check"><input type="checkbox" id="gn-ct-on" onchange="gnMostrar()"> Criar a tarefa de gerar o contrato</label>
+      <div class="gn-aviso" id="gn-ct-aviso"></div>
+      <div class="gn-corpo" id="gn-ct-corpo">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-ct-data">Prazo da tarefa</label><input class="form-input" id="gn-ct-data" type="date"></div>
+          <div class="form-group"><div class="gn-nota" style="padding-top:24px">A tarefa aparece em Tarefas, ligada a este negócio. O contrato se gera na tela Contratos.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="gn-bloco" id="gn-portal-bloco">
+      <label class="gn-check"><input type="checkbox" id="gn-pt-on" onchange="gnMostrar()"> Cadastrar no portal da mentorada</label>
+      <div class="gn-aviso" id="gn-pt-aviso"></div>
+      <div class="gn-corpo" id="gn-pt-corpo">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-pt-nome">Nome *</label><input class="form-input" id="gn-pt-nome" maxlength="120"></div>
+          <div class="form-group"><label class="form-label" for="gn-pt-email">E-mail de acesso *</label><input class="form-input" id="gn-pt-email" type="email" maxlength="160" placeholder="email@exemplo.com" oninput="gnConferirPortal()"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-pt-whats">WhatsApp</label><input class="form-input" id="gn-pt-whats" maxlength="30" placeholder="(00) 00000-0000"></div>
+          <div class="form-group"><label class="form-label" for="gn-pt-negocio">Negócio</label><input class="form-input" id="gn-pt-negocio" maxlength="120"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-pt-tipo">Entra como</label>
+            <select class="form-input form-select" id="gn-pt-tipo" onchange="gnPlanos()">
+              <option value="mentorada">Mentorada</option>
+              <option value="clube">Assinante do Clube</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label" for="gn-pt-plano">Plano</label><select class="form-input form-select" id="gn-pt-plano"></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-pt-inicio">Início</label><input class="form-input" id="gn-pt-inicio" type="date" onchange="gnClubeAte()"></div>
+          <div class="form-group"><label class="form-label" for="gn-pt-meses">Meses de Clube</label><input class="form-input" id="gn-pt-meses" type="number" min="0" max="60" step="1" oninput="gnClubeAte()"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" id="gn-pt-enc-box"><label class="form-label" for="gn-pt-encontros">Encontros</label><input class="form-input" id="gn-pt-encontros" type="number" min="0" max="60" step="1"></div>
+          <div class="form-group"><div class="gn-nota" id="gn-pt-ate" style="padding-top:24px"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="gn-bloco">
+      <label class="gn-check"><input type="checkbox" id="gn-jr-on" onchange="gnMostrar()"> Iniciar a jornada pós-venda</label>
+      <div class="gn-aviso" id="gn-jr-aviso"></div>
+      <div class="gn-corpo" id="gn-jr-corpo">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="gn-jr-inicio">Começa em</label><input class="form-input" id="gn-jr-inicio" type="date"></div>
+          <div class="form-group"><div class="gn-nota" id="gn-jr-nota" style="padding-top:24px"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <label class="gn-check" style="margin:4px 2px 0"><input type="checkbox" id="gn-ativo"> Marcar o contato como cliente ativo</label>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ganho')">Agora não</button>
+      <button class="btn btn-primary" id="btn-ganho-ok" onclick="confirmarGanho()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: JORNADA DE UM CLIENTE -->
+<div class="overlay" id="modal-jornada">
+  <div class="modal" style="width:600px" role="dialog" aria-modal="true" aria-labelledby="jr-titulo">
+    <div class="modal-title" id="jr-titulo">Jornada</div>
+    <div class="gn-resumo" id="jr-resumo"></div>
+    <div id="jr-itens"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="abrirItem(null)">+ Passo só desta cliente</button>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="jr-abrir-negocio" style="margin-right:auto">Abrir o negócio</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-jornada')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PASSO DA JORNADA DE UM CLIENTE -->
+<div class="overlay" id="modal-jitem">
+  <div class="modal" style="width:460px" role="dialog" aria-modal="true" aria-labelledby="ji-titulo">
+    <div class="modal-title" id="ji-titulo">Passo</div>
+    <div class="form-group"><label class="form-label" for="ji-tit">O que fazer *</label><input class="form-input" id="ji-tit" maxlength="140"></div>
+    <div class="form-group"><label class="form-label" for="ji-desc">Como fazer</label><textarea class="form-input" id="ji-desc" maxlength="1000"></textarea></div>
+    <div class="form-group"><label class="form-label" for="ji-prazo">Prazo</label><input class="form-input" id="ji-prazo" type="date"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-jitem')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-jitem" onclick="salvarItem()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="assets/helpers.js"></script>
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
 <script src="assets/automations.js"></script>
 <script>
-const STAGES = [
-  {id:'novo',       label:'Novo',         color:'#8B949E'},
-  {id:'contato',    label:'Contato',      color:'#60A5FA'},
-  {id:'reuniao',    label:'Reunião agendada', color:'#2DD4BF'},
-  {id:'proposta',  label:'Proposta',     color:'#E3B341'},
-  {id:'negociacao', label:'Negociação',   color:'#A78BFA'},
-  {id:'fechado',    label:'Fechado',      color:'#4ADE80'},
-  {id:'perdido',    label:'Perdido',      color:'#F85149'},
-];
+// Etapas de cada pipeline. 'fechado' é o mesmo nos dois (no de IA aparece
+// como "Ganho"), assim os números e as automações de ganho continuam valendo.
+const PIPELINES = {
+  sistemas:{label:'Sistemas', inicio:'novo', stages:[
+    {id:'novo',       label:'Novo',             color:'#8B949E'},
+    {id:'contato',    label:'Contato',          color:'#60A5FA'},
+    {id:'reuniao',    label:'Reunião agendada', color:'#2DD4BF'},
+    {id:'proposta',   label:'Proposta',         color:'#E3B341'},
+    {id:'negociacao', label:'Negociação',       color:'#A78BFA'},
+    {id:'fechado',    label:'Fechado',          color:'#4ADE80'},
+    {id:'perdido',    label:'Perdido',          color:'#F85149'},
+  ]},
+  ia:{label:'Produtos de IA', inicio:'prospeccao', stages:[
+    {id:'prospeccao',       label:'Prospecção',           color:'#6E7681'},
+    {id:'novo',             label:'Novo (formulário)',    color:'#8B949E'},
+    {id:'contato',          label:'Contato inicial',      color:'#60A5FA'},
+    {id:'followup_contato', label:'Follow-up do contato', color:'#93C5FD'},
+    {id:'reuniao',          label:'Reunião agendada',     color:'#2DD4BF'},
+    {id:'followup_reuniao', label:'Follow-up da reunião', color:'#5EEAD4'},
+    {id:'negociacao',       label:'Proposta/Negociação',  color:'#E3B341'},
+    {id:'fechado',          label:'Ganho',                color:'#4ADE80'},
+    {id:'reaquecer',        label:'Reaquecer',            color:'#FB923C'},
+    {id:'perdido',          label:'Perdido',              color:'#F85149'},
+  ]},
+};
+// Etapa equivalente quando o negócio muda de pipeline.
+const ETAPA_EQUIVALENTE = {proposta:'negociacao', followup_contato:'contato', followup_reuniao:'reuniao', prospeccao:'novo', reaquecer:'novo'};
 const ACT_ICONS = {nota:'📝',ligacao:'📞',email:'✉️',reuniao:'🗓️',mensagem:'💬'};
-// Motivos de perda (lista controlada pela aplicação — pode ajustar aqui).
-const LOST_REASONS = [
+// Listas padrão. Depois do sql/35 elas vêm da tela Configurações (cfg_listas).
+let LOST_REASONS = [
   {id:'preco',       label:'Preço/orçamento'},
   {id:'prazo',       label:'Prazo'},
   {id:'concorrente', label:'Escolheu concorrente'},
@@ -216,20 +449,38 @@ const LOST_REASONS = [
   {id:'adiou',       label:'Adiou decisão'},
   {id:'outro',       label:'Outro'},
 ];
-const LOST_LABEL = Object.fromEntries(LOST_REASONS.map(r=>[r.id,r.label]));
+let ORIGENS = [
+  {id:'indicacao',label:'Indicação'},{id:'instagram',label:'Instagram'},{id:'linkedin',label:'LinkedIn'},
+  {id:'site',label:'Site'},{id:'evento',label:'Evento'},{id:'outro',label:'Outro'},
+];
+let LOST_LABEL = Object.fromEntries(LOST_REASONS.map(r=>[r.id,r.label]));
+let ORIGEM_LABEL = Object.fromEntries(ORIGENS.map(r=>[r.id,r.label]));
 const CONTACT_STATUS_BADGE = {lead:'<span class="badge bg-amber">Lead</span>',ativo:'<span class="badge bg-green">Ativo</span>',inativo:'<span class="badge bg-gray">Inativo</span>'};
+const PLANOS = {
+  mentorada:[{id:'mentoria',label:'Mentoria'},{id:'permuta',label:'Permuta'},{id:'cortesia',label:'Cortesia'}],
+  clube:[{id:'clube_mensal',label:'Clube mensal'},{id:'clube_anual',label:'Clube anual'},{id:'cortesia',label:'Cortesia'}],
+};
+const SQL35 = '<div class="empty">O pipeline de Produtos de IA ainda não foi criado no banco.<br>Rode o arquivo <b>sql/35_crm_pipeline_ia.sql</b> no SQL Editor do Supabase.</div>';
+const ICO_CHECK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICO_EDIT = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>';
+const ICO_TRASH = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
 
 let contacts = [], deals = [];
 let contactMap = {};
 let editingContactId = null, editingDealId = null;
 let wonMonth = todayISO().slice(0,7); // 'YYYY-MM' do card Fechados
+let produtos = [], produtoMap = {}, iaDisponivel = false, jornadaItens = [];
+let pipeline = lerPref('crm.pipeline', 'sistemas');
+let produtoFiltro = null;
+let jornadaVista = lerPref('crm.jornada', 'lista'), jornadaFiltro = 'andamento';
+
+// Preferências da tela (lembram o último pipeline aberto). Sem localStorage, usa o padrão.
+function lerPref(k, padrao){ try{ return localStorage.getItem(k) || padrao }catch(e){ return padrao } }
+function gravarPref(k, v){ try{ localStorage.setItem(k, v) }catch(e){} }
 
 window.addEventListener('DOMContentLoaded', () => {
   renderSidebar('crm');
-  // Preenche as opções de motivo de perda uma vez.
-  document.getElementById('d-loss-reason').innerHTML =
-    '<option value="">— Selecione o motivo —</option>' +
-    LOST_REASONS.map(r=>`<option value="${r.id}">${r.label}</option>`).join('');
+  preencherListas();
   requireAdmin(loadAll);
 });
 
@@ -240,9 +491,11 @@ function toggleLossBlock(){
 }
 
 async function loadAll(){
-  const [cRes, dRes] = await Promise.all([
+  const [cRes, dRes, lRes, pRes] = await Promise.all([
     sb.from('crm_contacts').select('*').order('created_at',{ascending:false}),
     sb.from('crm_deals').select('*').order('created_at',{ascending:false}),
+    sb.from('cfg_listas').select('lista,valor,rotulo,arquivado_em').order('ordem'),
+    sb.from('crm_produtos').select('*').order('ordem'),
   ]);
   if(cRes.error){
     document.getElementById('kanban').innerHTML = isMissingTable(cRes.error)?SQL_HINT:'<div class="empty">Erro: '+escapeHtml(cRes.error.message)+'</div>';
@@ -250,21 +503,102 @@ async function loadAll(){
     return;
   }
   contacts = cRes.data||[];
-  deals = dRes.data||[];
+  deals = (dRes.data||[]).map(d=>({...d, pipeline: d.pipeline||'sistemas'}));
   contactMap = {};
   contacts.forEach(c=>contactMap[c.id]=c);
+  // Sem o sql/35 o CRM segue funcionando só com o pipeline Sistemas.
+  iaDisponivel = !pRes.error;
+  produtos = pRes.data||[];
+  produtoMap = Object.fromEntries(produtos.map(p=>[p.id,p]));
+  if(!lRes.error && lRes.data?.length) aplicarListas(lRes.data);
+  if(iaDisponivel){
+    const [j] = await Promise.all([sb.from('crm_jornada_itens').select('*').order('ordem'), carregarPassos()]);
+    jornadaItens = j.data||[];
+  }
+  if(produtoFiltro && !produtoMap[produtoFiltro]) produtoFiltro = null;
   fillContactSelect();
+  renderTudo();
+}
+
+function renderTudo(){
+  renderPipeBar();
   updateStats();
   renderKanban();
   renderContacts();
   renderLostReasons();
+  if(pipeline==='ia') renderJornada();
+}
+
+// ──────────── LISTAS EDITÁVEIS (Configurações) ────────────
+function aplicarListas(rows){
+  const ativos = l => rows.filter(r=>r.lista===l && !r.arquivado_em).map(r=>({id:r.valor, label:r.rotulo}));
+  const todos  = l => Object.fromEntries(rows.filter(r=>r.lista===l).map(r=>[r.valor, r.rotulo]));
+  if(rows.some(r=>r.lista==='crm_motivo_perda')){
+    LOST_REASONS = ativos('crm_motivo_perda');
+    LOST_LABEL = {...LOST_LABEL, ...todos('crm_motivo_perda')};
+  }
+  if(rows.some(r=>r.lista==='crm_origem')){
+    ORIGENS = ativos('crm_origem');
+    ORIGEM_LABEL = {...ORIGEM_LABEL, ...todos('crm_origem')};
+  }
+  preencherListas();
+}
+
+function preencherListas(){
+  document.getElementById('d-loss-reason').innerHTML =
+    '<option value="">— Selecione o motivo —</option>' +
+    LOST_REASONS.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.label)}</option>`).join('');
+  document.getElementById('c-origin').innerHTML =
+    '<option value="">— Selecione —</option>' +
+    ORIGENS.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.label)}</option>`).join('');
+}
+
+// Garante que o valor gravado apareça no select, mesmo que tenha sido arquivado.
+function selecionar(selId, valor, rotulos){
+  const sel = document.getElementById(selId);
+  if(valor && ![...sel.options].some(o=>o.value===valor)){
+    const o = document.createElement('option'); o.value = valor; o.textContent = rotulos[valor]||valor; sel.appendChild(o);
+  }
+  sel.value = valor||'';
+}
+
+// ──────────── PIPELINE ────────────
+function stagesDe(pipe){ return PIPELINES[pipe].stages; }
+function stageLabel(pipe, id){ return (stagesDe(pipe).find(s=>s.id===id)||{}).label || id; }
+
+function setPipeline(p){
+  pipeline = p; gravarPref('crm.pipeline', p);
+  produtoFiltro = null;
+  if(p!=='ia' && document.querySelector('.dtab.active')?.dataset.tab==='jornada') switchTab('funil');
+  renderTudo();
+}
+
+function filtrarProduto(id){ produtoFiltro = produtoFiltro===id ? null : id; renderTudo(); }
+
+function renderPipeBar(){
+  document.querySelectorAll('.pipe-switch [data-pipe]').forEach(b=>{
+    b.classList.toggle('on', b.dataset.pipe===pipeline); b.setAttribute('aria-pressed', b.dataset.pipe===pipeline);
+  });
+  document.getElementById('tab-btn-jornada').style.display = pipeline==='ia' ? '' : 'none';
+  document.getElementById('won-label').textContent = pipeline==='ia' ? 'Ganhos' : 'Fechados';
+  document.getElementById('st-conv-sub').textContent = pipeline==='ia' ? 'ganhos ÷ encerrados' : 'fechados ÷ encerrados';
+  const chips = document.getElementById('prod-chips');
+  chips.innerHTML = (pipeline==='ia' && iaDisponivel)
+    ? `<button type="button" class="chip${!produtoFiltro?' on':''}" aria-pressed="${!produtoFiltro}" onclick="filtrarProduto(null)">Todos os produtos</button>` +
+      produtos.filter(p=>!p.arquivado_em).map(p=>`<button type="button" class="chip${produtoFiltro===p.id?' on':''}" aria-pressed="${produtoFiltro===p.id}" onclick="filtrarProduto('${p.id}')"><span class="dot" style="background:${escapeHtml(p.cor)}"></span>${escapeHtml(p.nome)}</button>`).join('')
+    : '';
+}
+
+// Negócios do pipeline aberto (e do produto escolhido, no pipeline de IA).
+function dealsDoPipe(){
+  return deals.filter(d=>d.pipeline===pipeline && (!produtoFiltro || d.produto_id===produtoFiltro));
 }
 
 // Indicador: contagem de negócios perdidos por motivo, com barra e percentual.
 function renderLostReasons(){
   const el = document.getElementById('lost-reasons-card');
   if(!el) return;
-  const lost = deals.filter(d=>d.stage==='perdido');
+  const lost = dealsDoPipe().filter(d=>d.stage==='perdido');
   if(!lost.length){el.innerHTML='<div class="empty">Nenhum negócio perdido registrado</div>';return}
   const counts = {};
   lost.forEach(d=>{ const k = d.lost_reason||'sem_motivo'; counts[k]=(counts[k]||0)+1; });
@@ -289,16 +623,17 @@ function updateStats(){
   const ativos = contacts.filter(c=>c.status==='ativo').length;
   document.getElementById('st-contacts').textContent = contacts.length;
   document.getElementById('st-contacts-sub').textContent = `${leads} leads · ${ativos} ativos`;
-  const open = deals.filter(d=>!['fechado','perdido'].includes(d.stage));
+  const lista = dealsDoPipe();
+  const open = lista.filter(d=>!['fechado','perdido'].includes(d.stage));
   document.getElementById('st-open').textContent = fmtMoney(open.reduce((s,d)=>s+Number(d.value),0));
   document.getElementById('st-open-sub').textContent = open.length+' negócio'+(open.length===1?'':'s');
   // Fechados no mês escolhido (wonMonth = 'YYYY-MM')
-  const wonList = deals.filter(d=>d.stage==='fechado' && d.closed_at && d.closed_at.slice(0,7)===wonMonth);
+  const wonList = lista.filter(d=>d.stage==='fechado' && d.closed_at && d.closed_at.slice(0,7)===wonMonth);
   document.getElementById('won-month-lbl').textContent = new Date(wonMonth+'-01T00:00:00').toLocaleDateString('pt-BR',{month:'short'});
   document.getElementById('st-won').textContent = fmtMoney(wonList.reduce((s,d)=>s+Number(d.value),0));
   document.getElementById('st-won-sub').textContent = wonList.length+' ganho'+(wonList.length===1?'':'s');
-  const won = deals.filter(d=>d.stage==='fechado').length;
-  const lost = deals.filter(d=>d.stage==='perdido').length;
+  const won = lista.filter(d=>d.stage==='fechado').length;
+  const lost = lista.filter(d=>d.stage==='perdido').length;
   document.getElementById('st-conv').textContent = (won+lost)?Math.round(won/(won+lost)*100)+'%':'—';
 }
 
@@ -314,13 +649,17 @@ function switchTab(name){
   document.querySelectorAll('.dtab-view').forEach(v=>v.classList.remove('active'));
   document.querySelector(`.dtab[data-tab="${name}"]`)?.classList.add('active');
   document.getElementById('tab-'+name)?.classList.add('active');
+  if(name==='jornada') renderJornada();
 }
 
 // ──────────── KANBAN ────────────
 function renderKanban(){
   const el = document.getElementById('kanban');
-  el.innerHTML = STAGES.map(s=>{
-    const list = deals.filter(d=>d.stage===s.id);
+  el.classList.toggle('ia', pipeline==='ia');
+  if(pipeline==='ia' && !iaDisponivel){ el.innerHTML = SQL35; return; }
+  const lista = dealsDoPipe();
+  el.innerHTML = stagesDe(pipeline).map(s=>{
+    const list = lista.filter(d=>d.stage===s.id);
     const sum = list.reduce((a,d)=>a+Number(d.value),0);
     return `<div class="kb-col">
       <div class="kb-hd"><div class="kb-dot" style="background:${s.color}"></div><div class="kb-title">${s.label}</div><div class="kb-sum">${list.length} · ${fmtMoney(sum)}</div></div>
@@ -333,6 +672,7 @@ function renderKanban(){
 
 function dealCard(d){
   const c = d.contact_id && contactMap[d.contact_id];
+  const p = d.produto_id && produtoMap[d.produto_id];
   const today = todayISO();
   const fLate = d.next_followup && d.next_followup<today;
   const followLine = d.next_followup
@@ -341,9 +681,11 @@ function dealCard(d){
   const lostLine = (d.stage==='perdido' && d.lost_reason)
     ? `<div class="deal-meta" style="margin-top:4px;color:var(--red)">✕ ${escapeHtml(LOST_LABEL[d.lost_reason]||d.lost_reason)}</div>`
     : '';
+  const prodLine = (pipeline==='ia' && p) ? `<div class="prod-tag"><span class="dot" style="background:${escapeHtml(p.cor)}"></span>${escapeHtml(p.nome)}</div>` : '';
   return `<div class="deal-card" draggable="true" ondragstart="dragStart(event,'${d.id}')" onclick="openEditDeal('${d.id}')">
     <div class="deal-title">${escapeHtml(d.title)}</div>
     <div class="deal-meta">${c?escapeHtml(c.name):'Sem contato'}${d.expected_close?' · prev. '+fmtDateShort(d.expected_close):''}</div>
+    ${prodLine}
     ${followLine}
     ${lostLine}
     ${Number(d.value)?`<div class="deal-value">${fmtMoney(d.value)}</div>`:''}
@@ -367,9 +709,10 @@ async function dropDeal(e){
   const payload = {stage, closed_at:(stage==='fechado'||stage==='perdido')?new Date().toISOString():null};
   const {error} = await sb.from('crm_deals').update(payload).eq('id',deal.id);
   if(error){showToast('Erro: '+error.message,true);return}
-  showToast(stage==='fechado'?'Negócio fechado! 🎉':'Etapa atualizada ✓');
+  showToast(stage==='fechado'?(deal.pipeline==='ia'?'Negócio ganho! 🎉':'Negócio fechado! 🎉'):'Etapa atualizada ✓');
   await dispararAutomacaoNegocio({...deal, ...payload}, stage);
-  loadAll();
+  await loadAll();
+  if(stage==='fechado' && deal.pipeline==='ia') abrirGanho(deal.id);
 }
 
 // Dispara as automações do CRM. Sem o motor carregado (ou sem regras),
@@ -394,7 +737,7 @@ function renderContacts(){
       return `<tr class="clickable" onclick="openEditContact('${c.id}')">
         <td><div class="td-main">${escapeHtml(c.name)}</div><div class="td-sub">${escapeHtml(c.company||'')}</div></td>
         <td style="font-size:12px">${escapeHtml(c.email||'—')}<div class="td-sub">${escapeHtml(c.phone||'')}</div></td>
-        <td style="font-size:12px;text-transform:capitalize">${escapeHtml(c.origin||'—')}</td>
+        <td style="font-size:12px">${escapeHtml(c.origin ? (ORIGEM_LABEL[c.origin]||c.origin) : '—')}</td>
         <td style="font-size:12px">${cDeals.length}${openVal?' · <span class="money-pos">'+fmtMoney(openVal)+'</span>':''}</td>
         <td>${CONTACT_STATUS_BADGE[c.status]||''}</td>
       </tr>`;}).join('')}</tbody></table>`;
@@ -426,7 +769,7 @@ async function openEditContact(id){
   document.getElementById('c-company').value = c.company||'';
   document.getElementById('c-email').value = c.email||'';
   document.getElementById('c-phone').value = c.phone||'';
-  document.getElementById('c-origin').value = c.origin||'';
+  selecionar('c-origin', c.origin, ORIGEM_LABEL);
   document.getElementById('c-status').value = c.status;
   document.getElementById('c-notes').value = c.notes||'';
   document.getElementById('contact-activities-block').style.display = 'block';
@@ -499,16 +842,61 @@ async function deleteContact(){
 }
 
 // ──────────── NEGÓCIOS ────────────
+function preencherEtapas(pipe, atual){
+  document.getElementById('d-stage').innerHTML = stagesDe(pipe)
+    .map(s=>`<option value="${s.id}">${s.id==='fechado'?s.label+' ✓':s.label}</option>`).join('');
+  let st = atual || PIPELINES[pipe].inicio;
+  if(!stagesDe(pipe).some(s=>s.id===st)) st = ETAPA_EQUIVALENTE[st] || PIPELINES[pipe].inicio;
+  document.getElementById('d-stage').value = st;
+  toggleLossBlock();
+}
+
+function preencherProdutos(atual){
+  const ativos = produtos.filter(p=>!p.arquivado_em || p.id===atual);
+  document.getElementById('d-produto').innerHTML = '<option value="">— Escolha —</option>' +
+    ativos.map(p=>`<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
+  document.getElementById('d-produto').value = atual||'';
+}
+
+function mostrarCamposPipeline(){
+  const pipe = document.getElementById('d-pipeline').value;
+  document.getElementById('d-pipe-row').style.display = iaDisponivel ? '' : 'none';
+  document.getElementById('d-produto-box').style.visibility = pipe==='ia' ? 'visible' : 'hidden';
+}
+
+function trocarPipelineNoModal(){
+  const pipe = document.getElementById('d-pipeline').value;
+  preencherEtapas(pipe, document.getElementById('d-stage').value);
+  mostrarCamposPipeline();
+}
+
+// Ao escolher o produto (ou o contato), sugere o valor padrão e o título.
+function produtoEscolhido(soContato){
+  if(document.getElementById('d-pipeline').value!=='ia') return;
+  const p = produtoMap[document.getElementById('d-produto').value];
+  if(!p) return;
+  const valor = document.getElementById('d-value');
+  if(!soContato && !Number(valor.value)) valor.value = p.valor_padrao||'';
+  const tit = document.getElementById('d-title');
+  const c = contactMap[document.getElementById('d-contact').value];
+  if(!tit.value.trim() || produtos.some(x=>tit.value.startsWith(x.nome+' ·'))) tit.value = p.nome + ' · ' + (c ? c.name : '');
+}
+
 function openNewDeal(){
   editingDealId = null;
   document.getElementById('modal-deal-title').textContent = 'Novo negócio';
   document.getElementById('btn-del-deal').style.display = 'none';
+  document.getElementById('btn-ganho').style.display = 'none';
   ['d-title','d-value','d-close','d-notes','d-followup','d-followup-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('d-contact').value='';
-  document.getElementById('d-stage').value='novo';
+  const pipe = (pipeline==='ia' && iaDisponivel) ? 'ia' : 'sistemas';
+  document.getElementById('d-pipeline').value = pipe;
+  preencherProdutos(pipe==='ia' ? produtoFiltro : null);
+  preencherEtapas(pipe);
   document.getElementById('d-loss-reason').value='';
   document.getElementById('d-loss-note').value='';
-  toggleLossBlock();
+  mostrarCamposPipeline();
+  if(pipe==='ia' && produtoFiltro) produtoEscolhido();
   openModal('modal-deal');
 }
 
@@ -518,18 +906,22 @@ function openEditDeal(id, forceStage){
   editingDealId = id;
   document.getElementById('modal-deal-title').textContent = 'Editar negócio';
   document.getElementById('btn-del-deal').style.display = 'inline-flex';
+  document.getElementById('btn-ganho').style.display = (d.pipeline==='ia' && d.stage==='fechado' && iaDisponivel) ? 'inline-flex' : 'none';
+  document.getElementById('d-pipeline').value = d.pipeline;
+  preencherProdutos(d.produto_id);
   document.getElementById('d-title').value = d.title;
   document.getElementById('d-contact').value = d.contact_id||'';
   document.getElementById('d-value').value = d.value||'';
   // forceStage permite abrir já em "Perdido" quando o card é arrastado para essa coluna.
-  document.getElementById('d-stage').value = forceStage || d.stage;
+  preencherEtapas(d.pipeline, forceStage || d.stage);
   document.getElementById('d-close').value = d.expected_close||'';
   document.getElementById('d-followup').value = d.next_followup||'';
   document.getElementById('d-followup-note').value = d.followup_note||'';
   document.getElementById('d-notes').value = d.notes||'';
-  document.getElementById('d-loss-reason').value = d.lost_reason||'';
+  selecionar('d-loss-reason', d.lost_reason, LOST_LABEL);
   document.getElementById('d-loss-note').value = d.lost_note||'';
   toggleLossBlock();
+  mostrarCamposPipeline();
   openModal('modal-deal');
 }
 
@@ -537,6 +929,9 @@ async function saveDeal(){
   const title = document.getElementById('d-title').value.trim();
   if(!title){showToast('Dê um título ao negócio',true);return}
   const stage = document.getElementById('d-stage').value;
+  const pipe = iaDisponivel ? document.getElementById('d-pipeline').value : 'sistemas';
+  const produtoId = pipe==='ia' ? (document.getElementById('d-produto').value||null) : null;
+  if(pipe==='ia' && !produtoId){showToast('Escolha o produto do negócio',true);return}
   const prev = editingDealId ? deals.find(x=>x.id===editingDealId) : null;
   const followupDate = document.getElementById('d-followup').value||null;
   const followupNote = document.getElementById('d-followup-note').value.trim()||null;
@@ -557,6 +952,8 @@ async function saveDeal(){
     lost_note: lostNote,
     closed_at: (stage==='fechado'||stage==='perdido') ? (prev&&prev.closed_at?prev.closed_at:new Date().toISOString()) : null,
   };
+  // As colunas pipeline e produto_id só existem depois do sql/35.
+  if(iaDisponivel){ payload.pipeline = pipe; payload.produto_id = produtoId; }
   const btn = document.getElementById('btn-save-deal');
   btn.disabled = true;
   let dealId = editingDealId, error;
@@ -583,15 +980,20 @@ async function saveDeal(){
       await fireAutomation('deal.created', {table:'crm_deals', id:dealId, row:{...payload, id:dealId}});
     await dispararAutomacaoNegocio({...payload, id:dealId}, stage);
   }
-  loadAll();
+  // Mudar para outro pipeline leva a tela junto, para o negócio não "sumir".
+  if(pipe!==pipeline){ pipeline = pipe; gravarPref('crm.pipeline', pipe); produtoFiltro = null; }
+  await loadAll();
+  if(pipe==='ia' && stage==='fechado' && etapaMudou && dealId) abrirGanho(dealId);
 }
 
 // Cria/atualiza/cancela a tarefa de follow-up ligada ao negócio (join manual,
 // sem select aninhado). Cada negócio tem no máximo uma tarefa de follow-up
-// em aberto, então atualizamos a mesma em vez de duplicar.
+// em aberto, então atualizamos a mesma em vez de duplicar. A tarefa
+// "Gerar contrato" (do ganho) também é ligada ao negócio e fica de fora.
 async function syncFollowupTask(dealId, dealTitle, date, note){
   const {data:open} = await sb.from('tasks')
-    .select('id').eq('deal_id',dealId).in('status',['pendente','em_andamento']).limit(1);
+    .select('id').eq('deal_id',dealId).in('status',['pendente','em_andamento'])
+    .not('title','ilike','Gerar contrato:%').limit(1);
   const openTask = open && open[0];
   if(date){
     const title = note || ('Follow-up: '+dealTitle);
@@ -610,12 +1012,523 @@ async function syncFollowupTask(dealId, dealTitle, date, note){
 
 async function deleteDeal(){
   if(!editingDealId) return;
-  if(!confirm('Excluir este negócio?')) return;
+  if(!confirm('Excluir este negócio? A jornada pós-venda dele também sai.')) return;
   const {error} = await sb.from('crm_deals').delete().eq('id',editingDealId);
   if(error){showToast('Erro: '+error.message,true);return}
   closeModal('modal-deal');
   showToast('Negócio excluído');
   loadAll();
+}
+
+// ──────────── NEGÓCIO GANHO ────────────
+// Ao ganhar no pipeline de IA, abre esta janela: financeiro, tarefa do
+// contrato, portal da mentorada e jornada. Cada parte pode ser desmarcada,
+// e a janela volta pelo botão "Ações do ganho" do negócio.
+let gn = null;       // {deal, produto, contato, finCount, temContrato, membro}
+let gnLinhas = [];   // lançamentos que serão criados
+let gnMembros = null;
+
+function nomeCliente(d){ const c = d.contact_id && contactMap[d.contact_id]; return c ? c.name : d.title; }
+
+async function abrirGanho(dealId){
+  const deal = deals.find(d=>d.id===dealId);
+  if(!deal || !iaDisponivel) return;
+  const produto = produtoMap[deal.produto_id] || null;
+  const contato = deal.contact_id ? contactMap[deal.contact_id] : null;
+  // O que já foi feito para este negócio (para não lançar em dobro).
+  const [fin, tar, cats, mem] = await Promise.all([
+    sb.from('fin_transactions').select('id',{count:'exact',head:true}).eq('deal_id',dealId),
+    sb.from('tasks').select('id').eq('deal_id',dealId).ilike('title','Gerar contrato:%').neq('status','cancelada').limit(1),
+    sb.from('fin_categories').select('id,name').eq('kind','receita').order('name'),
+    sb.from('mn_membros').select('id,email,nome,clube_ate'),
+  ]);
+  gnMembros = mem.error ? null : (mem.data||[]);
+  gn = {deal, produto, contato, finCount: fin.error ? 0 : (fin.count||0), temContrato: !!(tar.data&&tar.data.length)};
+  const hoje = todayISO();
+  const nome = nomeCliente(deal);
+
+  document.getElementById('gn-titulo').textContent = 'Negócio ganho · ' + nome;
+  document.getElementById('gn-resumo').innerHTML =
+    `${produto?escapeHtml(produto.nome):'Sem produto'} · <span class="money-pos">${fmtMoney(deal.value)}</span>. Marque o que já quer deixar pronto. Dá para voltar aqui depois pelo botão "Ações do ganho" do negócio.`;
+
+  // Financeiro
+  document.getElementById('gn-fin-on').checked = !gn.finCount;
+  document.getElementById('gn-fin-aviso').textContent = gn.finCount ? `Esta venda já tem ${gn.finCount} lançamento${gn.finCount===1?'':'s'} no financeiro.` : '';
+  const catSel = document.getElementById('gn-cat');
+  catSel.innerHTML = '<option value="">Sem categoria</option>' + (cats.data||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const catIA = (cats.data||[]).find(c=>c.name==='Produtos de IA');
+  catSel.value = catIA ? catIA.id : '';
+  document.getElementById('gn-forma').value = 'avista';
+  document.getElementById('gn-meio').value = 'Pix';
+  document.getElementById('gn-total').value = Number(deal.value) || (produto?.valor_padrao||0);
+  document.getElementById('gn-entrada').value = '';
+  document.getElementById('gn-entrada-data').value = hoje;
+  document.getElementById('gn-parcelas').value = 3;
+  document.getElementById('gn-venc').value = hoje;
+  gnFormaMudou();
+
+  // Contrato
+  document.getElementById('gn-ct-on').checked = !gn.temContrato;
+  document.getElementById('gn-ct-aviso').textContent = gn.temContrato ? 'A tarefa de gerar o contrato já existe.' : '';
+  document.getElementById('gn-ct-data').value = addDaysISO(hoje, 1);
+
+  // Portal
+  const bloco = document.getElementById('gn-portal-bloco');
+  bloco.style.display = gnMembros===null ? 'none' : '';
+  document.getElementById('gn-pt-on').checked = !!produto?.portal_tipo && gnMembros!==null;
+  document.getElementById('gn-pt-nome').value = contato?.name || nome;
+  document.getElementById('gn-pt-email').value = contato?.email || '';
+  document.getElementById('gn-pt-whats').value = contato?.phone || '';
+  document.getElementById('gn-pt-negocio').value = contato?.company || '';
+  document.getElementById('gn-pt-tipo').value = produto?.portal_tipo || 'mentorada';
+  gnPlanos(produto?.portal_plano);
+  document.getElementById('gn-pt-inicio').value = hoje;
+  document.getElementById('gn-pt-meses').value = produto ? produto.meses_clube : 6;
+  document.getElementById('gn-pt-encontros').value = produto?.total_encontros || 0;
+  gnClubeAte();
+  gnConferirPortal();
+
+  // Jornada
+  const temJornada = jornadaItens.some(i=>i.deal_id===dealId);
+  const nPassos = passosAtivos(deal.produto_id).length;
+  document.getElementById('gn-jr-on').checked = !temJornada && nPassos>0;
+  document.getElementById('gn-jr-aviso').textContent = temJornada ? 'A jornada desta cliente já começou.' : (!nPassos ? 'Este produto ainda não tem passos. Cadastre em Configurações.' : '');
+  document.getElementById('gn-jr-inicio').value = (deal.closed_at||'').slice(0,10) || hoje;
+  document.getElementById('gn-jr-nota').textContent = nPassos ? `${nPassos} passo${nPassos===1?'':'s'} do modelo de ${produto?.nome||'produto'}.` : '';
+
+  document.getElementById('gn-ativo').checked = !!contato && contato.status!=='ativo';
+  document.getElementById('gn-ativo').parentElement.style.display = contato ? '' : 'none';
+  gnMostrar();
+  openModal('modal-ganho');
+}
+
+function gnMostrar(){
+  [['gn-fin-on','gn-fin-corpo'],['gn-ct-on','gn-ct-corpo'],['gn-pt-on','gn-pt-corpo'],['gn-jr-on','gn-jr-corpo']].forEach(([cb,corpo])=>{
+    document.getElementById(corpo).style.display = document.getElementById(cb).checked ? '' : 'none';
+  });
+}
+
+function gnFormaMudou(){
+  const f = document.getElementById('gn-forma').value;
+  document.getElementById('gn-entrada-row').style.display = f==='entrada' ? '' : 'none';
+  document.getElementById('gn-parcelas-box').style.display = (f==='entrada'||f==='parcelado') ? '' : 'none';
+  document.getElementById('gn-total-lbl').textContent = f==='mensal' ? 'Valor da mensalidade (R$)' : 'Valor total (R$)';
+  document.getElementById('gn-venc-lbl').textContent = f==='avista' ? 'Vencimento' : f==='mensal' ? '1ª mensalidade' : '1º vencimento';
+  if(f==='entrada' || f==='parcelado'){
+    const v = document.getElementById('gn-venc');
+    if(v.value===todayISO() && f==='entrada') v.value = addDaysISO(todayISO(), 30);
+  }
+  if(f==='mensal') document.getElementById('gn-meio').value = 'Cartão recorrente';
+  gnGerarLinhas();
+}
+
+// Divide um valor em n parcelas sem perder centavos (a última leva a sobra).
+function dividir(total, n){
+  const base = Math.floor(total*100/n)/100;
+  const arr = Array(n).fill(base);
+  arr[n-1] = Math.round((total - base*(n-1))*100)/100;
+  return arr;
+}
+
+function gnGerarLinhas(){
+  if(!gn) return;
+  const f = document.getElementById('gn-forma').value;
+  const total = Math.max(0, Number(document.getElementById('gn-total').value)||0);
+  const venc = document.getElementById('gn-venc').value || todayISO();
+  const n = Math.min(36, Math.max(1, parseInt(document.getElementById('gn-parcelas').value)||1));
+  const base = (gn.produto?.nome || gn.deal.title) + ' · ' + nomeCliente(gn.deal);
+  gnLinhas = [];
+  if(f==='avista'){
+    gnLinhas.push({desc: base, data: venc, valor: total, pago:false, recorrente:false});
+  } else if(f==='mensal'){
+    gnLinhas.push({desc: base + ' (mensalidade)', data: venc, valor: total, pago:false, recorrente:true});
+  } else {
+    let resto = total;
+    if(f==='entrada'){
+      const ent = Math.min(total, Math.max(0, Number(document.getElementById('gn-entrada').value)||0));
+      if(ent>0) gnLinhas.push({desc: base + ' (entrada)', data: document.getElementById('gn-entrada-data').value || todayISO(), valor: ent, pago:false, recorrente:false});
+      resto = Math.round((total-ent)*100)/100;
+    }
+    if(resto>0) dividir(resto, n).forEach((v,i)=>gnLinhas.push({desc: `${base} (parcela ${i+1}/${n})`, data: addMonthsISO(venc, i), valor: v, pago:false, recorrente:false}));
+  }
+  gnRenderLinhas();
+}
+
+function gnRenderLinhas(){
+  document.getElementById('gn-linhas').innerHTML = gnLinhas.map((l,i)=>`<tr>
+    <td><input class="form-input" value="${escapeHtml(l.desc)}" maxlength="200" aria-label="Descrição" oninput="gnLinhas[${i}].desc=this.value"></td>
+    <td><input class="form-input" type="date" value="${l.data}" aria-label="Vencimento" onchange="gnLinhas[${i}].data=this.value"></td>
+    <td><input class="form-input" type="number" min="0" step="0.01" value="${l.valor}" aria-label="Valor" oninput="gnLinhas[${i}].valor=Number(this.value)||0;gnSoma()"></td>
+    <td style="text-align:center"><input type="checkbox" aria-label="Já recebido"${l.pago?' checked':''} onchange="gnLinhas[${i}].pago=this.checked"></td>
+  </tr>`).join('') || '<tr><td colspan="4" class="gn-nota" style="padding:8px">Informe o valor para gerar os lançamentos.</td></tr>';
+  gnSoma();
+}
+
+function gnSoma(){
+  const f = document.getElementById('gn-forma').value;
+  const total = Number(document.getElementById('gn-total').value)||0;
+  const soma = Math.round(gnLinhas.reduce((s,l)=>s+(Number(l.valor)||0),0)*100)/100;
+  const el = document.getElementById('gn-soma');
+  const difere = f!=='mensal' && Math.abs(soma-total)>0.009;
+  el.className = 'gn-soma' + (difere?' erro':'');
+  el.textContent = f==='mensal'
+    ? 'O financeiro repete esta mensalidade todo mês.'
+    : `Soma dos lançamentos: ${fmtMoney(soma)}${difere?' · diferente do total de '+fmtMoney(total):''}`;
+}
+
+function gnPlanos(atual){
+  const tipo = document.getElementById('gn-pt-tipo').value;
+  const sel = document.getElementById('gn-pt-plano');
+  sel.innerHTML = PLANOS[tipo].map(o=>`<option value="${o.id}">${o.label}</option>`).join('');
+  if(atual && PLANOS[tipo].some(o=>o.id===atual)) sel.value = atual;
+  document.getElementById('gn-pt-enc-box').style.visibility = tipo==='mentorada' ? 'visible' : 'hidden';
+}
+
+function gnClubeAte(){
+  const ini = document.getElementById('gn-pt-inicio').value || todayISO();
+  const m = parseInt(document.getElementById('gn-pt-meses').value)||0;
+  document.getElementById('gn-pt-ate').textContent = m>0 ? 'Acesso ao Clube até ' + fmtDateShort(addMonthsISO(ini, m)) + '.' : 'Sem acesso ao Clube.';
+}
+
+function gnConferirPortal(){
+  const email = document.getElementById('gn-pt-email').value.trim().toLowerCase();
+  const m = email && gnMembros ? gnMembros.find(x=>(x.email||'').toLowerCase()===email) : null;
+  if(gn) gn.membro = m || null;
+  document.getElementById('gn-pt-aviso').textContent = m
+    ? `Já cadastrada no portal${m.clube_ate?' (Clube até '+fmtDateShort(m.clube_ate)+')':''}. Confirmar atualiza o plano e o acesso.`
+    : '';
+}
+
+function passosAtivos(produtoId){
+  return (window._passosCache && window._passosCache[produtoId]) || [];
+}
+
+async function confirmarGanho(){
+  if(!gn) return;
+  const {deal, produto, contato} = gn;
+  const on = id => document.getElementById(id).checked;
+  const feitos = [], erros = [];
+
+  // Valida tudo antes de gravar qualquer coisa.
+  if(on('gn-fin-on')){
+    if(!gnLinhas.length || gnLinhas.some(l=>!(Number(l.valor)>0) || !l.data || !l.desc.trim())){
+      showToast('Confira os lançamentos: cada um precisa de descrição, data e valor',true); return;
+    }
+  }
+  const email = document.getElementById('gn-pt-email').value.trim();
+  if(on('gn-pt-on')){
+    if(!document.getElementById('gn-pt-nome').value.trim()){ showToast('Escreva o nome para o portal',true); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showToast('Escreva um e-mail válido para o acesso ao portal',true); return; }
+  }
+  if(on('gn-jr-on') && !document.getElementById('gn-jr-inicio').value){ showToast('Escolha a data de início da jornada',true); return; }
+
+  const btn = document.getElementById('btn-ganho-ok'); btn.disabled = true;
+
+  // 1) Financeiro
+  if(on('gn-fin-on')){
+    const meio = document.getElementById('gn-meio').value;
+    const rows = gnLinhas.map(l=>({
+      kind:'receita', description:l.desc.trim().slice(0,200), amount:Number(l.valor),
+      category_id: document.getElementById('gn-cat').value||null,
+      contact_id: deal.contact_id||null, deal_id: deal.id,
+      due_date:l.data, status: l.pago?'pago':'pendente', paid_at: l.pago?l.data:null,
+      recurring: l.recorrente?'mensal':'nao',
+      notes: 'Meio: '+meio+' · venda no CRM',
+    }));
+    const {error} = await sb.from('fin_transactions').insert(rows);
+    error ? erros.push('financeiro') : feitos.push(rows.length+' lançamento'+(rows.length===1?'':'s'));
+  }
+
+  // 2) Tarefa do contrato
+  if(on('gn-ct-on')){
+    const hoje = todayISO();
+    const {error} = await sb.from('tasks').insert({
+      title: 'Gerar contrato: ' + (produto?.nome||deal.title) + ' · ' + nomeCliente(deal),
+      description: 'Gerar na tela Contratos e mandar para assinatura. Valor: ' + fmtMoney(deal.value) + '.',
+      priority:'alta', status:'pendente', start_date: hoje, due_date: document.getElementById('gn-ct-data').value || hoje, deal_id: deal.id,
+    });
+    error ? erros.push('contrato') : feitos.push('tarefa do contrato');
+  }
+
+  // 3) Portal da mentorada
+  if(on('gn-pt-on')){
+    const tipo = document.getElementById('gn-pt-tipo').value;
+    const inicio = document.getElementById('gn-pt-inicio').value || todayISO();
+    const meses = parseInt(document.getElementById('gn-pt-meses').value)||0;
+    const reg = {
+      nome: document.getElementById('gn-pt-nome').value.trim(),
+      email: email.toLowerCase(),
+      whatsapp: document.getElementById('gn-pt-whats').value.trim()||null,
+      negocio: document.getElementById('gn-pt-negocio').value.trim()||null,
+      tipo, plano: document.getElementById('gn-pt-plano').value,
+      status:'ativa', inicio,
+      clube_ate: meses>0 ? addMonthsISO(inicio, meses) : null,
+      arquivado_em: null,
+    };
+    if(tipo==='mentorada') reg.total_encontros = parseInt(document.getElementById('gn-pt-encontros').value)||0;
+    const {error} = gn.membro
+      ? await sb.from('mn_membros').update(reg).eq('id', gn.membro.id)
+      : await sb.from('mn_membros').insert(reg);
+    if(error) erros.push('portal');
+    else {
+      feitos.push(gn.membro ? 'portal atualizado' : 'portal');
+      // Guarda o e-mail no contato, se ele ainda não tinha.
+      if(contato && !contato.email) await sb.from('crm_contacts').update({email: reg.email}).eq('id', contato.id);
+    }
+  }
+
+  // 4) Jornada
+  if(on('gn-jr-on')){
+    const err = await iniciarJornada(deal, document.getElementById('gn-jr-inicio').value);
+    err ? erros.push('jornada') : feitos.push('jornada');
+  }
+
+  // 5) Contato vira cliente ativo
+  if(contato && on('gn-ativo')){
+    const {error} = await sb.from('crm_contacts').update({status:'ativo'}).eq('id', contato.id);
+    if(error) erros.push('status do contato');
+  }
+
+  btn.disabled = false;
+  closeModal('modal-ganho');
+  if(erros.length) showToast('Não foi possível salvar: ' + erros.join(', ') + '. O resto foi salvo.', true);
+  else showToast(feitos.length ? 'Pronto: ' + feitos.join(', ') : 'Nada foi lançado');
+  gn = null;
+  loadAll();
+}
+
+// Copia os passos do produto para a jornada da cliente, com o prazo de cada um.
+async function iniciarJornada(deal, inicio){
+  const passos = passosAtivos(deal.produto_id);
+  if(!passos.length) return {message:'sem passos'};
+  const rows = passos.map((p,i)=>({
+    deal_id: deal.id, passo_id: p.id, titulo: p.titulo, descricao: p.descricao,
+    ordem: i, prazo: addDaysISO(inicio || todayISO(), p.dias||0),
+  }));
+  const {error} = await sb.from('crm_jornada_itens').insert(rows);
+  return error;
+}
+
+// ──────────── JORNADA PÓS-VENDA ────────────
+// Os passos do modelo (Configurações) ficam em cache por produto.
+async function carregarPassos(){
+  const {data} = await sb.from('crm_jornada_passos').select('*').is('arquivado_em', null).order('ordem');
+  window._passosCache = {};
+  (data||[]).forEach(p=>{ (window._passosCache[p.produto_id] ||= []).push(p); });
+}
+
+function setVista(v){ jornadaVista = v; gravarPref('crm.jornada', v); renderJornada(); }
+
+// Clientes ganhos no pipeline de IA, com os passos e o andamento de cada uma.
+function clientesJornada(){
+  return deals
+    .filter(d=>d.pipeline==='ia' && d.stage==='fechado' && (!produtoFiltro || d.produto_id===produtoFiltro))
+    .map(d=>{
+      const itens = jornadaItens.filter(i=>i.deal_id===d.id).sort((a,b)=>a.ordem-b.ordem);
+      const feitos = itens.filter(i=>i.feito_em).length;
+      const pend = itens.filter(i=>!i.feito_em);
+      const hoje = todayISO();
+      return {deal:d, itens, feitos, total:itens.length, proximo:pend[0]||null,
+              atrasados: pend.filter(i=>i.prazo && i.prazo<hoje).length,
+              concluida: itens.length>0 && !pend.length};
+    })
+    .sort((a,b)=>(a.proximo?.prazo||'9999').localeCompare(b.proximo?.prazo||'9999'));
+}
+
+function renderJornada(){
+  const el = document.getElementById('jornada-view');
+  if(!el || pipeline!=='ia') return;
+  if(!iaDisponivel){ el.innerHTML = SQL35; return; }
+  document.querySelectorAll('[data-vista]').forEach(b=>{ b.classList.toggle('on', b.dataset.vista===jornadaVista); b.setAttribute('aria-pressed', b.dataset.vista===jornadaVista); });
+  document.getElementById('jr-filtro').value = jornadaFiltro;
+  if(!window._passosCache){ el.innerHTML = '<div class="loading">Carregando...</div>'; carregarPassos().then(renderJornada); return; }
+  let lista = clientesJornada();
+  if(jornadaFiltro==='andamento') lista = lista.filter(c=>!c.concluida);
+  if(jornadaFiltro==='concluida') lista = lista.filter(c=>c.concluida);
+  if(jornadaVista==='kanban') return renderJornadaKanban(el, lista);
+  if(!lista.length){
+    el.innerHTML = `<div class="empty">${jornadaFiltro==='concluida' ? 'Nenhuma jornada concluída ainda.' : 'Nenhuma cliente em jornada. Quando um negócio for para Ganho, a jornada começa por aqui.'}</div>`;
+    return;
+  }
+  el.innerHTML = '<div class="jr-lista">' + lista.map(c=>{
+    const p = produtoMap[c.deal.produto_id];
+    const pct = c.total ? Math.round(c.feitos/c.total*100) : 0;
+    const prox = !c.total ? 'Jornada ainda não começou'
+      : c.proximo ? `Próximo: ${escapeHtml(c.proximo.titulo)}${c.proximo.prazo?' · até '+fmtDateShort(c.proximo.prazo):''}`
+      : 'Jornada concluída';
+    return `<button type="button" class="jr-card" onclick="abrirJornada('${c.deal.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="jr-nome">${escapeHtml(nomeCliente(c.deal))}</div>
+        <div class="jr-sub">${p?`<span class="dot" style="background:${escapeHtml(p.cor)}"></span> ${escapeHtml(p.nome)} · `:''}ganho em ${fmtDateShort(c.deal.closed_at)}</div>
+        <div class="jr-sub">${prox}${c.atrasados?` · <span class="jr-late">${c.atrasados} atrasado${c.atrasados===1?'':'s'}</span>`:''}</div>
+      </div>
+      <div class="jr-prog">${c.total ? `<div class="prog-row"><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div><span class="prog-pct">${c.feitos}/${c.total}</span></div>` : '<span class="btn btn-ghost btn-sm">Começar</span>'}</div>
+    </button>`;
+  }).join('') + '</div>';
+}
+
+// Kanban: uma coluna por passo do produto. A cliente fica na coluna do
+// primeiro passo que ainda não fez. Arrastar marca os passos anteriores.
+function renderJornadaKanban(el, lista){
+  const prod = produtoMap[produtoFiltro];
+  if(!prod){
+    el.innerHTML = '<div class="empty">Cada produto tem os seus passos. Escolha um produto lá em cima para ver o Kanban da jornada.</div>';
+    return;
+  }
+  const passos = passosAtivos(prod.id);
+  if(!passos.length){ el.innerHTML = '<div class="empty">Este produto ainda não tem passos. <a href="configuracoes.html?aba=jornada" style="color:var(--green2)">Cadastrar em Configurações</a></div>'; return; }
+  const ids = new Set(passos.map(p=>p.id));
+  const colunas = passos.map(p=>({id:p.id, label:p.titulo, cards:[]}));
+  const extras = {id:'extras', label:'Passos extras', cards:[]};
+  const fim = {id:'fim', label:'Concluída', cards:[]};
+  const semJornada = [];
+  lista.forEach(c=>{
+    if(!c.total){ semJornada.push(c); return; }
+    const pend = c.itens.filter(i=>!i.feito_em);
+    if(!pend.length){ fim.cards.push(c); return; }
+    const alvo = pend.find(i=>ids.has(i.passo_id));
+    if(alvo) colunas.find(k=>k.id===alvo.passo_id).cards.push(c);
+    else extras.cards.push(c);
+  });
+  const todas = [...colunas, ...(extras.cards.length?[extras]:[]), fim];
+  const card = c => {
+    const prox = c.itens.find(i=>!i.feito_em);
+    const late = prox && prox.prazo && prox.prazo<todayISO();
+    return `<div class="kb-card" draggable="true" ondragstart="jrDragStart(event,'${c.deal.id}')" onclick="abrirJornada('${c.deal.id}')" tabindex="0" onkeydown="if(event.key==='Enter')abrirJornada('${c.deal.id}')">
+      <div class="kb-card-title">${escapeHtml(nomeCliente(c.deal))}</div>
+      <div class="kb-card-meta">${c.feitos}/${c.total} passos${prox&&prox.prazo?` · <span class="${late?'jr-late':''}">até ${fmtDateShort(prox.prazo)}</span>`:''}</div>
+    </div>`;
+  };
+  el.innerHTML = (semJornada.length ? `<div class="gn-nota" style="margin-bottom:10px">${semJornada.length} cliente${semJornada.length===1?'':'s'} sem jornada iniciada: veja em "Por cliente".</div>` : '') +
+    `<div class="kanban">${todas.map((k,i)=>`<div class="kb-col">
+      <div class="kb-hd"><div class="kb-dot" style="background:${k.id==='fim'?'#4ADE80':escapeHtml(prod.cor)}"></div><div class="kb-title" title="${escapeHtml(k.label)}" style="white-space:normal;line-height:1.3">${k.id==='fim'||k.id==='extras'?'':(i+1)+'. '}${escapeHtml(k.label)}</div><div class="kb-sum">${k.cards.length}</div></div>
+      <div class="kb-body" data-coluna="${k.id}" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="jrDrop(event)">
+        ${k.cards.map(card).join('') || '<div style="font-size:11px;color:var(--text3);text-align:center;padding:14px 4px">Ninguém aqui</div>'}
+      </div></div>`).join('')}</div>`;
+}
+
+let jrDragDeal = null;
+function jrDragStart(e, id){ jrDragDeal = id; e.dataTransfer.effectAllowed = 'move'; }
+async function jrDrop(e){
+  e.preventDefault(); e.currentTarget.classList.remove('dragover');
+  const col = e.currentTarget.dataset.coluna, dealId = jrDragDeal; jrDragDeal = null;
+  if(!dealId || col==='extras') return;
+  const itens = jornadaItens.filter(i=>i.deal_id===dealId).sort((a,b)=>a.ordem-b.ordem);
+  let corte;  // itens antes do corte ficam feitos; do corte em diante, pendentes
+  if(col==='fim') corte = Infinity;
+  else {
+    const alvo = itens.find(i=>i.passo_id===col);
+    if(!alvo){ showToast('Esta cliente não tem este passo na jornada',true); return; }
+    corte = alvo.ordem;
+  }
+  const agora = new Date().toISOString();
+  const mudar = itens.filter(i=>(i.ordem<corte) !== !!i.feito_em);
+  const res = await Promise.all(mudar.map(i=>sb.from('crm_jornada_itens')
+    .update(i.ordem<corte ? {feito_em:agora, feito_por:currentUser?.id||null} : {feito_em:null, feito_por:null}).eq('id',i.id)));
+  if(res.some(r=>r.error)){ showToast('Não foi possível mover',true); }
+  else showToast(col==='fim' ? 'Jornada concluída 🎉' : 'Jornada atualizada');
+  await recarregarItens();
+}
+
+async function recarregarItens(){
+  const j = await sb.from('crm_jornada_itens').select('*').order('ordem');
+  jornadaItens = j.data||[];
+  renderJornada();
+  if(jrDealAberto && document.getElementById('modal-jornada').classList.contains('open')) renderItensJornada();
+}
+
+// Janela com o checklist de uma cliente
+let jrDealAberto = null, jrItemEditando = null;
+
+async function abrirJornada(dealId){
+  const d = deals.find(x=>x.id===dealId); if(!d) return;
+  if(!jornadaItens.some(i=>i.deal_id===dealId)){
+    // Ainda sem jornada: começa agora, a partir do dia do ganho.
+    if(!passosAtivos(d.produto_id).length){ showToast('Este produto ainda não tem passos. Cadastre em Configurações.',true); return; }
+    if(!confirm('Começar a jornada desta cliente agora?')) return;
+    const err = await iniciarJornada(d, (d.closed_at||'').slice(0,10) || todayISO());
+    if(err){ showToast('Não foi possível começar a jornada',true); return; }
+    await recarregarItens();
+  }
+  jrDealAberto = dealId;
+  const p = produtoMap[d.produto_id];
+  document.getElementById('jr-titulo').textContent = 'Jornada · ' + nomeCliente(d);
+  document.getElementById('jr-resumo').textContent = (p?p.nome+' · ':'') + 'ganho em ' + fmtDateShort(d.closed_at);
+  document.getElementById('jr-abrir-negocio').onclick = () => { closeModal('modal-jornada'); openEditDeal(dealId); };
+  renderItensJornada();
+  openModal('modal-jornada');
+}
+
+function renderItensJornada(){
+  const itens = jornadaItens.filter(i=>i.deal_id===jrDealAberto).sort((a,b)=>a.ordem-b.ordem);
+  const hoje = todayISO();
+  const feitos = itens.filter(i=>i.feito_em).length;
+  const pct = itens.length ? Math.round(feitos/itens.length*100) : 0;
+  document.getElementById('jr-itens').innerHTML =
+    `<div class="prog-row" style="margin-bottom:8px"><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div><span class="prog-pct">${feitos}/${itens.length}</span></div>` +
+    (itens.map(i=>{
+      const late = !i.feito_em && i.prazo && i.prazo<hoje;
+      return `<div class="jr-item${i.feito_em?' feito':''}">
+        <button type="button" class="jr-check${i.feito_em?' on':''}" aria-label="${i.feito_em?'Desmarcar':'Marcar como feito'}: ${escapeHtml(i.titulo)}" aria-pressed="${!!i.feito_em}" onclick="marcarItem('${i.id}')">${i.feito_em?ICO_CHECK:''}</button>
+        <div class="jr-txt">
+          <div class="jr-tit">${escapeHtml(i.titulo)}</div>
+          ${i.descricao?`<div class="jr-desc">${escapeHtml(i.descricao)}</div>`:''}
+          <div class="jr-desc${late?' jr-late':''}">${i.feito_em ? 'Feito em '+fmtDateShort(i.feito_em) : i.prazo ? 'Até '+fmtDateShort(i.prazo)+(late?' (atrasado)':'') : 'Sem prazo'}</div>
+        </div>
+        <div class="jr-acts">
+          <button type="button" class="jr-btn" title="Editar" aria-label="Editar ${escapeHtml(i.titulo)}" onclick="abrirItem('${i.id}')">${ICO_EDIT}</button>
+          <button type="button" class="jr-btn" title="Tirar da jornada" aria-label="Tirar ${escapeHtml(i.titulo)} da jornada" onclick="excluirItem('${i.id}')">${ICO_TRASH}</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty">Nenhum passo nesta jornada.</div>');
+}
+
+async function marcarItem(id){
+  const i = jornadaItens.find(x=>x.id===id); if(!i) return;
+  const feito = !i.feito_em;
+  const {error} = await sb.from('crm_jornada_itens')
+    .update(feito ? {feito_em:new Date().toISOString(), feito_por:currentUser?.id||null} : {feito_em:null, feito_por:null}).eq('id',id);
+  if(error){ showToast('Não foi possível salvar',true); return; }
+  await recarregarItens();
+}
+
+function abrirItem(id){
+  const i = id ? jornadaItens.find(x=>x.id===id) : null;
+  jrItemEditando = i ? i.id : null;
+  document.getElementById('ji-titulo').textContent = i ? 'Editar passo' : 'Novo passo desta cliente';
+  document.getElementById('ji-tit').value = i?.titulo || '';
+  document.getElementById('ji-desc').value = i?.descricao || '';
+  document.getElementById('ji-prazo').value = i?.prazo || '';
+  openModal('modal-jitem');
+  document.getElementById('ji-tit').focus();
+}
+
+async function salvarItem(){
+  const titulo = document.getElementById('ji-tit').value.trim();
+  if(!titulo){ showToast('Escreva o que fazer',true); return; }
+  const payload = {titulo, descricao: document.getElementById('ji-desc').value.trim()||null, prazo: document.getElementById('ji-prazo').value||null};
+  const btn = document.getElementById('btn-jitem'); btn.disabled = true;
+  let error;
+  if(jrItemEditando){
+    ({error} = await sb.from('crm_jornada_itens').update(payload).eq('id',jrItemEditando));
+  } else {
+    const ordem = Math.max(-1, ...jornadaItens.filter(i=>i.deal_id===jrDealAberto).map(i=>i.ordem)) + 1;
+    ({error} = await sb.from('crm_jornada_itens').insert({...payload, deal_id: jrDealAberto, ordem}));
+  }
+  btn.disabled = false;
+  if(error){ showToast('Não foi possível salvar o passo',true); return; }
+  closeModal('modal-jitem');
+  showToast('Passo salvo');
+  await recarregarItens();
+}
+
+async function excluirItem(id){
+  const i = jornadaItens.find(x=>x.id===id); if(!i) return;
+  if(!confirm(`Tirar "${i.titulo}" da jornada desta cliente? O modelo do produto não muda.`)) return;
+  const {error} = await sb.from('crm_jornada_itens').delete().eq('id',id);
+  if(error){ showToast('Não foi possível tirar o passo',true); return; }
+  showToast('Passo tirado da jornada');
+  await recarregarItens();
 }
 </script>
 </body>

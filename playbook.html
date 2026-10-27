@@ -395,14 +395,18 @@ a.sy-kpi:hover{border-color:var(--border2)}
 <script src="assets/shared.js"></script>
 <script src="assets/timer.js"></script>
 <script>
-// Etapas do funil do CRM (mesma ordem e cores do crm.html)
+// Etapas do funil do CRM (mesma ordem e cores do crm.html), com as do pipeline de IA
 const CRM_ETAPAS = [
+  {id:'prospeccao', label:'Prospecção (IA)',  cor:'#6E7681'},
   {id:'novo',       label:'Novo',             cor:'#8B949E'},
   {id:'contato',    label:'Contato',          cor:'#60A5FA'},
+  {id:'followup_contato', label:'Follow-up do contato (IA)', cor:'#93C5FD'},
   {id:'reuniao',    label:'Reunião agendada', cor:'#2DD4BF'},
+  {id:'followup_reuniao', label:'Follow-up da reunião (IA)', cor:'#5EEAD4'},
   {id:'proposta',   label:'Proposta',         cor:'#E3B341'},
   {id:'negociacao', label:'Negociação',       cor:'#A78BFA'},
-  {id:'fechado',    label:'Fechado',          cor:'#4ADE80'},
+  {id:'fechado',    label:'Fechado / Ganho',  cor:'#4ADE80'},
+  {id:'reaquecer',  label:'Reaquecer (IA)',   cor:'#FB923C'},
   {id:'perdido',    label:'Perdido',          cor:'#F85149'},
 ];
 const CORES = ['#22A060','#2DD4BF','#60A5FA','#A78BFA','#F472B6','#E3B341','#FB923C','#F85149','#8B949E'];

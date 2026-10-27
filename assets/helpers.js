@@ -46,6 +46,24 @@ function daysBetween(a,b){
   const p = d => { const x = new Date(String(d).length<=10 ? d+'T00:00:00' : d); x.setHours(0,0,0,0); return x };
   return Math.round((p(b)-p(a))/86400000);
 }
+// Soma dias ou meses a uma data 'YYYY-MM-DD' e devolve no mesmo formato.
+function addDaysISO(iso, n){
+  const x = new Date(iso+'T00:00:00'); x.setDate(x.getDate()+Number(n||0));
+  return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+}
+// 31/01 + 1 mês = 28/02 (último dia do mês), e não 03/03.
+function addMonthsISO(iso, n){
+  const x = new Date(iso+'T00:00:00'), dia = x.getDate();
+  x.setDate(1); x.setMonth(x.getMonth()+Number(n||0));
+  x.setDate(Math.min(dia, new Date(x.getFullYear(), x.getMonth()+1, 0).getDate()));
+  return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+}
+
+// Texto → código sem acento nem espaço (ex.: "Clube Mãos na IA" → "clube_maos_na_ia").
+function slugify(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+}
 
 // ──────────── NÚMEROS ────────────
 function fmtMoney(v){ return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) }

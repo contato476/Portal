@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Configurações · Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+.cf-intro{font-size:13px;color:var(--text2);margin:-6px 0 18px;line-height:1.55;max-width:720px}
+.cf-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cf-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);min-height:52px}
+.cf-row:last-child{border-bottom:none}
+.cf-row.arq{opacity:.55}
+.cf-main{flex:1;min-width:0}
+.cf-name{font-size:13.5px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cf-sub{font-size:11.5px;color:var(--text3);margin-top:2px;line-height:1.45}
+.cf-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.cf-num{font-size:12px;font-weight:600;color:var(--text3);width:22px;flex-shrink:0;text-align:center}
+.cf-acts{display:flex;gap:2px;flex-shrink:0}
+.cf-btn{width:34px;height:34px;display:grid;place-items:center;background:none;border:1px solid transparent;border-radius:8px;color:var(--text3);cursor:pointer}
+.cf-btn:hover{color:var(--text);border-color:var(--border2);background:var(--dark3)}
+.cf-btn:focus-visible,.cf-chip:focus-visible,.btn:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+.cf-btn:disabled{opacity:.3;cursor:default;background:none;border-color:transparent}
+.cf-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.cf-chip{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--dark2);color:var(--text2);font-family:inherit;font-size:12.5px;cursor:pointer}
+.cf-chip.on{border-color:var(--green2);color:var(--text);background:rgba(34,160,96,.12)}
+.cf-hist{font-size:12.5px;color:var(--text2);line-height:1.5}
+.cf-hist b{color:var(--text);font-weight:500}
+.cf-color{width:44px;height:40px;padding:3px;border-radius:8px;border:1px solid var(--border);background:var(--dark3);cursor:pointer}
+.cf-hint{font-size:11.5px;color:var(--text3);margin-top:5px;line-height:1.45}
+@media(max-width:900px){.cf-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.cf-row{flex-wrap:wrap}.cf-acts{width:100%;justify-content:flex-end}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar"><div class="topbar-title">Configurações</div></div>
+    <div class="main-content">
+
+      <div class="tabs-row" role="tablist">
+        <div class="dtab active" data-tab="produtos" role="tab" tabindex="0" onclick="switchTab('produtos')" onkeydown="if(event.key==='Enter')switchTab('produtos')">Produtos e valores</div>
+        <div class="dtab" data-tab="jornada" role="tab" tabindex="0" onclick="switchTab('jornada')" onkeydown="if(event.key==='Enter')switchTab('jornada')">Jornada pós-venda</div>
+        <div class="dtab" data-tab="listas" role="tab" tabindex="0" onclick="switchTab('listas')" onkeydown="if(event.key==='Enter')switchTab('listas')">Listas do CRM</div>
+        <div class="dtab" data-tab="financeiro" role="tab" tabindex="0" onclick="switchTab('financeiro')" onkeydown="if(event.key==='Enter')switchTab('financeiro')">Categorias do financeiro</div>
+        <div class="dtab" data-tab="historico" role="tab" tabindex="0" onclick="switchTab('historico')" onkeydown="if(event.key==='Enter')switchTab('historico')">Histórico</div>
+      </div>
+
+      <!-- PRODUTOS -->
+      <div class="dtab-view active" id="tab-produtos">
+        <p class="cf-intro">Produtos do pipeline de IA no CRM. O valor padrão entra sozinho no negócio novo, e as regras do portal preenchem a janela do ganho. Tudo pode ser mudado na hora de lançar.</p>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Produtos</div><button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="abrirProduto()">+ Produto</button></div>
+          <div id="lista-produtos"><div class="loading">Carregando...</div></div>
+        </div>
+      </div>
+
+      <!-- JORNADA -->
+      <div class="dtab-view" id="tab-jornada">
+        <p class="cf-intro">Passos que cada cliente percorre depois do ganho. O prazo conta a partir do dia do ganho. Quem já está na jornada guarda os passos do dia em que entrou: mudar aqui vale para as próximas.</p>
+        <div class="cf-chips" id="jornada-chips"></div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title" id="jornada-titulo">Passos</div><button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="abrirPasso()">+ Passo</button></div>
+          <div id="lista-passos"><div class="loading">Carregando...</div></div>
+        </div>
+      </div>
+
+      <!-- LISTAS DO CRM -->
+      <div class="dtab-view" id="tab-listas">
+        <p class="cf-intro">Opções que aparecem nos formulários do CRM. Item em uso não pode ser excluído, só arquivado: ele some das opções, mas continua aparecendo nos registros antigos.</p>
+        <div class="cf-grid">
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Origens dos contatos</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="abrirOpcao('crm_origem')">+ Origem</button></div>
+            <div id="lista-crm_origem"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Motivos de perda</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="abrirOpcao('crm_motivo_perda')">+ Motivo</button></div>
+            <div id="lista-crm_motivo_perda"><div class="loading">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINANCEIRO -->
+      <div class="dtab-view" id="tab-financeiro">
+        <p class="cf-intro">Categorias de receita e despesa usadas nos lançamentos. Categoria com lançamentos não pode ser excluída.</p>
+        <div class="cf-grid">
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Receitas</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="abrirCategoria(null,'receita')">+ Categoria</button></div>
+            <div id="lista-cat-receita"><div class="loading">Carregando...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">Despesas</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="abrirCategoria(null,'despesa')">+ Categoria</button></div>
+            <div id="lista-cat-despesa"><div class="loading">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div class="dtab-view" id="tab-historico">
+        <p class="cf-intro">As últimas alterações em produtos, passos da jornada e listas.</p>
+        <div class="card"><div id="lista-historico"><div class="loading">Carregando...</div></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL: PRODUTO -->
+<div class="overlay" id="modal-produto">
+  <div class="modal" style="width:540px" role="dialog" aria-modal="true" aria-labelledby="mp-titulo">
+    <div class="modal-title" id="mp-titulo">Produto</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" for="p-nome">Nome *</label><input class="form-input" id="p-nome" maxlength="80" placeholder="Ex.: Mentoria Mãos na IA"></div>
+      <div class="form-group"><label class="form-label" for="p-valor">Valor padrão (R$)</label><input class="form-input" id="p-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
+    </div>
+    <div class="form-section">Portal da mentorada</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" for="p-ptipo">Entra no portal como</label>
+        <select class="form-input form-select" id="p-ptipo" onchange="togglePortalProduto()">
+          <option value="">Não entra no portal</option>
+          <option value="mentorada">Mentorada</option>
+          <option value="clube">Assinante do Clube</option>
+        </select>
+      </div>
+      <div class="form-group" id="p-plano-box"><label class="form-label" for="p-plano">Plano</label>
+        <select class="form-input form-select" id="p-plano"></select>
+      </div>
+    </div>
+    <div class="form-row" id="p-portal-extra">
+      <div class="form-group"><label class="form-label" for="p-meses">Meses de Clube liberados</label><input class="form-input" id="p-meses" type="number" min="0" max="60" step="1"></div>
+      <div class="form-group"><label class="form-label" for="p-encontros">Encontros</label><input class="form-input" id="p-encontros" type="number" min="0" max="60" step="1"></div>
+    </div>
+    <div class="form-group"><label class="form-label" for="p-cor">Cor no CRM</label><input class="cf-color" id="p-cor" type="color" value="#22A060"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-produto')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-produto" onclick="salvarProduto()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PASSO DA JORNADA -->
+<div class="overlay" id="modal-passo">
+  <div class="modal" style="width:500px" role="dialog" aria-modal="true" aria-labelledby="mps-titulo">
+    <div class="modal-title" id="mps-titulo">Passo da jornada</div>
+    <div class="form-group"><label class="form-label" for="ps-titulo">O que fazer *</label><input class="form-input" id="ps-titulo" maxlength="140" placeholder="Ex.: Criar o grupo individual no WhatsApp"></div>
+    <div class="form-group"><label class="form-label" for="ps-desc">Como fazer</label><textarea class="form-input" id="ps-desc" maxlength="1000" placeholder="Link, texto pronto ou detalhe"></textarea></div>
+    <div class="form-group"><label class="form-label" for="ps-dias">Prazo (dias depois do ganho)</label><input class="form-input" id="ps-dias" type="number" min="0" max="365" step="1" value="0">
+      <div class="cf-hint">0 = no mesmo dia do ganho.</div></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-passo')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-passo" onclick="salvarPasso()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ITEM DE LISTA / CATEGORIA -->
+<div class="overlay" id="modal-opcao">
+  <div class="modal" style="width:440px" role="dialog" aria-modal="true" aria-labelledby="mo-titulo">
+    <div class="modal-title" id="mo-titulo">Item</div>
+    <div class="form-group"><label class="form-label" for="o-rotulo">Nome *</label><input class="form-input" id="o-rotulo" maxlength="60"></div>
+    <div class="form-group" id="o-cor-box"><label class="form-label" for="o-cor">Cor</label><input class="cf-color" id="o-cor" type="color" value="#22A060"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-opcao')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-opcao" onclick="salvarOpcao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+// Ícones (Lucide)
+const ICON = {
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>',
+  archive:'<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><path d="M10 12h4"/>',
+  restore:'<path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
+  up:'<path d="m18 15-6-6-6 6"/>',
+  down:'<path d="m6 9 6 6 6-6"/>',
+};
+function ico(n){ return `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>` }
+function botao(icone, rotulo, acao, desligado){
+  return `<button class="cf-btn" type="button" title="${rotulo}" aria-label="${rotulo}" onclick="${acao}"${desligado?' disabled':''}>${ico(icone)}</button>`;
+}
+
+const PLANOS = {
+  mentorada:[{id:'mentoria',label:'Mentoria'},{id:'permuta',label:'Permuta'},{id:'cortesia',label:'Cortesia'}],
+  clube:[{id:'clube_mensal',label:'Clube mensal'},{id:'clube_anual',label:'Clube anual'},{id:'cortesia',label:'Cortesia'}],
+};
+const PLANO_LABEL = {mentoria:'Mentoria', permuta:'Permuta', cortesia:'Cortesia', clube_mensal:'Clube mensal', clube_anual:'Clube anual'};
+const LISTA_NOME = {crm_origem:'origem', crm_motivo_perda:'motivo de perda'};
+const SQL35 = '<div class="empty">Configurações ainda não criadas.<br>Rode o arquivo <b>sql/35_crm_pipeline_ia.sql</b> no SQL Editor do Supabase.</div>';
+
+let produtos = [], passos = [], listas = [], cats = [];
+let produtoJornada = null;          // produto escolhido na aba Jornada
+let editProduto = null, editPasso = null, editOpcao = null; // {tipo:'lista'|'cat', lista, id, kind}
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderSidebar('configuracoes');
+  const aba = new URLSearchParams(location.search).get('aba');
+  if(aba) switchTab(aba);
+  requireAdmin(loadAll);
+});
+
+function switchTab(name){
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.dtab-view').forEach(v=>v.classList.toggle('active', v.id==='tab-'+name));
+  if(name==='historico') carregarHistorico();
+}
+
+async function loadAll(){
+  const [p, ps, l, c] = await Promise.all([
+    sb.from('crm_produtos').select('*').order('ordem'),
+    sb.from('crm_jornada_passos').select('*').order('ordem'),
+    sb.from('cfg_listas').select('*').order('ordem'),
+    sb.from('fin_categories').select('*').order('name'),
+  ]);
+  if(p.error){
+    const msg = isMissingTable(p.error) ? SQL35 : '<div class="empty">Não foi possível carregar. Tente de novo.</div>';
+    ['lista-produtos','lista-passos','lista-crm_origem','lista-crm_motivo_perda'].forEach(id=>document.getElementById(id).innerHTML=msg);
+  } else {
+    produtos = p.data||[]; passos = ps.data||[]; listas = l.data||[];
+    if(!produtoJornada || !produtos.some(x=>x.id===produtoJornada)) produtoJornada = produtos[0]?.id || null;
+    renderProdutos(); renderJornada(); renderListas();
+  }
+  cats = c.data||[];
+  renderCategorias();
+}
+
+// Conta quantos registros usam um item (para decidir entre excluir e arquivar).
+async function contarUso(tabela, coluna, valor){
+  const {count, error} = await sb.from(tabela).select('id',{count:'exact', head:true}).eq(coluna, valor);
+  return error ? 1 : (count||0);   // na dúvida, trata como em uso
+}
+
+// Troca a posição de um item com o vizinho e regrava a ordem de todos.
+async function mover(tabela, itens, id, dir){
+  const i = itens.findIndex(x=>x.id===id), j = i+dir;
+  if(i<0 || j<0 || j>=itens.length) return;
+  const nova = itens.slice(); [nova[i], nova[j]] = [nova[j], nova[i]];
+  const mudou = nova.map((x,k)=>({id:x.id, ordem:k})).filter((x,k)=>nova[k].ordem!==k);
+  const res = await Promise.all(mudou.map(x=>sb.from(tabela).update({ordem:x.ordem}).eq('id',x.id)));
+  if(res.some(r=>r.error)){ showToast('Não foi possível mudar a ordem',true); return; }
+  loadAll();
+}
+
+async function arquivar(tabela, id, arquivar){
+  const {error} = await sb.from(tabela).update({arquivado_em: arquivar ? new Date().toISOString() : null}).eq('id',id);
+  if(error){ showToast('Não foi possível salvar',true); return; }
+  showToast(arquivar ? 'Arquivado' : 'Restaurado');
+  loadAll();
+}
+
+// ──────────── PRODUTOS ────────────
+function renderProdutos(){
+  const el = document.getElementById('lista-produtos');
+  if(!produtos.length){ el.innerHTML = '<div class="empty">Nenhum produto ainda. Clique em "+ Produto".</div>'; return; }
+  el.innerHTML = produtos.map((p,i)=>{
+    const portal = p.portal_tipo
+      ? `Portal: ${p.portal_tipo==='clube'?'Clube':'Mentorada'} · ${PLANO_LABEL[p.portal_plano]||'sem plano'}${p.meses_clube?' · '+p.meses_clube+' meses de Clube':''}${p.total_encontros?' · '+p.total_encontros+' encontros':''}`
+      : 'Não entra no portal';
+    return `<div class="cf-row${p.arquivado_em?' arq':''}">
+      <span class="cf-dot" style="background:${escapeHtml(p.cor)}"></span>
+      <div class="cf-main">
+        <div class="cf-name">${escapeHtml(p.nome)} ${p.arquivado_em?'<span class="badge bg-gray">Arquivado</span>':''}</div>
+        <div class="cf-sub">${fmtMoney(p.valor_padrao)} · ${portal}</div>
+      </div>
+      <div class="cf-acts">
+        ${botao('up','Subir','mover(\'crm_produtos\',produtos,\''+p.id+'\',-1)', i===0)}
+        ${botao('down','Descer','mover(\'crm_produtos\',produtos,\''+p.id+'\',1)', i===produtos.length-1)}
+        ${botao('edit','Editar','abrirProduto(\''+p.id+'\')')}
+        ${p.arquivado_em ? botao('restore','Restaurar','arquivar(\'crm_produtos\',\''+p.id+'\',false)') : botao('archive','Arquivar','arquivar(\'crm_produtos\',\''+p.id+'\',true)')}
+        ${botao('trash','Excluir','excluirProduto(\''+p.id+'\')')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePortalProduto(){
+  const tipo = document.getElementById('p-ptipo').value;
+  document.getElementById('p-plano-box').style.visibility = tipo ? 'visible' : 'hidden';
+  document.getElementById('p-portal-extra').style.display = tipo ? '' : 'none';
+  const sel = document.getElementById('p-plano'), atual = sel.value;
+  sel.innerHTML = (PLANOS[tipo]||[]).map(o=>`<option value="${o.id}">${o.label}</option>`).join('');
+  if([...sel.options].some(o=>o.value===atual)) sel.value = atual;
+}
+
+function abrirProduto(id){
+  const p = id ? produtos.find(x=>x.id===id) : null;
+  editProduto = p ? p.id : null;
+  document.getElementById('mp-titulo').textContent = p ? 'Editar produto' : 'Novo produto';
+  document.getElementById('p-nome').value = p?.nome || '';
+  document.getElementById('p-valor').value = p ? p.valor_padrao : '';
+  document.getElementById('p-ptipo').value = p?.portal_tipo || '';
+  togglePortalProduto();
+  if(p?.portal_plano) document.getElementById('p-plano').value = p.portal_plano;
+  document.getElementById('p-meses').value = p ? p.meses_clube : 6;
+  document.getElementById('p-encontros').value = p ? p.total_encontros : 0;
+  document.getElementById('p-cor').value = p?.cor || '#22A060';
+  openModal('modal-produto');
+  document.getElementById('p-nome').focus();
+}
+
+async function salvarProduto(){
+  const nome = document.getElementById('p-nome').value.trim();
+  if(!nome){ showToast('Escreva o nome do produto',true); return; }
+  const valor = Number(document.getElementById('p-valor').value)||0;
+  if(valor<0){ showToast('O valor não pode ser negativo',true); return; }
+  const tipo = document.getElementById('p-ptipo').value || null;
+  const payload = {
+    nome, valor_padrao: valor,
+    portal_tipo: tipo,
+    portal_plano: tipo ? document.getElementById('p-plano').value : null,
+    meses_clube: tipo ? Math.max(0, parseInt(document.getElementById('p-meses').value)||0) : 0,
+    total_encontros: tipo ? Math.max(0, parseInt(document.getElementById('p-encontros').value)||0) : 0,
+    cor: document.getElementById('p-cor').value,
+  };
+  const btn = document.getElementById('btn-produto'); btn.disabled = true;
+  let error;
+  if(editProduto){
+    ({error} = await sb.from('crm_produtos').update(payload).eq('id',editProduto));
+  } else {
+    // O código é fixo: nasce do nome e não muda mais (o banco usa para achar o produto).
+    let codigo = slugify(nome) || 'produto';
+    if(produtos.some(x=>x.codigo===codigo)) codigo += '_' + Date.now().toString(36).slice(-4);
+    ({error} = await sb.from('crm_produtos').insert({...payload, codigo, ordem: produtos.length}));
+  }
+  btn.disabled = false;
+  if(error){ showToast('Não foi possível salvar o produto',true); return; }
+  closeModal('modal-produto');
+  showToast(editProduto ? 'Produto atualizado' : 'Produto criado');
+  loadAll();
+}
+
+async function excluirProduto(id){
+  const p = produtos.find(x=>x.id===id); if(!p) return;
+  if(await contarUso('crm_deals','produto_id',id)){
+    showToast('Este produto tem negócios no CRM. Use Arquivar.',true); return;
+  }
+  if(!confirm(`Excluir "${p.nome}" de vez? Os passos da jornada dele também saem.`)) return;
+  const {error} = await sb.from('crm_produtos').delete().eq('id',id);
+  if(error){ showToast('Não foi possível excluir',true); return; }
+  showToast('Produto excluído');
+  loadAll();
+}
+
+// ──────────── JORNADA ────────────
+function passosDoProduto(){ return passos.filter(x=>x.produto_id===produtoJornada); }
+
+function renderJornada(){
+  document.getElementById('jornada-chips').innerHTML = produtos.filter(p=>!p.arquivado_em).map(p=>
+    `<button type="button" class="cf-chip${p.id===produtoJornada?' on':''}" aria-pressed="${p.id===produtoJornada}" onclick="produtoJornada='${p.id}';renderJornada()">
+      <span class="cf-dot" style="background:${escapeHtml(p.cor)}"></span>${escapeHtml(p.nome)}</button>`).join('');
+  const prod = produtos.find(p=>p.id===produtoJornada);
+  document.getElementById('jornada-titulo').textContent = prod ? 'Passos · '+prod.nome : 'Passos';
+  const el = document.getElementById('lista-passos');
+  if(!prod){ el.innerHTML = '<div class="empty">Cadastre um produto primeiro, na aba Produtos e valores.</div>'; return; }
+  const lista = passosDoProduto();
+  if(!lista.length){ el.innerHTML = '<div class="empty">Nenhum passo ainda. Clique em "+ Passo" para montar a jornada.</div>'; return; }
+  el.innerHTML = lista.map((s,i)=>`<div class="cf-row${s.arquivado_em?' arq':''}">
+      <span class="cf-num">${i+1}</span>
+      <div class="cf-main">
+        <div class="cf-name">${escapeHtml(s.titulo)} ${s.arquivado_em?'<span class="badge bg-gray">Arquivado</span>':''}</div>
+        <div class="cf-sub">${s.dias? 'Até '+s.dias+' dia'+(s.dias===1?'':'s')+' depois do ganho' : 'No dia do ganho'}${s.descricao?' · '+escapeHtml(s.descricao):''}</div>
+      </div>
+      <div class="cf-acts">
+        ${botao('up','Subir','mover(\'crm_jornada_passos\',passosDoProduto(),\''+s.id+'\',-1)', i===0)}
+        ${botao('down','Descer','mover(\'crm_jornada_passos\',passosDoProduto(),\''+s.id+'\',1)', i===lista.length-1)}
+        ${botao('edit','Editar','abrirPasso(\''+s.id+'\')')}
+        ${s.arquivado_em ? botao('restore','Restaurar','arquivar(\'crm_jornada_passos\',\''+s.id+'\',false)') : botao('archive','Arquivar','arquivar(\'crm_jornada_passos\',\''+s.id+'\',true)')}
+        ${botao('trash','Excluir','excluirPasso(\''+s.id+'\')')}
+      </div>
+    </div>`).join('');
+}
+
+function abrirPasso(id){
+  if(!produtoJornada){ showToast('Cadastre um produto primeiro',true); return; }
+  const s = id ? passos.find(x=>x.id===id) : null;
+  editPasso = s ? s.id : null;
+  document.getElementById('mps-titulo').textContent = s ? 'Editar passo' : 'Novo passo';
+  document.getElementById('ps-titulo').value = s?.titulo || '';
+  document.getElementById('ps-desc').value = s?.descricao || '';
+  document.getElementById('ps-dias').value = s ? s.dias : 0;
+  openModal('modal-passo');
+  document.getElementById('ps-titulo').focus();
+}
+
+async function salvarPasso(){
+  const titulo = document.getElementById('ps-titulo').value.trim();
+  if(!titulo){ showToast('Escreva o que fazer neste passo',true); return; }
+  const dias = parseInt(document.getElementById('ps-dias').value);
+  if(isNaN(dias) || dias<0){ showToast('O prazo precisa ser 0 ou mais dias',true); return; }
+  const payload = {titulo, descricao: document.getElementById('ps-desc').value.trim()||null, dias};
+  const btn = document.getElementById('btn-passo'); btn.disabled = true;
+  const {error} = editPasso
+    ? await sb.from('crm_jornada_passos').update(payload).eq('id',editPasso)
+    : await sb.from('crm_jornada_passos').insert({...payload, produto_id: produtoJornada, ordem: passosDoProduto().length});
+  btn.disabled = false;
+  if(error){ showToast('Não foi possível salvar o passo',true); return; }
+  closeModal('modal-passo');
+  showToast(editPasso ? 'Passo atualizado' : 'Passo criado');
+  loadAll();
+}
+
+async function excluirPasso(id){
+  const s = passos.find(x=>x.id===id); if(!s) return;
+  if(await contarUso('crm_jornada_itens','passo_id',id)){
+    showToast('Este passo já está na jornada de clientes. Use Arquivar.',true); return;
+  }
+  if(!confirm(`Excluir o passo "${s.titulo}"?`)) return;
+  const {error} = await sb.from('crm_jornada_passos').delete().eq('id',id);
+  if(error){ showToast('Não foi possível excluir',true); return; }
+  showToast('Passo excluído');
+  loadAll();
+}
+
+// ──────────── LISTAS DO CRM ────────────
+function renderListas(){
+  ['crm_origem','crm_motivo_perda'].forEach(lista=>{
+    const itens = listas.filter(x=>x.lista===lista);
+    const el = document.getElementById('lista-'+lista);
+    if(!itens.length){ el.innerHTML = '<div class="empty">Lista vazia.</div>'; return; }
+    el.innerHTML = itens.map((x,i)=>`<div class="cf-row${x.arquivado_em?' arq':''}">
+      <div class="cf-main"><div class="cf-name">${escapeHtml(x.rotulo)} ${x.arquivado_em?'<span class="badge bg-gray">Arquivado</span>':''}</div></div>
+      <div class="cf-acts">
+        ${botao('up','Subir','mover(\'cfg_listas\',listas.filter(y=>y.lista===\''+lista+'\'),\''+x.id+'\',-1)', i===0)}
+        ${botao('down','Descer','mover(\'cfg_listas\',listas.filter(y=>y.lista===\''+lista+'\'),\''+x.id+'\',1)', i===itens.length-1)}
+        ${botao('edit','Editar','abrirOpcao(\''+lista+'\',\''+x.id+'\')')}
+        ${x.arquivado_em ? botao('restore','Restaurar','arquivar(\'cfg_listas\',\''+x.id+'\',false)') : botao('archive','Arquivar','arquivar(\'cfg_listas\',\''+x.id+'\',true)')}
+        ${botao('trash','Excluir','excluirOpcao(\''+x.id+'\')')}
+      </div>
+    </div>`).join('');
+  });
+}
+
+function abrirOpcao(lista, id){
+  if(!produtos.length && !listas.length){ showToast('Rode o sql/35 no Supabase primeiro',true); return; }
+  const x = id ? listas.find(y=>y.id===id) : null;
+  editOpcao = {tipo:'lista', lista, id: x?.id || null};
+  document.getElementById('mo-titulo').textContent = (x?'Editar ':'Nova ') + LISTA_NOME[lista];
+  document.getElementById('o-rotulo').value = x?.rotulo || '';
+  document.getElementById('o-cor-box').style.display = 'none';
+  openModal('modal-opcao');
+  document.getElementById('o-rotulo').focus();
+}
+
+async function excluirOpcao(id){
+  const x = listas.find(y=>y.id===id); if(!x) return;
+  const uso = x.lista==='crm_origem'
+    ? await contarUso('crm_contacts','origin',x.valor)
+    : await contarUso('crm_deals','lost_reason',x.valor);
+  if(uso){ showToast(`Em uso em ${uso} registro${uso===1?'':'s'}. Use Arquivar.`,true); return; }
+  if(!confirm(`Excluir "${x.rotulo}"?`)) return;
+  const {error} = await sb.from('cfg_listas').delete().eq('id',id);
+  if(error){ showToast('Não foi possível excluir',true); return; }
+  showToast('Excluído');
+  loadAll();
+}
+
+// ──────────── CATEGORIAS DO FINANCEIRO ────────────
+function renderCategorias(){
+  ['receita','despesa'].forEach(kind=>{
+    const itens = cats.filter(c=>c.kind===kind);
+    const el = document.getElementById('lista-cat-'+kind);
+    if(!itens.length){ el.innerHTML = '<div class="empty">Nenhuma categoria.</div>'; return; }
+    el.innerHTML = itens.map(c=>`<div class="cf-row">
+      <span class="cf-dot" style="background:${escapeHtml(c.color||'#8B949E')}"></span>
+      <div class="cf-main"><div class="cf-name">${escapeHtml(c.name)}</div></div>
+      <div class="cf-acts">
+        ${botao('edit','Editar','abrirCategoria(\''+c.id+'\')')}
+        ${botao('trash','Excluir','excluirCategoria(\''+c.id+'\')')}
+      </div>
+    </div>`).join('');
+  });
+}
+
+function abrirCategoria(id, kind){
+  const c = id ? cats.find(x=>x.id===id) : null;
+  editOpcao = {tipo:'cat', id: c?.id || null, kind: c?.kind || kind};
+  document.getElementById('mo-titulo').textContent = (c?'Editar categoria de ':'Nova categoria de ') + editOpcao.kind;
+  document.getElementById('o-rotulo').value = c?.name || '';
+  document.getElementById('o-cor').value = c?.color || '#22A060';
+  document.getElementById('o-cor-box').style.display = '';
+  openModal('modal-opcao');
+  document.getElementById('o-rotulo').focus();
+}
+
+async function excluirCategoria(id){
+  const c = cats.find(x=>x.id===id); if(!c) return;
+  const uso = await contarUso('fin_transactions','category_id',id);
+  if(uso){ showToast(`Esta categoria tem ${uso} lançamento${uso===1?'':'s'} e não pode ser excluída`,true); return; }
+  if(!confirm(`Excluir a categoria "${c.name}"?`)) return;
+  const {error} = await sb.from('fin_categories').delete().eq('id',id);
+  if(error){ showToast('Não foi possível excluir',true); return; }
+  showToast('Categoria excluída');
+  loadAll();
+}
+
+// Salva tanto item de lista do CRM quanto categoria do financeiro.
+async function salvarOpcao(){
+  const rotulo = document.getElementById('o-rotulo').value.trim();
+  if(!rotulo){ showToast('Escreva o nome',true); return; }
+  const o = editOpcao; if(!o) return;
+  const btn = document.getElementById('btn-opcao'); btn.disabled = true;
+  let error;
+  if(o.tipo==='cat'){
+    const payload = {name: rotulo, color: document.getElementById('o-cor').value};
+    ({error} = o.id
+      ? await sb.from('fin_categories').update(payload).eq('id',o.id)
+      : await sb.from('fin_categories').insert({...payload, kind:o.kind}));
+  } else if(o.id){
+    ({error} = await sb.from('cfg_listas').update({rotulo}).eq('id',o.id));
+  } else {
+    // O valor gravado nos registros nasce do nome e não muda mais.
+    let valor = slugify(rotulo) || 'item';
+    if(listas.some(x=>x.lista===o.lista && x.valor===valor)) valor += '_' + Date.now().toString(36).slice(-4);
+    ({error} = await sb.from('cfg_listas').insert({lista:o.lista, valor, rotulo, ordem: listas.filter(x=>x.lista===o.lista).length}));
+  }
+  btn.disabled = false;
+  if(error){ showToast(/duplicate|unique/i.test(error.message||'') ? 'Já existe um item com esse nome' : 'Não foi possível salvar',true); return; }
+  closeModal('modal-opcao');
+  showToast('Salvo');
+  loadAll();
+}
+
+// ──────────── HISTÓRICO ────────────
+const HIST_TABELA = {crm_produtos:'Produto', crm_jornada_passos:'Passo da jornada', cfg_listas:'Item de lista'};
+const HIST_CAMPO = {nome:'nome', valor_padrao:'valor', portal_tipo:'portal', portal_plano:'plano', meses_clube:'meses de Clube',
+  total_encontros:'encontros', cor:'cor', ordem:'ordem', titulo:'título', descricao:'descrição', dias:'prazo', rotulo:'nome'};
+
+async function carregarHistorico(){
+  const el = document.getElementById('lista-historico');
+  const {data, error} = await sb.from('cfg_historico').select('*').order('em',{ascending:false}).limit(60);
+  if(error){ el.innerHTML = isMissingTable(error) ? SQL35 : '<div class="empty">Não foi possível carregar o histórico.</div>'; return; }
+  if(!data.length){ el.innerHTML = '<div class="empty">Nenhuma alteração registrada ainda.</div>'; return; }
+  el.innerHTML = data.map(h=>{
+    const r = h.depois || h.antes || {};
+    const nome = r.nome || r.titulo || r.rotulo || '';
+    let acao = h.acao==='insert' ? 'criou' : h.acao==='delete' ? 'excluiu' : 'alterou';
+    let detalhe = '';
+    if(h.acao==='update' && h.antes && h.depois){
+      if(!h.antes.arquivado_em && h.depois.arquivado_em) acao = 'arquivou';
+      else if(h.antes.arquivado_em && !h.depois.arquivado_em) acao = 'restaurou';
+      else detalhe = Object.keys(HIST_CAMPO).filter(k=>k in h.depois && JSON.stringify(h.antes[k])!==JSON.stringify(h.depois[k])).map(k=>HIST_CAMPO[k]).join(', ');
+    }
+    return `<div class="cf-row"><div class="cf-main">
+      <div class="cf-hist">${acao[0].toUpperCase()+acao.slice(1)} ${(HIST_TABELA[h.tabela]||h.tabela).toLowerCase()} <b>${escapeHtml(nome)}</b>${detalhe?' · '+escapeHtml(detalhe):''}</div>
+      <div class="cf-sub">${fmtDate(h.em)}</div></div></div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

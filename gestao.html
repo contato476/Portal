@@ -173,7 +173,7 @@
 <script src="assets/gcal.js"></script>
 <script src="assets/kanban-tarefas.js"></script>
 <script>
-const STAGE_LABELS = {novo:'Novo', contato:'Contato', reuniao:'Reunião agendada', proposta:'Proposta', negociacao:'Negociação', fechado:'Fechado', perdido:'Perdido'};
+const STAGE_LABELS = {prospeccao:'Prospecção', novo:'Novo', contato:'Contato', followup_contato:'Follow-up do contato', reuniao:'Reunião agendada', followup_reuniao:'Follow-up da reunião', proposta:'Proposta', negociacao:'Negociação', reaquecer:'Reaquecer', fechado:'Fechado', perdido:'Perdido'};
 // Rótulos dos motivos de perda (mesma lista do CRM).
 const LOST_LABEL = {preco:'Preço/orçamento', prazo:'Prazo', concorrente:'Escolheu concorrente', sem_retorno:'Sumiu/sem retorno', fora_perfil:'Fora do perfil', adiou:'Adiou decisão', outro:'Outro', sem_motivo:'Sem motivo'};
 let projMap = {};
@@ -333,7 +333,10 @@ function renderFunil(deals){
   document.getElementById('st-deals').textContent = fmtMoney(total);
   document.getElementById('st-deals-sub').textContent = deals.length+' negócio'+(deals.length===1?'':'s')+' no funil';
   const el = document.getElementById('funil-list');
-  const stages = ['novo','contato','reuniao','proposta','negociacao'];
+  // As 5 etapas de sempre, mais as do pipeline de IA (sql/35) quando têm negócios.
+  const base = ['novo','contato','reuniao','proposta','negociacao'];
+  const stages = ['prospeccao','novo','contato','followup_contato','reuniao','followup_reuniao','proposta','negociacao','reaquecer']
+    .filter(s=>base.includes(s) || deals.some(d=>d.stage===s));
   const counts = stages.map(s=>deals.filter(d=>d.stage===s).length);
   const max = Math.max(...counts,1);
   if(!deals.length){el.innerHTML='<div class="empty">Funil vazio — cadastre negócios no CRM</div>';return}

@@ -67,6 +67,7 @@ const GESTAO_MODULES = [
   {id:'marketing',   href:'marketing.html',   label:'Marketing',   ready:true, icon:'<path d="M3 11l18-5v12L3 13v-2z" stroke-width="1.8"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6" stroke-width="1.8"/>'},
   {id:'automacoes',  href:'automacoes.html',  label:'Automações',  ready:true , icon:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke-width="1.8"/>'},
   {id:'radar',       href:'radar.html',       label:'Radar IA',    ready:true, icon:'<circle cx="12" cy="12" r="9" stroke-width="1.8"/><circle cx="12" cy="12" r="5" stroke-width="1.8"/><line x1="12" y1="12" x2="18.4" y2="5.6" stroke-width="1.8"/>'},
+  {id:'configuracoes', href:'configuracoes.html', label:'Configurações', ready:true, icon:'<path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/>'},
 ];
 
 function renderSidebar(activeId){
