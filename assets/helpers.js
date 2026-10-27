@@ -125,6 +125,10 @@ function isMissingTable(error){
 }
 const SQL_HINT = '<div class="empty">Tabelas de gestão ainda não criadas.<br>Rode o arquivo <b>sql/01_gestao_schema.sql</b> no SQL Editor do Supabase.</div>';
 
+// ──────────── STATUS DE TAREFA ────────────
+// Tarefa aberta = ainda tem algo a fazer (inclui a que espera a cliente).
+const TASK_ABERTAS = ['pendente','em_andamento','aguardando_cliente'];
+
 // ──────────── STATUS DE PROJETO ────────────
 // A cor de cada status, num lugar só: o quadro de projetos e os cartões de
 // tarefa (em projetos.html e tarefas.html) pintam a mesma bolinha.

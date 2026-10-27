@@ -10,10 +10,11 @@
    ════════════════════════════════════════════════════════════════════ */
 
 // As colunas são os status que a tabela tasks já tem, com o nome do dia a
-// dia. 'cancelada' não vira coluna: tarefa cancelada some do quadro.
+// dia ('aguardando_cliente' entrou no sql/37). 'cancelada' não vira coluna: tarefa cancelada some do quadro.
 const TASK_STATUS = [
   {id:'pendente',     label:'A fazer',   color:'#8B949E'},
   {id:'em_andamento', label:'Fazendo',   color:'#E3B341'},
+  {id:'aguardando_cliente', label:'Aguardando cliente', color:'#A78BFA'},
   {id:'concluida',    label:'Concluído', color:'#22A060'},
 ];
 const KB_MAX_CONCLUIDAS = 40;   // teto da coluna Concluído, para não virar arquivo morto

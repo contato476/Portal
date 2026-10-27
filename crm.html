@@ -992,7 +992,7 @@ async function saveDeal(){
 // "Gerar contrato" (do ganho) também é ligada ao negócio e fica de fora.
 async function syncFollowupTask(dealId, dealTitle, date, note){
   const {data:open} = await sb.from('tasks')
-    .select('id').eq('deal_id',dealId).in('status',['pendente','em_andamento'])
+    .select('id').eq('deal_id',dealId).in('status',TASK_ABERTAS)
     .not('title','ilike','Gerar contrato:%').limit(1);
   const openTask = open && open[0];
   if(date){

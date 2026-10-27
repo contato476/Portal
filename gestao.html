@@ -194,7 +194,7 @@ async function loadPainel(){
          indRes, contatosRes] = await Promise.all([
     // .is('parent_task_id', null): subtarefas aparecem dentro da tarefa pai,
     // não como tarefas soltas — senão o painel contaria o mesmo trabalho 2x.
-    sb.from('tasks').select('*').is('parent_task_id', null).in('status',['pendente','em_andamento']).order('due_date',{ascending:true,nullsFirst:false}).limit(200),
+    sb.from('tasks').select('*').is('parent_task_id', null).in('status',TASK_ABERTAS).order('due_date',{ascending:true,nullsFirst:false}).limit(200),
     sb.from('fin_transactions').select('*').neq('status','cancelado').gte('due_date', umAnoAtras).limit(500),
     sb.from('crm_deals').select('*').not('stage','in','("fechado","perdido")'),
     sb.from('projects').select('*').eq('status','em_andamento').order('end_date',{ascending:true,nullsFirst:false}),

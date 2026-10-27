@@ -108,6 +108,7 @@
         <select class="form-input form-select" id="t-status">
           <option value="pendente">Pendente</option>
           <option value="em_andamento">Em andamento</option>
+          <option value="aguardando_cliente">Aguardando cliente</option>
           <option value="concluida">Concluída</option>
           <option value="cancelada">Cancelada</option>
         </select>
@@ -207,7 +208,7 @@ function updateStats(){
   const in7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
   const fm = document.getElementById('f-month').value; // 'YYYY-MM' ou ''
   const statMonth = fm || today.slice(0,7);
-  const open = allTasks.filter(t=>t.status==='pendente'||t.status==='em_andamento');
+  const open = allTasks.filter(t=>TASK_ABERTAS.includes(t.status));
   document.getElementById('st-hoje').textContent = open.filter(t=>t.due_date===today).length;
   document.getElementById('st-atrasadas').textContent = open.filter(t=>t.due_date && t.due_date<today).length;
   document.getElementById('st-semana').textContent = open.filter(t=>t.due_date && t.due_date>=today && t.due_date<=in7).length;
@@ -288,7 +289,7 @@ function renderList(){
   const in7 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
   const el = document.getElementById('tasks-container');
   const tasks = filtered();
-  const open = tasks.filter(t=>t.status==='pendente'||t.status==='em_andamento');
+  const open = tasks.filter(t=>TASK_ABERTAS.includes(t.status));
   let groups = [];
 
   // Modo "mês específico": ignora as abas e mostra prazos + concluídas do mês
@@ -357,6 +358,7 @@ function taskRow(t, today){
   if(rev) subParts.push('<span style="color:var(--amber)">Ajuste #'+(rev.number||'?')+(rev.is_billable?' · fora do escopo':'')+'</span>');
   if(proj) subParts.push(escapeHtml(proj.name));
   if(t.status==='em_andamento' && !done) subParts.push('<span style="color:#60A5FA">em andamento</span>');
+  if(t.status==='aguardando_cliente' && !done) subParts.push('<span style="color:#A78BFA">aguardando cliente</span>');
   if(done && t.completed_at) subParts.push('Concluída '+fmtDateShort(t.completed_at.slice(0,10)));
 
   const subs = subMap[t.id] || [];
@@ -401,6 +403,7 @@ function subRow(s, today){
   if(s.due_date) partes.push(late?`<span style="color:var(--red)">Venceu ${fmtDateShort(s.due_date)}</span>`:'Prazo '+fmtDateShort(s.due_date));
   if(s.estimate_minutes) partes.push('previsto '+fmtDuration(s.estimate_minutes*60));
   if(s.status==='em_andamento' && !done) partes.push('<span style="color:#60A5FA">em andamento</span>');
+  if(s.status==='aguardando_cliente' && !done) partes.push('<span style="color:#A78BFA">aguardando cliente</span>');
   return `<div class="subtask-row${late?' task-late':''}">
     <div class="task-check${done?' done':''}" onclick="toggleDone('${s.id}', ${done})" title="${done?'Reabrir':'Concluir'}">${done?'✓':''}</div>
     <div class="li-info" style="cursor:pointer" onclick="openEditTask('${s.id}')">

@@ -47,6 +47,7 @@ O sistema já tem tema próprio, e as telas novas seguem ele (não o padrão #00
   - **Janela do ganho**: ao ir para Ganho, pergunta o que lançar: financeiro (à vista, entrada + parcelas, parcelado ou assinatura mensal, com as parcelas editáveis e `fin_transactions.deal_id`), tarefa "Gerar contrato: ..." ligada ao negócio, cadastro no portal da mentorada (`mn_membros`, com meses de Clube editáveis; e-mail que já existe é atualizado), jornada e contato como cliente ativo. Volta pelo botão "Ações do ganho" e avisa o que já foi feito, para não lançar em dobro.
   - **Jornada pós-venda** (aba Jornada, só no pipeline de IA): por cliente (lista com progresso e atrasados, janela com checklist, passo extra só daquela cliente) e Kanban (uma coluna por passo do produto; arrastar marca os passos anteriores). Cada cliente recebe uma cópia dos passos no dia do ganho (`crm_jornada_itens`), e mudar o modelo não mexe em quem já está na jornada.
   - `sql/35` já rodou no Supabase (27/10/2026) e foi conferido: 3 produtos, 22 passos, listas, RLS, regras de acesso e gatilhos ok.
+- **Aguardando cliente** (`assets/kanban-tarefas.js`, `sql/37_tarefas_aguardando_cliente.sql`), 27/10/2026: status novo das tarefas (`aguardando_cliente`), coluna do Kanban entre Fazendo e Concluído. Conta como tarefa aberta (`TASK_ABERTAS` em `helpers.js`): aparece no Painel, nos atrasos e nas automações.
 - **Configurações** (`configuracoes.html`), 27/10/2026: produtos e valores (valor padrão, como entra no portal, plano, meses de Clube, encontros), passos da jornada de cada produto (`crm_jornada_passos`, com prazo em dias depois do ganho), listas do CRM (origens dos contatos e motivos de perda, em `cfg_listas`), categorias do financeiro e histórico (`cfg_historico`, por gatilho). Item em uso só arquiva. Passos iniciais tirados de `Produtos digitais - Jenneffer Prazeres` (whatsapp-grupos, módulo de boas-vindas, plano do Clube e especificação da Implementação).
 - **Tarefas diárias** (`assets/kanban-tarefas.js`, `sql/33_tarefas_diarias.sql`), 21/10/2026: última coluna do Kanban de tarefas (Projetos e Tarefas), depois de Concluído. Lembretes do que fazer todo dia, sem check e sem status, numa tabela própria (`tarefas_diarias`). Adicionar, editar e tirar (só arquiva) direto na coluna. `sql/33` já rodou no Supabase (22/10/2026).
 
@@ -63,6 +64,7 @@ A janela do ganho só leva ao portal o necessário para o acesso: nome, e-mail (
 - Valores, passos e listas ficam em Configurações, não no código. Etapas dos pipelines continuam no código, porque o sistema depende delas (ganho, perda).
 
 ## Pendências
+- Rodar `sql/37_tarefas_aguardando_cliente.sql` no Supabase. Antes disso, mover tarefa para Aguardando cliente dá erro.
 - Levar à mão os negócios de IA do funil antigo para o pipeline de IA.
 - Conferir os passos da jornada e os valores em Configurações (Clube começou com 6 meses e R$ 797).
 - Próximas listas para Configurações: canais do Marketing, categorias do Radar IA, áreas do cronômetro e tipos de atividade do CRM.

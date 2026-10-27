@@ -425,7 +425,7 @@ async function runDailyChecks({forcar=false} = {}){
 
   if(eventos.has('daily.task_overdue')){
     const {data} = await sb.from('tasks').select('*')
-      .is('parent_task_id', null).in('status',['pendente','em_andamento'])
+      .is('parent_task_id', null).in('status',TASK_ABERTAS)
       .lt('due_date', hoje).limit(50);
     for(const t of (data||[])) await fireAutomation('daily.task_overdue', {table:'tasks', id:t.id, row:t});
   }

@@ -509,7 +509,7 @@ async function generateReport(){
   const openVal = openDeals.reduce((s,d)=>s+Number(d.value),0);
 
   const tasksDone = tasks.filter(t=>t.status==='concluida'&&t.completed_at&&t.completed_at.slice(0,10)>=monthStart&&t.completed_at.slice(0,10)<monthEnd).length;
-  const tasksLate = tasks.filter(t=>['pendente','em_andamento'].includes(t.status)&&t.due_date&&t.due_date<todayISO()).length;
+  const tasksLate = tasks.filter(t=>TASK_ABERTAS.includes(t.status)&&t.due_date&&t.due_date<todayISO()).length;
   const projAtivos = projs.filter(p=>p.status==='em_andamento').length;
   const ctsSigned = cts.filter(c=>c.status==='assinado'&&c.signed_at&&c.signed_at>=monthStart&&c.signed_at<monthEnd).length;
 
