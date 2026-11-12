@@ -29,15 +29,43 @@ const LINKS_BLACK = {
 
 // Pergunta no terminal. Com "oculto", o que você digita ou cola não aparece.
 function perguntar(pergunta, oculto = false) {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    if (oculto) {
-      process.stdout.write(pergunta);
-      rl._writeToOutput = () => {}; // não ecoa as teclas
-      rl.question('', (r) => { rl.close(); process.stdout.write('\n'); resolve(r.trim()); });
-    } else {
+  if (!oculto) {
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
       rl.question(pergunta, (r) => { rl.close(); resolve(r.trim()); });
-    }
+    });
+  }
+  // Modo oculto: lemos tecla por tecla ("modo cru"), sem mostrar nada,
+  // até chegar o Enter. Colar funciona: o texto chega de uma vez.
+  return new Promise((resolve) => {
+    const entrada = process.stdin;
+    console.log(pergunta);
+    console.log('(cole com Ctrl+V ou botão direito; nada vai aparecer, é assim mesmo. Depois aperte Enter)');
+    let texto = '';
+    if (entrada.isTTY) entrada.setRawMode(true);
+    entrada.resume();
+    entrada.setEncoding('utf8');
+    const aoDigitar = (pedaco) => {
+      for (const c of pedaco) {
+        if (c === '\u0003') { // Ctrl+C: sair
+          if (entrada.isTTY) entrada.setRawMode(false);
+          console.log('\nCancelado.');
+          process.exit(1);
+        } else if (c === '\r' || c === '\n') {
+          if (!texto.trim()) continue; // Enter sem nada colado: continua esperando
+          entrada.off('data', aoDigitar);
+          if (entrada.isTTY) entrada.setRawMode(false);
+          entrada.pause();
+          console.log(`Chave recebida (${texto.trim().length} caracteres).`);
+          return resolve(texto.trim());
+        } else if (c === '\u0008' || c === '\u007f') { // apagar
+          texto = texto.slice(0, -1);
+        } else if (c >= ' ') {
+          texto += c;
+        }
+      }
+    };
+    entrada.on('data', aoDigitar);
   });
 }
 
@@ -65,7 +93,7 @@ async function main() {
   const definirObrigada = process.argv[2] === 'obrigada';
 
   const chave = process.env.ASAAS_API_KEY
-    || await perguntar('Cole a chave de API do Asaas e aperte Enter (ela não aparece na tela): ', true);
+    || await perguntar('Cole a chave de API do Asaas:', true);
   if (!chave) { console.error('Sem chave, nada feito.'); process.exit(1); }
 
   // 1) Lista todos os links (de 100 em 100)
@@ -129,4 +157,4 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error('Erro:', e.message); process.exit(1); });
+main().catch((e) => { console.error('Erro:', e.message); process.exitCode = 1; });
