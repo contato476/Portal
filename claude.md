@@ -71,6 +71,14 @@ O sistema já tem tema próprio, e as telas novas seguem ele (não o padrão #00
   - `salvos_ingest` não mexe em ficha já analisada (o check dela é preservado) e completa os links pendentes. Só aceita link do Instagram.
   - Testado em 16/11/2026 num Postgres local (PGlite) com as funções reais e, a tela, com dados de exemplo no navegador (desktop e celular).
 
+- **Quadro dos salvos e motor de conteúdo** (`salvos.html`, `sql/50_salvos_motor_de_conteudo.sql`), 16/11/2026. **Falta rodar o `sql/50` no Supabase** (até lá a tela avisa e a lista continua funcionando).
+  - A tela Salvos abre num quadro em colunas (botão Quadro ou Lista, lembrado no navegador). Etapas na coluna `stage`: `ideia`, `quero_fazer`, `texto_aprovar`, `arte_aprovar`, `pronto`, `postado`, `nao_fazer`.
+  - Ela abre o cartão, vê dois esboços (Reels e carrossel), escolhe o formato e o destino (conteúdo extra ou calendário do mês seguinte) e manda para Quero fazer. O motor escreve o texto, ela aprova ou pede ajuste; no carrossel o motor faz a arte e ela aprova de novo. Reels pula a arte.
+  - Regras de movimento ficam em `podeMover()` na tela. No banco, a constraint `salvos_producao_chk` impede entrar em produção sem formato e destino, e o gatilho `salvos_sync_stage` mantém `stage` e `status` coerentes e grava o histórico em `log`.
+  - O motor é a tarefa agendada local `varredura-salvos-instagram` (segunda a sexta, 9h30; na segunda também varre os salvos). Ele lê `salvos_queue` e entrega por `salvos_deliver`, que só aceita esboço, texto, legenda, link e pasta da arte e recado. A única mudança de etapa que o motor consegue é Quero fazer para Texto para aprovar. Aprovar e marcar postado é só pela tela.
+  - O motor não publica no Instagram.
+  - Testado em 16/11/2026: caminho inteiro de um cartão num Postgres local (PGlite) e o quadro com dados de exemplo no navegador (desktop e celular).
+
 ## LGPD
 Salvos (`salvos_ideias`): só dado público de post (link, @ do criador, curtidas, comentários), a transcrição e a análise, para uso interno como referência. Nenhum dado de cliente ou contato. O vídeo baixado para análise é apagado em seguida.
 Vendas do Clube (`clube_vendas`): guardamos nome, e-mail e telefone para liberar o acesso e falar com a assinante (execução do contrato), e valor, forma de pagamento, parcelas e data para o controle financeiro. Vêm do checkout do Asaas, onde a própria compradora informou. Não guardamos CPF, endereço, dado de cartão nem o corpo do aviso do Asaas; `asaas_eventos` só tem códigos. Acesso só de admin (RLS). Com o `sql/44`, o mesmo nome, e-mail e telefone vão também para o contato do CRM, com a mesma finalidade (nenhum dado novo). Para atender um pedido de exclusão: apagar a linha de `clube_vendas`, a novidade, a tarefa e o contato do CRM ligados a ela.
@@ -86,6 +94,7 @@ A janela do ganho só leva ao portal o necessário para o acesso: nome, e-mail (
 - Valores, passos e listas ficam em Configurações, não no código. Etapas dos pipelines continuam no código, porque o sistema depende delas (ganho, perda).
 
 ## Pendências
+- **Quadro dos salvos:** 1) rodar `sql/50_salvos_motor_de_conteudo.sql`. 2) Acompanhar as primeiras rodadas do motor e calibrar texto e arte. 3) Segunda etapa, se ela quiser: ligar um agendador de postagem.
 - **Salvos (colocar no ar):** 1) rodar `sql/48_salvos_ideias.sql` e colar o token no `.env` da skill (modelo em `.env.example`, com a chave pública do Supabase). 2) Rodar `sql/49_marketing_salvos_banco_de_ideias.sql` (tarefas no kanban). 3) Primeira varredura acompanhada: nas duas primeiras, mostrar a lista antes de tirar os salvamentos. 4) Auditoria do acumulado quando chegar o arquivo exportado do Instagram.
 - **Asaas (colocar no ar):** 1) feito em 11/11/2026: código no ar (commit `0b3a578`), telas e funções antigas conferidas depois do `package.json`; o endpoint responde "Serviço indisponível" até as variáveis existirem na Vercel. 2) Rodar `sql/43` no Supabase e colar o token em `CLUBE_INGEST_TOKEN` na Vercel. 3) No Asaas: gerar a chave de API (`ASAAS_API_KEY`), criar o webhook com os 4 eventos e o token (`ASAAS_WEBHOOK_TOKEN`), publicar de novo na Vercel. 4) `node scripts/asaas-links.mjs` para pegar os códigos dos links e rodar o INSERT em `clube_links_asaas`; `node scripts/asaas-links.mjs obrigada` para o redirecionamento. 5) Teste de R$ 5 e reenvio do mesmo evento pelos Logs de Webhooks.
 - Levar à mão os negócios de IA do funil antigo para o pipeline de IA.

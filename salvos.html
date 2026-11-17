@@ -53,6 +53,40 @@
 .sv-count{font-size:12px;color:var(--text3);margin-bottom:10px}
 .sv-tip{font-size:12px;color:var(--text3);margin-top:6px;line-height:1.5}
 .f-err{font-size:12px;color:var(--red);margin-top:4px;min-height:0}
+
+/* Quadro em colunas e janela do cartão */
+.sv-views{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.sv-views button{background:var(--dark3);border:none;color:var(--text2);padding:7px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.sv-views button[aria-pressed="true"]{background:rgba(26,122,74,.2);color:#4ADE80}
+.kanban.salvos{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.kanban.salvos .kb-body{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.kanban.salvos .kb-col{width:264px;min-width:264px;max-height:calc(100vh - 330px)}
+.kanban.salvos .kb-card{cursor:pointer;width:100%;text-align:left;font-family:inherit;color:inherit;display:block}
+.kanban.salvos .kb-card[draggable="true"]{cursor:grab}
+.kb-card .kc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+.kb-card .kc-tags .badge{font-size:10px;padding:2px 7px}
+.kb-card .kc-star{margin-left:auto;color:var(--amber);font-size:13px;line-height:1}
+.kb-card .kc-flag{display:block;margin-top:7px;font-size:11px;color:var(--amber);line-height:1.4}
+.kb-card .kc-flag.ok{color:#4ADE80}
+.kb-empty{font-size:11.5px;color:var(--text3);padding:10px 6px;line-height:1.5;text-align:center}
+.kb-hint{font-size:10.5px;color:var(--text3);padding:0 13px 9px;line-height:1.4;border-bottom:1px solid var(--border)}
+.modal.modal-xl{width:860px}
+.modal.modal-xl,.dt-text,.sv-trans{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.dt-hd{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.dt-title{font-family:'Cormorant Garamond',serif;font-size:24px;line-height:1.25;margin-bottom:14px}
+.dt-sec{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin:18px 0 6px}
+.dt-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dt-sk{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12.8px;line-height:1.55;color:var(--text);white-space:pre-line}
+.dt-sk b{display:block;font-size:11px;color:#4ADE80;margin-bottom:4px;letter-spacing:.04em;text-transform:uppercase}
+.dt-sk.vazio{color:var(--text3)}
+.dt-text{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13.2px;line-height:1.65;color:var(--text);white-space:pre-line;max-height:340px;overflow:auto}
+.dt-choice{display:flex;gap:8px;flex-wrap:wrap}
+.dt-choice label{display:flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid var(--border);border-radius:10px;background:var(--dark3);font-size:13px;cursor:pointer;min-height:44px}
+.dt-choice input{accent-color:#22A060}
+.dt-choice label:has(input:checked){border-color:var(--green);background:rgba(26,122,74,.15);color:#4ADE80}
+.dt-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.dt-log{font-size:12px;color:var(--text3);line-height:1.7}
+@media (max-width:760px){.dt-two{grid-template-columns:1fr}.kanban.salvos .kb-col{width:82vw;min-width:82vw}}
 button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
 @media (max-width:760px){
   .stats-row{grid-template-columns:repeat(2,1fr)}
@@ -100,10 +134,11 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
       <div class="stats-row">
         <div class="stat"><div class="stat-label">Para ver</div><div class="stat-val" id="st-novo">—</div><div class="stat-sub">ideias sem check</div></div>
         <div class="stat"><div class="stat-label">Favoritas</div><div class="stat-val" id="st-fav" style="color:var(--amber)">—</div><div class="stat-sub">marcadas com estrela</div></div>
-        <div class="stat"><div class="stat-label">Vou postar</div><div class="stat-val" id="st-postar" style="color:#A78BFA">—</div><div class="stat-sub">na fila de conteúdo</div></div>
+        <div class="stat"><div class="stat-label">Em produção</div><div class="stat-val" id="st-postar" style="color:#A78BFA">—</div><div class="stat-sub" id="st-postar-sub">na fila de conteúdo</div></div>
         <div class="stat"><div class="stat-label">Postadas</div><div class="stat-val" id="st-postado" style="color:#4ADE80">—</div><div class="stat-sub">ideias aproveitadas</div></div>
       </div>
 
+      <div id="sv-aviso"></div>
       <div class="tabs-row" id="tabs" role="tablist">
         <div class="dtab active" data-tab="novo" role="tab" tabindex="0" onclick="setTab('novo')">Novas</div>
         <div class="dtab" data-tab="favoritos" role="tab" tabindex="0" onclick="setTab('favoritos')">Favoritas</div>
@@ -115,6 +150,10 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
       </div>
 
       <div class="sv-toolbar">
+        <div class="sv-views" role="group" aria-label="Como ver as ideias">
+          <button type="button" id="vw-quadro" aria-pressed="true" onclick="setView('quadro')">Quadro</button>
+          <button type="button" id="vw-lista" aria-pressed="false" onclick="setView('lista')">Lista</button>
+        </div>
         <div class="sv-chips" id="fmt-chips" aria-label="Filtrar por formato da ideia"></div>
         <label class="sr-only" for="sv-periodo">Período</label>
         <select class="form-input form-select" id="sv-periodo" onchange="mudarPeriodo()">
@@ -133,6 +172,7 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
         <input class="form-input sv-search" id="sv-q" placeholder="Buscar por ideia, criador, gancho..." oninput="resetPagina()">
       </div>
 
+      <div class="kanban salvos" id="sv-board"></div>
       <div class="sv-count" id="sv-count"></div>
       <div id="sv-list"><div class="loading">Carregando...</div></div>
       <div class="sv-more" id="sv-more"></div>
@@ -195,6 +235,16 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
   </div>
 </div>
 
+<!-- Janela: o cartão aberto (ideia, esboços, texto, arte e aprovação) -->
+<div class="overlay" id="modal-card">
+  <div class="modal modal-xl" role="dialog" aria-modal="true" aria-labelledby="dt-title">
+    <div id="dt-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-card')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Janela: confirmar exclusão definitiva -->
 <div class="overlay" id="modal-del">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dl-title">
@@ -219,9 +269,7 @@ const GANCHOS = {identificacao:'Identificação', curiosidade:'Curiosidade', ben
                  urgencia:'Urgência', prova:'Prova', contraste:'Contraste', polemica:'Polêmica'};
 // Botões de check do cartão (clicar de novo desmarca e volta para "novo").
 const STATUS = [
-  {id:'vou_postar', label:'Vou postar'},
-  {id:'postado',    label:'Postado'},
-  {id:'descartado', label:'Descartar'},
+  {id:'descartado', label:'Não vou fazer'},
 ];
 const POR_PAGINA = 20;
 const ICO_ESTRELA = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2" stroke-width="1.8" stroke-linejoin="round"/></svg>';
@@ -230,13 +278,14 @@ let items = [];
 let tab = 'novo';
 let fmtFilter = new Set();
 let pagina = 1;
-let editId = null, delId = null;
+let editId = null, delId = null, cardId = null, dragId = null;
+let view = lerVisao();
 
 window.addEventListener('DOMContentLoaded', () => { renderSidebar('salvos'); requireAdmin(loadAll); });
 // Abas também funcionam com Enter e espaço (navegação por teclado).
 document.addEventListener('keydown', e => {
   if((e.key==='Enter' || e.key===' ') && e.target.classList?.contains('dtab')){ e.preventDefault(); e.target.click(); }
-  if(e.key==='Escape') ['modal-novo','modal-edit','modal-del'].forEach(closeModal);
+  if(e.key==='Escape') ['modal-novo','modal-edit','modal-del','modal-card'].forEach(closeModal);
 });
 
 // ──────────── CARREGAR ────────────
@@ -260,6 +309,8 @@ async function loadAll(){
 function renderStats(){
   const n = f => items.filter(f).length;
   document.getElementById('st-novo').textContent    = n(i=>i.status==='novo' && i.analyzed_at);
+  const aprovar = n(i=>!i.adjust_request && (i.stage==='texto_aprovar' || (i.stage==='arte_aprovar' && (i.art_url || i.art_path))));
+  document.getElementById('st-postar-sub').textContent = aprovar ? `${aprovar} esperando a sua aprovação` : 'na fila de conteúdo';
   document.getElementById('st-fav').textContent     = n(i=>i.favorite);
   document.getElementById('st-postar').textContent  = n(i=>i.status==='vou_postar');
   document.getElementById('st-postado').textContent = n(i=>i.status==='postado');
@@ -328,6 +379,8 @@ const VAZIO = {
 };
 
 function render(){
+  mostrarVisao();
+  if(view==='quadro' && temQuadro()){ renderBoard(); return; }
   const list = filtered();
   const el = document.getElementById('sv-list');
   const more = document.getElementById('sv-more');
@@ -388,6 +441,7 @@ function card(i){
     <div class="sv-ft">
       <a class="sv-src" href="${escapeHtml(i.source_url)}" target="_blank" rel="noopener noreferrer">Abrir o post original</a>
       ${STATUS.map(s=>`<button type="button" class="sv-st" aria-pressed="${i.status===s.id}" onclick="setStatus('${i.id}','${s.id}')">${s.label}</button>`).join('')}
+      ${!pendente && temQuadro() ? `<button type="button" class="sv-st" onclick="abrirCartao('${i.id}')">Abrir cartão</button>` : ''}
       ${!pendente ? `<button type="button" class="sv-st" onclick="abrirEdicao('${i.id}')">Editar</button>` : ''}
       ${i.status==='descartado' ? `<button type="button" class="sv-st" onclick="pedirExclusao('${i.id}')">Excluir de vez</button>` : ''}
     </div>
@@ -396,11 +450,249 @@ function card(i){
   </article>`;
 }
 
+
+// ──────────── QUADRO EM COLUNAS ────────────
+// Cada coluna é uma etapa (coluna "stage" do banco, criada pelo sql/50).
+const ETAPAS = [
+  {id:'ideia',         label:'Novas ideias',       cor:'#8B949E', dica:'Abra o cartão, escolha o formato e mande para Quero fazer.'},
+  {id:'quero_fazer',   label:'Quero fazer',        cor:'#2188FF', dica:'O motor escreve o texto na próxima rodada.'},
+  {id:'texto_aprovar', label:'Texto para aprovar', cor:'#E3B341', dica:'Leia, aprove ou peça ajuste.'},
+  {id:'arte_aprovar',  label:'Arte para aprovar',  cor:'#A78BFA', dica:'Só carrossel. Aprove ou peça ajuste.'},
+  {id:'pronto',        label:'Pronto',             cor:'#22A060', dica:'Para postar, ou para gravar no Reels.'},
+  {id:'postado',       label:'Postado',            cor:'#4ADE80', dica:''},
+  {id:'nao_fazer',     label:'Não vou fazer',      cor:'#6E7681', dica:'Guardado, fora do caminho.'},
+];
+const NOME_ETAPA = Object.fromEntries(ETAPAS.map(e=>[e.id, e.label]));
+const DESTINOS = {extra:'Conteúdo extra', proximo_mes:'Calendário do mês seguinte'};
+
+function lerVisao(){ try{ return localStorage.getItem('salvos_visao') || 'quadro' }catch(e){ return 'quadro' } }
+function setView(v){ view = v; try{ localStorage.setItem('salvos_visao', v) }catch(e){} pagina = 1; render(); }
+// O quadro só existe depois do sql/50 (é ele que cria a coluna "stage").
+function temQuadro(){ return !items.length || items[0].stage !== undefined; }
+
+function mostrarVisao(){
+  const quadro = view==='quadro' && temQuadro();
+  document.getElementById('vw-quadro').setAttribute('aria-pressed', view==='quadro');
+  document.getElementById('vw-lista').setAttribute('aria-pressed', view==='lista');
+  document.getElementById('sv-board').style.display = quadro ? 'flex' : 'none';
+  document.getElementById('tabs').style.display     = quadro ? 'none' : 'flex';
+  ['sv-list','sv-count','sv-more'].forEach(id => document.getElementById(id).style.display = quadro ? 'none' : '');
+  document.getElementById('sv-aviso').innerHTML = (view==='quadro' && !temQuadro())
+    ? `<div class="note-box warn" style="margin-bottom:16px">O quadro em colunas precisa do <b>sql/50_salvos_motor_de_conteudo.sql</b>. Rode no SQL Editor do Supabase e atualize a página. Enquanto isso, a lista continua funcionando.</div>` : '';
+}
+
+// Busca, formato e período valem também no quadro. Fora do foco não entra.
+function doQuadro(){
+  const q = document.getElementById('sv-q').value.trim().toLowerCase();
+  const iv = intervalo();
+  return items.filter(i=>{
+    if(i.status==='fora_do_foco') return false;
+    if(fmtFilter.size && !fmtFilter.has(i.chosen_format || i.idea_format)) return false;
+    if(iv && (i.captured_date < iv[0] || i.captured_date > iv[1])) return false;
+    if(q && ![i.idea_title,i.idea_hook,i.creator,i.final_text,i.notes,i.source_url].some(s=>(s||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+// Recado curto no cartão: o que está esperando quem.
+function sinal(i){
+  if(!i.analyzed_at) return ['Aguardando análise', ''];
+  if(i.adjust_request) return ['Ajuste pedido, com o motor', ''];
+  if(i.stage==='quero_fazer') return ['Na fila do motor', ''];
+  if(i.stage==='texto_aprovar') return ['Esperando a sua aprovação', 'ok'];
+  if(i.stage==='arte_aprovar') return (i.art_url || i.art_path) ? ['Esperando a sua aprovação', 'ok'] : ['Arte em produção', ''];
+  if(i.stage==='ideia' && !(i.sketch_reels && i.sketch_carrossel)) return ['Esboços a caminho', ''];
+  return null;
+}
+
+function renderBoard(){
+  const list = doQuadro();
+  document.getElementById('sv-board').innerHTML = ETAPAS.map(e=>{
+    const col = list.filter(i=>i.stage===e.id)
+      .sort((a,b)=> (b.favorite-a.favorite) || ((b.fit||0)-(a.fit||0)) || (a.captured_date<b.captured_date?1:-1));
+    return `<section class="kb-col" aria-label="${e.label}">
+      <div class="kb-hd"><span class="kb-dot" style="background:${e.cor}"></span><span class="kb-title">${e.label}</span><span class="kb-sum">${col.length}</span></div>
+      ${e.dica?`<div class="kb-hint">${e.dica}</div>`:''}
+      <div class="kb-body" data-etapa="${e.id}" ondragover="soltarSobre(event)" ondragleave="this.classList.remove('dragover')" ondrop="soltar(event,'${e.id}')">
+        ${col.length ? col.map(miniCard).join('') : `<div class="kb-empty">${e.id==='ideia' ? 'Nenhuma ideia nova. A varredura roda na segunda de manhã.' : 'Nada aqui.'}</div>`}
+      </div>
+    </section>`;
+  }).join('');
+}
+
+function miniCard(i){
+  const fmt = i.chosen_format || i.idea_format;
+  const s = sinal(i);
+  return `<button type="button" class="kb-card" draggable="${i.analyzed_at?'true':'false'}" ondragstart="dragId='${i.id}'" onclick="abrirCartao('${i.id}')" aria-label="Abrir: ${escapeHtml(i.idea_title||'link aguardando análise')}">
+    <span class="kc-tags">
+      ${fmt?`<span class="badge ${i.chosen_format?'bg-green':'bg-gray'}">${FORMATOS[fmt]||escapeHtml(fmt)}</span>`:''}
+      ${i.destino?`<span class="badge bg-blue">${i.destino==='extra'?'Extra':'Mês seguinte'}</span>`:''}
+      ${i.favorite?'<span class="kc-star" title="Favorita">★</span>':''}
+    </span>
+    <span class="kb-card-title" style="display:block">${escapeHtml(i.idea_title || 'Link aguardando análise')}</span>
+    <span class="kb-card-meta">${i.creator?escapeHtml(i.creator)+' · ':''}${fmtDateShort(i.captured_date)}${i.fit?' · '+'★'.repeat(i.fit):''}</span>
+    ${s?`<span class="kc-flag ${s[1]}">${s[0]}</span>`:''}
+  </button>`;
+}
+
+// ──────────── MOVER ENTRE AS ETAPAS ────────────
+// Diz se você pode levar o cartão para a etapa, e o motivo quando não pode.
+function podeMover(i, para){
+  const de = i.stage;
+  if(de===para) return 'igual';
+  if(para==='nao_fazer') return true;
+  if(para==='ideia') return ['nao_fazer','quero_fazer'].includes(de) || 'Só volta para Novas ideias o que está em Quero fazer ou Não vou fazer.';
+  if(para==='quero_fazer'){
+    if(!['ideia','nao_fazer'].includes(de)) return 'Este cartão já passou dessa etapa.';
+    return (i.chosen_format && i.destino) ? true : 'escolher';
+  }
+  if(para==='texto_aprovar') return 'Quem traz o cartão para esta coluna é o motor, quando o texto fica pronto.';
+  if(para==='arte_aprovar'){
+    if(de!=='texto_aprovar') return 'A arte vem depois do texto aprovado.';
+    if(i.chosen_format!=='carrossel') return 'Reels não tem etapa de arte: aprove o texto e ele vai para Pronto.';
+    return i.adjust_request ? 'Há um ajuste pedido neste texto. Espere a nova versão.' : true;
+  }
+  if(para==='pronto'){
+    if(de==='postado') return true;
+    if(i.adjust_request) return 'Há um ajuste pedido. Espere a nova versão.';
+    if(de==='texto_aprovar') return i.chosen_format==='reels' ? true : 'Carrossel passa pela arte antes de ficar pronto.';
+    if(de==='arte_aprovar') return (i.art_url || i.art_path) ? true : 'A arte ainda está em produção.';
+    return 'Para ficar pronto, o cartão precisa de texto aprovado.';
+  }
+  if(para==='postado') return de==='pronto' || 'Só o que está em Pronto pode ser marcado como postado.';
+  return 'Movimento não permitido.';
+}
+
+async function moverPara(id, para){
+  const i = items.find(x=>x.id===id);
+  if(!i) return false;
+  const ok = podeMover(i, para);
+  if(ok==='igual') return false;
+  if(ok==='escolher'){ abrirCartao(id); showToast('Escolha o formato e o destino antes de mover.', true); return false; }
+  if(ok!==true){ showToast(ok, true); return false; }
+  if(await update(id, {stage:para})){
+    showToast('Movido para '+NOME_ETAPA[para]);
+    renderStats(); render();
+    if(cardId===id && document.getElementById('modal-card').classList.contains('open')) desenharCartao();
+    return true;
+  }
+  return false;
+}
+function soltarSobre(ev){ ev.preventDefault(); ev.currentTarget.classList.add('dragover'); }
+function soltar(ev, etapa){
+  ev.preventDefault(); ev.currentTarget.classList.remove('dragover');
+  if(dragId){ moverPara(dragId, etapa); dragId = null; }
+}
+
+// ──────────── O CARTÃO ABERTO ────────────
+function abrirCartao(id){ cardId = id; desenharCartao(); openModal('modal-card'); }
+
+function desenharCartao(){
+  const i = items.find(x=>x.id===cardId);
+  if(!i){ closeModal('modal-card'); return; }
+  const fmt = i.chosen_format;
+  const esc = escapeHtml;
+  const sk = (label, txt) => `<div class="dt-sk${txt?'':' vazio'}"><b>${label}</b>${txt?esc(txt):'O motor escreve este esboço na próxima rodada.'}</div>`;
+  const texto = (label, campo) => i[campo] ? `<div class="dt-sec">${label} <button type="button" class="sv-copy" onclick="copyText('${i.id}','${campo}')">copiar</button></div><div class="dt-text">${esc(i[campo])}</div>` : '';
+  const escolha = (nome, opcoes, atual) => `<div class="dt-choice" role="radiogroup">${Object.entries(opcoes).map(([v,l])=>
+    `<label><input type="radio" name="${nome}" value="${v}" ${atual===v?'checked':''}>${l}</label>`).join('')}</div>`;
+  const ajuste = `<div class="dt-sec">Pedir ajuste</div>
+    <label class="sr-only" for="dt-ajuste">O que mudar</label>
+    <textarea class="form-input" id="dt-ajuste" rows="2" maxlength="1000" placeholder="Diga o que mudar. Ex.: encurtar a abertura, trocar o exemplo por um de arquitetura."></textarea>
+    <div class="f-err" id="err-dt-ajuste" role="alert"></div>`;
+  const arte = rotulo => `<div class="dt-sec">${rotulo}</div><div class="dt-sk">${i.art_url?`<a class="sv-src" href="${esc(i.art_url)}" target="_blank" rel="noopener noreferrer">Abrir a prévia da arte</a>`:''}${i.art_path?`<div style="margin-top:6px;color:var(--text2)">Arquivos em: ${esc(i.art_path)}</div>`:''}</div>`;
+  const pedido = i.adjust_request ? `<div class="note-box warn" style="margin-top:14px"><b>Ajuste pedido:</b> ${esc(i.adjust_request)}<br>O motor traz a nova versão na próxima rodada.</div>` : '';
+  const rotuloTexto = fmt==='reels' ? 'Roteiro do Reels' : 'Texto do carrossel, slide a slide';
+
+  let corpo = '', acoes = '';
+  if(!i.analyzed_at){
+    corpo = `<div class="note-box">Este link ainda não foi analisado. Ele entra na próxima rodada do motor e volta com a ideia e os dois esboços.</div>`;
+    acoes = i.stage==='nao_fazer' ? `<button class="btn btn-ghost" onclick="moverPara('${i.id}','ideia')">Voltar para Novas ideias</button>`
+                                : `<button class="btn btn-ghost" onclick="moverPara('${i.id}','nao_fazer')">Não vou fazer</button>`;
+  }
+  else if(i.stage==='ideia' || i.stage==='nao_fazer' || i.stage==='quero_fazer'){
+    corpo = `<div class="dt-sec">Dois esboços para você escolher</div>
+      <div class="dt-two">${sk('Como Reels', i.sketch_reels)}${sk('Como carrossel', i.sketch_carrossel)}</div>
+      <div class="dt-sec">Formato</div>${escolha('dt-fmt', {reels:'Reels', carrossel:'Carrossel'}, fmt)}
+      <div class="dt-sec">Onde encaixar</div>${escolha('dt-dest', DESTINOS, i.destino)}
+      <div class="f-err" id="err-dt-escolha" role="alert"></div>`;
+    acoes = i.stage==='quero_fazer'
+      ? `<div class="note-box" style="flex:1 1 100%">Na fila do motor. O texto chega na próxima rodada, de segunda a sexta de manhã.</div>
+         <button class="btn btn-primary" onclick="querFazer()">Salvar a escolha</button>
+         <button class="btn btn-ghost" onclick="moverPara('${i.id}','ideia')">Voltar para Novas ideias</button>`
+      : `<button class="btn btn-primary" onclick="querFazer()">Quero fazer</button>
+         ${i.stage==='ideia' ? `<button class="btn btn-ghost" onclick="moverPara('${i.id}','nao_fazer')">Não vou fazer</button>`
+                             : `<button class="btn btn-ghost" onclick="moverPara('${i.id}','ideia')">Voltar para Novas ideias</button>`}`;
+  }
+  else if(i.stage==='texto_aprovar'){
+    corpo = texto(rotuloTexto, 'final_text') + texto('Legenda, convite e hashtags', 'caption') + (pedido || ajuste);
+    acoes = i.adjust_request ? '' : `<button class="btn btn-primary" onclick="moverPara('${i.id}','${fmt==='carrossel'?'arte_aprovar':'pronto'}')">${fmt==='carrossel'?'Aprovar o texto e pedir a arte':'Aprovar o roteiro'}</button>
+      <button class="btn btn-ghost" onclick="pedirAjuste()">Pedir ajuste</button>`;
+  }
+  else if(i.stage==='arte_aprovar'){
+    const temArte = i.art_url || i.art_path;
+    corpo = (temArte ? arte('Arte') : `<div class="dt-sec">Arte</div><div class="note-box">Arte em produção. O motor faz na próxima rodada e deixa a prévia aqui.</div>`)
+      + texto(rotuloTexto, 'final_text') + texto('Legenda, convite e hashtags', 'caption')
+      + (pedido || (temArte ? ajuste : ''));
+    acoes = (temArte && !i.adjust_request) ? `<button class="btn btn-primary" onclick="moverPara('${i.id}','pronto')">Aprovar a arte</button>
+      <button class="btn btn-ghost" onclick="pedirAjuste()">Pedir ajuste</button>` : '';
+  }
+  else {  // pronto ou postado
+    corpo = ((i.art_url||i.art_path) ? arte('Arte') : '') + texto(rotuloTexto, 'final_text') + texto('Legenda, convite e hashtags', 'caption');
+    acoes = i.stage==='pronto'
+      ? `<button class="btn btn-primary" onclick="moverPara('${i.id}','postado')">Marcar como postado</button>`
+      : `<button class="btn btn-ghost" onclick="moverPara('${i.id}','pronto')">Voltar para Pronto</button>`;
+  }
+
+  const hist = (i.log||[]).map(l=>`${esc(l.quando)}: ${NOME_ETAPA[l.de]||esc(l.de)} para ${NOME_ETAPA[l.para]||esc(l.para)}`).join('<br>');
+  document.getElementById('dt-body').innerHTML = `
+    <div class="dt-hd">
+      <span class="badge bg-gray">${NOME_ETAPA[i.stage]||''}</span>
+      ${fmt?`<span class="badge bg-green">${FORMATOS[fmt]}</span>`:''}
+      ${i.destino?`<span class="badge bg-blue">${DESTINOS[i.destino]}</span>`:''}
+      ${i.fit?`<span class="sv-fit" title="Aderência ao seu posicionamento: ${i.fit} de 5">${'★'.repeat(i.fit)}${'☆'.repeat(5-i.fit)}</span>`:''}
+      <span class="sv-meta">${i.creator?esc(i.creator)+' · ':''}<a class="sv-src" href="${esc(i.source_url)}" target="_blank" rel="noopener noreferrer">post original</a></span>
+      <button type="button" class="sv-fav" aria-pressed="${!!i.favorite}" aria-label="${i.favorite?'Tirar dos favoritos':'Favoritar'}" onclick="toggleFav('${i.id}').then(desenharCartao)">${ICO_ESTRELA}</button>
+    </div>
+    <div class="dt-title" id="dt-title">${esc(i.idea_title || 'Link aguardando análise')}</div>
+    ${i.motor_note?`<div class="note-box" style="margin-bottom:6px"><b>Recado do motor:</b> ${esc(i.motor_note)}</div>`:''}
+    ${i.idea_hook?`<div class="sv-box hook"><b>Gancho</b>${esc(i.idea_hook)}</div>`:''}
+    ${corpo}
+    <div class="dt-actions">${acoes}</div>
+    <details class="sv-ref"><summary>Referência original e histórico</summary>
+      <div class="sv-grid">
+        ${i.hook_spoken?`<div class="sv-item"><b>Gancho falado</b>${esc(i.hook_spoken)}</div>`:''}
+        ${i.hook_visual?`<div class="sv-item"><b>Gancho visual</b>${esc(i.hook_visual)}</div>`:''}
+        ${i.why_it_works?`<div class="sv-item"><b>Por que funciona</b>${esc(i.why_it_works)}</div>`:''}
+        ${i.take?`<div class="sv-item"><b>O que levar</b>${esc(i.take)}</div>`:''}
+        ${i.avoid?`<div class="sv-item full"><b>O que não levar</b>${esc(i.avoid)}</div>`:''}
+        ${hist?`<div class="sv-item full"><b>Histórico</b><div class="dt-log">${hist}</div></div>`:''}
+      </div>
+    </details>`;
+}
+
+// Guarda formato e destino e leva o cartão para "Quero fazer".
+async function querFazer(){
+  const i = items.find(x=>x.id===cardId);
+  const f = document.querySelector('input[name="dt-fmt"]:checked')?.value;
+  const d = document.querySelector('input[name="dt-dest"]:checked')?.value;
+  if(!f || !d){ document.getElementById('err-dt-escolha').textContent = 'Escolha o formato e onde encaixar para o motor saber o que escrever.'; return; }
+  if(!i.analyzed_at){ showToast('Este link ainda não foi analisado.', true); return; }
+  if(await update(cardId, {chosen_format:f, destino:d, stage:'quero_fazer'})){
+    showToast('Na fila do motor'); closeModal('modal-card'); renderStats(); render();
+  }
+}
+async function pedirAjuste(){
+  const v = document.getElementById('dt-ajuste')?.value.trim();
+  if(!v){ document.getElementById('err-dt-ajuste').textContent = 'Escreva o que você quer mudar.'; document.getElementById('dt-ajuste').focus(); return; }
+  if(await update(cardId, {adjust_request:v.slice(0,1000)})){ showToast('Ajuste enviado ao motor'); render(); desenharCartao(); }
+}
+
 // ──────────── AÇÕES DO CARTÃO ────────────
 async function update(id, patch){
-  const {error} = await sb.from('salvos_ideias').update(patch).eq('id', id);
+  const {data, error} = await sb.from('salvos_ideias').update(patch).eq('id', id).select().single();
   if(error){ showToast('Não foi possível salvar. Tente de novo.', true); return false }
-  Object.assign(items.find(x=>x.id===id), patch);
+  Object.assign(items.find(x=>x.id===id), data || patch);
   return true;
 }
 async function setStatus(id, st){
