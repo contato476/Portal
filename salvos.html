@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Salvos · Jenneffer Prazeres</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/shared.css">
+<style>
+/* Tela Salvos: mesmo desenho do Radar IA, com a ideia adaptada em destaque. */
+.sv-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.sv-chips{display:flex;gap:6px;flex-wrap:wrap}
+.sv-chip{padding:6px 12px;border-radius:20px;font-size:12px;background:var(--dark3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-family:inherit}
+.sv-chip[aria-pressed="true"]{border-color:var(--green);color:#4ADE80;background:rgba(26,122,74,.15)}
+.sv-toolbar .form-input{width:auto;padding:7px 11px;font-size:12.5px}
+.sv-search{min-width:200px}
+.sv-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px}
+.sv-card.st-descartado,.sv-card.st-fora_do_foco{opacity:.62}
+.sv-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.sv-fit{font-size:11px;color:var(--amber);letter-spacing:1px}
+.sv-meta{font-size:11.5px;color:var(--text3);margin-left:auto}
+.sv-fav{background:none;border:none;cursor:pointer;color:var(--text3);padding:6px;border-radius:6px;display:flex}
+.sv-fav svg{width:18px;height:18px}
+.sv-fav[aria-pressed="true"]{color:var(--amber)}
+.sv-fav[aria-pressed="true"] svg{fill:currentColor}
+.sv-eyebrow{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:3px}
+.sv-title{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;color:var(--text);line-height:1.25;margin-bottom:10px}
+.sv-title.pend{font-family:inherit;font-size:14px;font-weight:500;color:var(--text2)}
+.sv-box{border-left:3px solid var(--border2);padding:7px 11px;margin:7px 0;font-size:13px;color:var(--text);line-height:1.55;background:rgba(255,255,255,.02);border-radius:0 6px 6px 0;white-space:pre-line}
+.sv-box b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:2px;font-weight:600}
+.sv-box.hook{border-left-color:var(--green2)}
+.sv-box.out{border-left-color:var(--purple)}
+.sv-copy{float:right;font-size:11px;color:var(--text3);cursor:pointer;background:none;border:none;font-family:inherit;padding:2px 4px}
+.sv-copy:hover{color:var(--text)}
+.sv-ref{margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
+.sv-ref summary{cursor:pointer;font-size:12.5px;color:var(--text2);padding:6px 0;user-select:none}
+.sv-ref summary:hover{color:var(--text)}
+.sv-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-top:6px}
+.sv-item{font-size:12.8px;color:var(--text2);line-height:1.5;padding:5px 0}
+.sv-item b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600}
+.sv-item.full{grid-column:1/-1}
+.sv-trans{max-height:180px;overflow:auto;font-size:12px;color:var(--text3);white-space:pre-line;background:var(--dark3);border-radius:8px;padding:10px 12px;margin-top:4px}
+.sv-ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px}
+.sv-src{font-size:12px;color:#60A5FA;text-decoration:none;margin-right:auto}
+.sv-src:hover{text-decoration:underline}
+.sv-st{padding:6px 11px;border-radius:14px;font-size:11.5px;background:var(--dark3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-family:inherit}
+.sv-st:hover{border-color:var(--border2);color:var(--text)}
+.sv-st[aria-pressed="true"]{background:rgba(26,122,74,.2);border-color:var(--green);color:#4ADE80}
+.sv-notes{margin-top:10px;font-size:12.5px;min-height:38px;padding:7px 10px}
+.sv-more{display:flex;justify-content:center;margin:16px 0}
+.sv-count{font-size:12px;color:var(--text3);margin-bottom:10px}
+.sv-tip{font-size:12px;color:var(--text3);margin-top:6px;line-height:1.5}
+.f-err{font-size:12px;color:var(--red);margin-top:4px;min-height:0}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+@media (max-width:760px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .sv-grid{grid-template-columns:1fr}
+  .sv-src{width:100%;margin-right:0}
+  .sv-st,.sv-chip{min-height:44px;padding:10px 14px}
+  .sv-meta{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-row">
+        <div class="sb-icon">⚡</div>
+        <div><div class="sb-name">Gestão</div><div class="sb-sub">Jenneffer Prazeres</div></div>
+      </div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">J</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">Admin</div>
+          <div class="sb-logout" onclick="doLogout()">Sair</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="topbar">
+      <div class="topbar-title">Salvos</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="exportCSV()" title="Baixa a lista filtrada em CSV">Exportar CSV</button>
+        <button class="btn btn-ghost" onclick="loadAll()">Atualizar</button>
+        <button class="btn btn-primary" onclick="abrirNovo()">Adicionar link</button>
+      </div>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Para ver</div><div class="stat-val" id="st-novo">—</div><div class="stat-sub">ideias sem check</div></div>
+        <div class="stat"><div class="stat-label">Favoritas</div><div class="stat-val" id="st-fav" style="color:var(--amber)">—</div><div class="stat-sub">marcadas com estrela</div></div>
+        <div class="stat"><div class="stat-label">Vou postar</div><div class="stat-val" id="st-postar" style="color:#A78BFA">—</div><div class="stat-sub">na fila de conteúdo</div></div>
+        <div class="stat"><div class="stat-label">Postadas</div><div class="stat-val" id="st-postado" style="color:#4ADE80">—</div><div class="stat-sub">ideias aproveitadas</div></div>
+      </div>
+
+      <div class="tabs-row" id="tabs" role="tablist">
+        <div class="dtab active" data-tab="novo" role="tab" tabindex="0" onclick="setTab('novo')">Novas</div>
+        <div class="dtab" data-tab="favoritos" role="tab" tabindex="0" onclick="setTab('favoritos')">Favoritas</div>
+        <div class="dtab" data-tab="vou_postar" role="tab" tabindex="0" onclick="setTab('vou_postar')">Vou postar</div>
+        <div class="dtab" data-tab="postado" role="tab" tabindex="0" onclick="setTab('postado')">Postadas</div>
+        <div class="dtab" data-tab="fora_do_foco" role="tab" tabindex="0" onclick="setTab('fora_do_foco')">Fora do foco</div>
+        <div class="dtab" data-tab="descartado" role="tab" tabindex="0" onclick="setTab('descartado')">Descartadas</div>
+        <div class="dtab" data-tab="tudo" role="tab" tabindex="0" onclick="setTab('tudo')">Tudo</div>
+      </div>
+
+      <div class="sv-toolbar">
+        <div class="sv-chips" id="fmt-chips" aria-label="Filtrar por formato da ideia"></div>
+        <label class="sr-only" for="sv-periodo">Período</label>
+        <select class="form-input form-select" id="sv-periodo" onchange="mudarPeriodo()">
+          <option value="tudo">Todo o período</option>
+          <option value="hoje">Hoje</option>
+          <option value="semana">Últimos 7 dias</option>
+          <option value="mes">Este mês</option>
+          <option value="ano">Este ano</option>
+          <option value="custom">Período personalizado</option>
+        </select>
+        <span id="sv-custom" style="display:none;gap:6px;align-items:center">
+          <label class="sr-only" for="sv-de">De</label><input type="date" class="form-input" id="sv-de" onchange="resetPagina()">
+          <label class="sr-only" for="sv-ate">Até</label><input type="date" class="form-input" id="sv-ate" onchange="resetPagina()">
+        </span>
+        <label class="sr-only" for="sv-q">Buscar</label>
+        <input class="form-input sv-search" id="sv-q" placeholder="Buscar por ideia, criador, gancho..." oninput="resetPagina()">
+      </div>
+
+      <div class="sv-count" id="sv-count"></div>
+      <div id="sv-list"><div class="loading">Carregando...</div></div>
+      <div class="sv-more" id="sv-more"></div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Janela: adicionar link para a próxima varredura -->
+<div class="overlay" id="modal-novo">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="nv-title">
+    <div class="modal-title" id="nv-title">Adicionar link</div>
+    <div class="form-group">
+      <label class="form-label" for="f-url">Link do post no Instagram *</label>
+      <input class="form-input" id="f-url" inputmode="url" maxlength="300" placeholder="https://www.instagram.com/p/..." oninput="validarUrl()">
+      <div class="f-err" id="err-f-url" role="alert"></div>
+      <div class="sv-tip">No Instagram: abra o post, toque no aviãozinho e escolha "Copiar link". A análise entra na varredura de segunda.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-nota">O que chamou sua atenção (opcional)</label>
+      <textarea class="form-input" id="f-nota" maxlength="500" rows="3"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-novo')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-novo" onclick="salvarNovo()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Janela: editar a ideia adaptada -->
+<div class="overlay" id="modal-edit">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ed-title">
+    <div class="modal-title" id="ed-title">Editar ideia</div>
+    <div class="form-group">
+      <label class="form-label" for="f-ititle">Pauta *</label>
+      <input class="form-input" id="f-ititle" maxlength="300" oninput="document.getElementById('err-f-ititle').textContent=''">
+      <div class="f-err" id="err-f-ititle" role="alert"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-ihook">Gancho</label>
+      <textarea class="form-input" id="f-ihook" rows="2" maxlength="600"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-iout">Desenvolvimento</label>
+      <textarea class="form-input" id="f-iout" rows="6" maxlength="3000"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="f-ifmt">Formato</label>
+      <select class="form-input form-select" id="f-ifmt">
+        <option value="">Sem formato</option>
+        <option value="reels">Reels</option><option value="carrossel">Carrossel</option>
+        <option value="post">Post</option><option value="stories">Stories</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Janela: confirmar exclusão definitiva -->
+<div class="overlay" id="modal-del">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dl-title">
+    <div class="modal-title" id="dl-title">Excluir de vez?</div>
+    <p style="font-size:13.5px;color:var(--text2);line-height:1.6">A ficha sai do sistema e não volta. Se o post aparecer de novo nos seus salvos, ele será analisado outra vez.</p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-del')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarExclusao()">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/helpers.js"></script>
+<script src="assets/shared.js"></script>
+<script src="assets/timer.js"></script>
+<script>
+// ──────────── LISTAS FIXAS ────────────
+const FORMATOS = {reels:'Reels', carrossel:'Carrossel', post:'Post', stories:'Stories'};
+const GANCHOS = {identificacao:'Identificação', curiosidade:'Curiosidade', beneficio:'Benefício', novidade:'Novidade',
+                 urgencia:'Urgência', prova:'Prova', contraste:'Contraste', polemica:'Polêmica'};
+// Botões de check do cartão (clicar de novo desmarca e volta para "novo").
+const STATUS = [
+  {id:'vou_postar', label:'Vou postar'},
+  {id:'postado',    label:'Postado'},
+  {id:'descartado', label:'Descartar'},
+];
+const POR_PAGINA = 20;
+const ICO_ESTRELA = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+
+let items = [];
+let tab = 'novo';
+let fmtFilter = new Set();
+let pagina = 1;
+let editId = null, delId = null;
+
+window.addEventListener('DOMContentLoaded', () => { renderSidebar('salvos'); requireAdmin(loadAll); });
+// Abas também funcionam com Enter e espaço (navegação por teclado).
+document.addEventListener('keydown', e => {
+  if((e.key==='Enter' || e.key===' ') && e.target.classList?.contains('dtab')){ e.preventDefault(); e.target.click(); }
+  if(e.key==='Escape') ['modal-novo','modal-edit','modal-del'].forEach(closeModal);
+});
+
+// ──────────── CARREGAR ────────────
+async function loadAll(){
+  const el = document.getElementById('sv-list');
+  el.innerHTML = '<div class="loading">Carregando...</div>';
+  const {data, error} = await sb.from('salvos_ideias').select('*')
+    .order('captured_date', {ascending:false}).order('fit', {ascending:false, nullsFirst:false}).limit(2000);
+  if(error){
+    el.innerHTML = isMissingTable(error)
+      ? `<div class="empty">A tabela dos salvos ainda não existe. Rode o <b>sql/48_salvos_ideias.sql</b> no SQL Editor do Supabase.</div>`
+      : `<div class="empty">Não foi possível carregar a lista. Tente atualizar a página.</div>`;
+    document.getElementById('sv-count').textContent = '';
+    document.getElementById('sv-more').innerHTML = '';
+    return;
+  }
+  items = data || [];
+  renderStats(); renderChips(); render();
+}
+
+function renderStats(){
+  const n = f => items.filter(f).length;
+  document.getElementById('st-novo').textContent    = n(i=>i.status==='novo' && i.analyzed_at);
+  document.getElementById('st-fav').textContent     = n(i=>i.favorite);
+  document.getElementById('st-postar').textContent  = n(i=>i.status==='vou_postar');
+  document.getElementById('st-postado').textContent = n(i=>i.status==='postado');
+}
+
+function renderChips(){
+  document.getElementById('fmt-chips').innerHTML = Object.keys(FORMATOS).map(f=>
+    `<button type="button" class="sv-chip" aria-pressed="${fmtFilter.has(f)}" onclick="toggleFmt('${f}')">${FORMATOS[f]}</button>`).join('');
+}
+function toggleFmt(f){ fmtFilter.has(f) ? fmtFilter.delete(f) : fmtFilter.add(f); renderChips(); resetPagina(); }
+function resetPagina(){ pagina = 1; render(); }
+
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('#tabs .dtab').forEach(el=>{
+    el.classList.toggle('active', el.dataset.tab===t);
+    el.setAttribute('aria-selected', el.dataset.tab===t);
+  });
+  resetPagina();
+}
+
+function mudarPeriodo(){
+  const custom = document.getElementById('sv-periodo').value === 'custom';
+  document.getElementById('sv-custom').style.display = custom ? 'inline-flex' : 'none';
+  resetPagina();
+}
+
+// Devolve [de, ate] em AAAA-MM-DD, ou null quando não há filtro de data.
+function intervalo(){
+  const p = document.getElementById('sv-periodo').value;
+  const hoje = todayISO();
+  if(p==='hoje')   return [hoje, hoje];
+  if(p==='semana') return [addDaysISO(hoje, -6), hoje];
+  if(p==='mes')    return [hoje.slice(0,8)+'01', hoje];
+  if(p==='ano')    return [hoje.slice(0,4)+'-01-01', hoje];
+  if(p==='custom'){
+    const de = document.getElementById('sv-de').value, ate = document.getElementById('sv-ate').value;
+    return (de || ate) ? [de || '0000-01-01', ate || '9999-12-31'] : null;
+  }
+  return null;
+}
+
+function filtered(){
+  const q = document.getElementById('sv-q').value.trim().toLowerCase();
+  const iv = intervalo();
+  return items.filter(i=>{
+    if(tab==='favoritos'){ if(!i.favorite) return false; }
+    else if(tab!=='tudo' && i.status!==tab) return false;
+    if(fmtFilter.size && !fmtFilter.has(i.idea_format)) return false;
+    if(iv && (i.captured_date < iv[0] || i.captured_date > iv[1])) return false;
+    if(q && ![i.idea_title,i.idea_hook,i.idea_outline,i.creator,i.hook_spoken,i.hook_visual,i.why_it_works,i.notes,i.source_url]
+      .some(s=>(s||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+// ──────────── DESENHAR ────────────
+const VAZIO = {
+  novo:         'Nenhuma ideia nova. A varredura dos salvos roda na segunda de manhã. Se quiser adiantar, use "Adicionar link".',
+  favoritos:    'Nenhuma favorita ainda. Clique na estrela das ideias que você pretende usar.',
+  vou_postar:   'Nada na fila. Marque "Vou postar" nas ideias aprovadas.',
+  postado:      'Nenhuma ideia postada ainda.',
+  fora_do_foco: 'Nada aqui. Ficam nesta aba os salvos que não combinam com o seu posicionamento.',
+  descartado:   'Nenhuma ideia descartada.',
+  tudo:         'A lista está vazia. Use "Adicionar link" ou espere a varredura de segunda.',
+};
+
+function render(){
+  const list = filtered();
+  const el = document.getElementById('sv-list');
+  const more = document.getElementById('sv-more');
+  if(!list.length){
+    const filtrando = document.getElementById('sv-q').value.trim() || fmtFilter.size || intervalo();
+    el.innerHTML = `<div class="empty">${filtrando ? 'Nenhum resultado com esses filtros. Limpe a busca ou troque o período.' : VAZIO[tab]}</div>`;
+    document.getElementById('sv-count').textContent = '';
+    more.innerHTML = '';
+    return;
+  }
+  const visiveis = list.slice(0, pagina*POR_PAGINA);
+  document.getElementById('sv-count').textContent = `Mostrando ${visiveis.length} de ${list.length}`;
+  el.innerHTML = visiveis.map(card).join('');
+  more.innerHTML = visiveis.length < list.length
+    ? `<button class="btn btn-ghost" onclick="pagina++;render()">Mostrar mais ${Math.min(POR_PAGINA, list.length-visiveis.length)}</button>` : '';
+}
+
+function card(i){
+  const pendente = !i.analyzed_at;
+  const item = (label, txt, full) => txt ? `<div class="sv-item${full?' full':''}"><b>${label}</b>${escapeHtml(txt)}</div>` : '';
+  const box  = (cls, label, txt, campo) => txt ? `<div class="sv-box ${cls}"><button type="button" class="sv-copy" onclick="copyText('${i.id}','${campo}')">copiar</button><b>${label}</b>${escapeHtml(txt)}</div>` : '';
+  const numeros = [i.likes!=null?`${i.likes.toLocaleString('pt-BR')} curtidas`:'', i.comments!=null?`${i.comments.toLocaleString('pt-BR')} comentários`:''].filter(Boolean).join(' · ');
+  const temRef = i.hook_spoken || i.hook_visual || i.structure || i.why_it_works || i.take || i.avoid || i.transcript;
+
+  return `<article class="sv-card st-${i.status}" id="sv-${i.id}">
+    <div class="sv-hd">
+      ${pendente ? '<span class="badge bg-amber">Aguardando análise</span>' : ''}
+      ${i.idea_format ? `<span class="badge bg-green">${FORMATOS[i.idea_format]||escapeHtml(i.idea_format)}</span>` : ''}
+      ${i.hook_type ? `<span class="badge bg-blue">${GANCHOS[i.hook_type]||escapeHtml(i.hook_type)}</span>` : ''}
+      ${i.idea_acdv ? `<span class="badge bg-purple">${escapeHtml(i.idea_acdv)}</span>` : ''}
+      ${i.fit ? `<span class="sv-fit" title="Aderência ao seu posicionamento: ${i.fit} de 5">${'★'.repeat(i.fit)}${'☆'.repeat(5-i.fit)}</span>` : ''}
+      <span class="sv-meta">${i.creator?escapeHtml(i.creator)+' · ':''}${fmtDateShort(i.captured_date)}${i.unsaved_at?' · fora dos salvos':''}</span>
+      <button type="button" class="sv-fav" aria-pressed="${!!i.favorite}" aria-label="${i.favorite?'Tirar dos favoritos':'Favoritar'}" title="${i.favorite?'Tirar dos favoritos':'Favoritar'}" onclick="toggleFav('${i.id}')">${ICO_ESTRELA}</button>
+    </div>
+
+    ${pendente
+      ? `<div class="sv-title pend">Este link entra na análise da próxima varredura.</div>`
+      : i.status==='fora_do_foco'
+        ? `<div class="sv-eyebrow">Fora do foco</div><div class="sv-title pend">${escapeHtml(i.discard_reason||'Não combina com o posicionamento.')}</div>`
+        : `<div class="sv-eyebrow">Ideia adaptada</div><div class="sv-title">${escapeHtml(i.idea_title||'Sem pauta definida')}</div>`}
+    ${box('hook','Gancho', i.idea_hook, 'idea_hook')}
+    ${box('out','Desenvolvimento', i.idea_outline, 'idea_outline')}
+
+    ${temRef ? `<details class="sv-ref">
+      <summary>Ver a referência original${numeros?` (${numeros})`:''}</summary>
+      <div class="sv-grid">
+        ${item('Gancho falado', i.hook_spoken)}
+        ${item('Gancho visual', i.hook_visual)}
+        ${item('Estrutura', i.structure, true)}
+        ${item('Convite final', i.cta)}
+        ${item('Por que funciona', i.why_it_works)}
+        ${item('O que levar', i.take)}
+        ${item('O que não levar', i.avoid)}
+        ${i.transcript?`<div class="sv-item full"><b>Transcrição (uso interno)</b><div class="sv-trans">${escapeHtml(i.transcript)}</div></div>`:''}
+      </div>
+    </details>` : ''}
+
+    <div class="sv-ft">
+      <a class="sv-src" href="${escapeHtml(i.source_url)}" target="_blank" rel="noopener noreferrer">Abrir o post original</a>
+      ${STATUS.map(s=>`<button type="button" class="sv-st" aria-pressed="${i.status===s.id}" onclick="setStatus('${i.id}','${s.id}')">${s.label}</button>`).join('')}
+      ${!pendente ? `<button type="button" class="sv-st" onclick="abrirEdicao('${i.id}')">Editar</button>` : ''}
+      ${i.status==='descartado' ? `<button type="button" class="sv-st" onclick="pedirExclusao('${i.id}')">Excluir de vez</button>` : ''}
+    </div>
+    <label class="sr-only" for="nt-${i.id}">Anotações</label>
+    <textarea class="form-input sv-notes" id="nt-${i.id}" maxlength="2000" placeholder="Anotações (como adaptar, quando postar, história real que combina...)" onblur="saveNotes('${i.id}', this.value)">${escapeHtml(i.notes||'')}</textarea>
+  </article>`;
+}
+
+// ──────────── AÇÕES DO CARTÃO ────────────
+async function update(id, patch){
+  const {error} = await sb.from('salvos_ideias').update(patch).eq('id', id);
+  if(error){ showToast('Não foi possível salvar. Tente de novo.', true); return false }
+  Object.assign(items.find(x=>x.id===id), patch);
+  return true;
+}
+async function setStatus(id, st){
+  const it = items.find(x=>x.id===id);
+  const novo = it.status===st ? 'novo' : st;   // clicar de novo desmarca
+  if(await update(id, {status:novo})){
+    showToast(novo==='novo' ? 'Voltou para Novas' : novo==='descartado' ? 'Descartada. Fica na aba Descartadas.' : 'Marcada');
+    renderStats(); render();
+  }
+}
+async function toggleFav(id){
+  const it = items.find(x=>x.id===id);
+  if(await update(id, {favorite:!it.favorite})){ renderStats(); render(); }
+}
+async function saveNotes(id, v){
+  const it = items.find(x=>x.id===id);
+  if((it.notes||'') === v) return;
+  if(await update(id, {notes:v||null})) showToast('Anotação salva');
+}
+function copyText(id, campo){
+  const it = items.find(x=>x.id===id);
+  navigator.clipboard.writeText(it[campo]||'').then(()=>showToast('Copiado'));
+}
+
+// ──────────── ADICIONAR LINK ────────────
+// Aceita só link de post ou Reels do Instagram, e guarda sem os parâmetros.
+function limparUrl(v){
+  const m = v.trim().match(/^https?:\/\/(?:www\.)?instagram\.com\/(?:[\w.]+\/)?(p|reel|reels)\/([\w-]{5,20})/i);
+  if(!m) return null;
+  return `https://www.instagram.com/${m[1].toLowerCase()==='p'?'p':'reel'}/${m[2]}/`;
+}
+function validarUrl(){
+  const v = document.getElementById('f-url').value;
+  const err = document.getElementById('err-f-url');
+  const ok = !v.trim() || !!limparUrl(v);
+  err.textContent = ok ? '' : 'Cole o link de um post ou Reels do Instagram, começando com https://www.instagram.com/';
+  return !!limparUrl(v);
+}
+function abrirNovo(){
+  document.getElementById('f-url').value = '';
+  document.getElementById('f-nota').value = '';
+  document.getElementById('err-f-url').textContent = '';
+  openModal('modal-novo');
+  document.getElementById('f-url').focus();
+}
+async function salvarNovo(){
+  if(!validarUrl()){
+    document.getElementById('err-f-url').textContent = 'Cole o link de um post ou Reels do Instagram, começando com https://www.instagram.com/';
+    return;
+  }
+  const url = limparUrl(document.getElementById('f-url').value);
+  if(items.some(i=>i.source_url.replace('/reel/','/p/')===url.replace('/reel/','/p/'))){
+    document.getElementById('err-f-url').textContent = 'Este post já está na lista. Procure pelo link na aba Tudo.';
+    return;
+  }
+  const btn = document.getElementById('btn-novo');
+  btn.disabled = true;
+  const {error} = await sb.from('salvos_ideias').insert({
+    source_url:url, origin:'link', notes:document.getElementById('f-nota').value.trim().slice(0,500) || null });
+  btn.disabled = false;
+  if(error){ showToast('Não foi possível adicionar. Tente de novo.', true); return; }
+  closeModal('modal-novo');
+  showToast('Link adicionado. Entra na próxima varredura.');
+  await loadAll();
+}
+
+// ──────────── EDITAR A IDEIA ────────────
+function abrirEdicao(id){
+  const it = items.find(x=>x.id===id);
+  editId = id;
+  document.getElementById('f-ititle').value = it.idea_title || '';
+  document.getElementById('f-ihook').value  = it.idea_hook || '';
+  document.getElementById('f-iout').value   = it.idea_outline || '';
+  document.getElementById('f-ifmt').value   = it.idea_format || '';
+  document.getElementById('err-f-ititle').textContent = '';
+  openModal('modal-edit');
+  document.getElementById('f-ititle').focus();
+}
+async function salvarEdicao(){
+  const titulo = document.getElementById('f-ititle').value.trim();
+  if(!titulo){ document.getElementById('err-f-ititle').textContent = 'Escreva a pauta em uma frase.'; return; }
+  const patch = {
+    idea_title:   titulo.slice(0,300),
+    idea_hook:    document.getElementById('f-ihook').value.trim() || null,
+    idea_outline: document.getElementById('f-iout').value.trim() || null,
+    idea_format:  document.getElementById('f-ifmt').value || null,
+  };
+  if(await update(editId, patch)){ closeModal('modal-edit'); showToast('Ideia salva'); render(); }
+}
+
+// ──────────── EXCLUIR DE VEZ (só a partir das descartadas) ────────────
+function pedirExclusao(id){ delId = id; openModal('modal-del'); }
+async function confirmarExclusao(){
+  const {error} = await sb.from('salvos_ideias').delete().eq('id', delId).eq('status','descartado');
+  closeModal('modal-del');
+  if(error){ showToast('Não foi possível excluir. Tente de novo.', true); return; }
+  items = items.filter(x=>x.id!==delId);
+  showToast('Ficha excluída');
+  renderStats(); render();
+}
+
+// ──────────── EXPORTAR ────────────
+// CSV com ponto e vírgula e marca de UTF-8, para abrir certo no Excel em português.
+function exportCSV(){
+  const list = filtered();
+  if(!list.length){ showToast('Nada para exportar com esses filtros.', true); return; }
+  const cols = [['captured_date','Data'],['status','Situação'],['favorite','Favorita'],['idea_format','Formato'],
+    ['idea_title','Pauta'],['idea_hook','Gancho'],['idea_outline','Desenvolvimento'],['hook_type','Tipo de gancho'],
+    ['fit','Aderência'],['creator','Criador'],['source_url','Link'],['notes','Anotações']];
+  const cel = v => { let s = v==null ? '' : v===true ? 'sim' : v===false ? 'não' : String(v);
+    if(/^[=+\-@]/.test(s)) s = "'"+s;                       // evita fórmula ao abrir na planilha
+    return '"'+s.replace(/"/g,'""')+'"'; };
+  const linhas = [cols.map(c=>cel(c[1])).join(';')].concat(
+    list.map(i=>cols.map(c=>cel(c[0]==='captured_date' ? String(i[c[0]]||'').split('-').reverse().join('/') : i[c[0]])).join(';')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+linhas.join('\r\n')], {type:'text/csv;charset=utf-8'}));
+  a.download = `salvos_ideias_${todayISO()}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('Arquivo baixado');
+}
+</script>
+</body>
+</html>
